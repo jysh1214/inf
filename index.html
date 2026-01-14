@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inf - Diagram Note-Taking</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            background: #f5f5f5;
+        }
+
+        #canvas {
+            display: block;
+            cursor: default;
+            background: white;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+        }
+
+        #controls h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+        }
+
+        #controls ul {
+            list-style: none;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        #controls li {
+            margin-bottom: 5px;
+        }
+
+        #controls kbd {
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:active {
+            background: #004085;
+        }
+
+        .node-types {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .node-types h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .node-type-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .node-btn {
+            background: #f8f9fa;
+            color: #495057;
+            border: 2px solid #dee2e6;
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 0;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .node-btn:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .node-btn:active {
+            background: #dee2e6;
+        }
+
+        .node-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .node-btn.active:hover {
+            background: #0056b3;
+            border-color: #0056b3;
+        }
+
+        .text-align-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .text-align-buttons .node-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        .file-ops-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div id="controls">
+        <h3>Inf - v0.1</h3>
+
+        <div class="node-types">
+            <h4>Node Types</h4>
+            <div class="node-type-buttons">
+                <button onclick="setNodeType('rectangle')" class="node-btn active" id="btn-rectangle">Rectangle</button>
+                <button onclick="setNodeType('circle')" class="node-btn" id="btn-circle">Circle</button>
+                <button onclick="setNodeType('diamond')" class="node-btn" id="btn-diamond">Diamond</button>
+                <button onclick="setNodeType('text')" class="node-btn" id="btn-text">Text</button>
+            </div>
+        </div>
+
+        <div class="node-types">
+            <h4>Text Alignment</h4>
+            <div class="text-align-buttons">
+                <button onclick="setTextAlign('left')" class="node-btn" id="btn-align-left">L</button>
+                <button onclick="setTextAlign('center')" class="node-btn active" id="btn-align-center">C</button>
+                <button onclick="setTextAlign('right')" class="node-btn" id="btn-align-right">R</button>
+            </div>
+        </div>
+
+        <div class="node-types">
+            <h4>Connection Type</h4>
+            <div class="node-type-buttons">
+                <button onclick="setConnectionType(true)" class="node-btn" id="btn-directed">Directed →</button>
+                <button onclick="setConnectionType(false)" class="node-btn" id="btn-undirected">Undirected —</button>
+            </div>
+        </div>
+
+        <div class="node-types">
+            <h4>File Operations</h4>
+            <div class="file-ops-buttons">
+                <button onclick="saveToJSON()" class="node-btn">Save</button>
+                <button onclick="document.getElementById('file-input').click()" class="node-btn">Load</button>
+                <button onclick="exportToPNG()" class="node-btn">Export</button>
+            </div>
+        </div>
+
+        <button onclick="clearCanvas()">Clear Canvas</button>
+    </div>
+
+    <input type="file" id="file-input" accept=".json" style="display: none;" onchange="loadFromJSON(event)">
+
+    <div id="status">Ready</div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let nextId = 1;
+
+        // Constants
+        const HANDLE_SIZE = 8;
+        const CONNECTION_THRESHOLD = 8;
+        const MIN_NODE_SIZE = 40;
+        const DEFAULT_CIRCLE_RADIUS = 50;
+        const DEFAULT_DIAMOND_SIZE = 100;
+        const DEFAULT_RECTANGLE_WIDTH = 120;
+        const DEFAULT_RECTANGLE_HEIGHT = 80;
+        const DEFAULT_TEXT_WIDTH = 150;
+        const DEFAULT_TEXT_HEIGHT = 60;
+        const ARROWHEAD_OFFSET = 3;
+        const MAX_TEXT_LENGTH = 1000;
+        const WINDOW_RESIZE_DEBOUNCE = 100;
+        const CURSOR_BLINK_RATE = 500;
+        const LINE_HEIGHT = 18;
+
+        // State
+        let nodes = [];
+        let connections = [];
+        let selectedNode = null;
+        let selectedConnection = null;
+        let hoveredNode = null;
+        let connectionMode = false;
+        let connectionStart = null;
+        let directedMode = true;
+        let currentNodeType = 'rectangle';
+        let currentTextAlign = 'center';
+        let editingNode = null;
+        let copiedNode = null;
+
+        // Interaction state
+        let isDragging = false;
+        let isResizing = false;
+        let resizeCorner = null;
+        let dragOffset = { x: 0, y: 0 };
+
+        // Node lookup map for performance
+        let nodeMap = new Map();
+
+        // Debounce timer for window resize
+        let resizeTimer = null;
+
+        // Auto-save timer
+        let autoSaveTimer = null;
+        const AUTO_SAVE_DELAY = 1000; // Save 1 second after last change
+        let autoSaveStatusTimer = null;
+
+        // Cursor blink state for text editing
+        let cursorVisible = true;
+        let cursorBlinkInterval = null;
+
+        // Start cursor blinking
+        function startCursorBlink() {
+            cursorVisible = true;
+            if (cursorBlinkInterval) {
+                clearInterval(cursorBlinkInterval);
+            }
+            cursorBlinkInterval = setInterval(() => {
+                cursorVisible = !cursorVisible;
+                if (editingNode) {
+                    render();
+                }
+            }, CURSOR_BLINK_RATE);
+        }
+
+        // Stop cursor blinking
+        function stopCursorBlink() {
+            if (cursorBlinkInterval) {
+                clearInterval(cursorBlinkInterval);
+                cursorBlinkInterval = null;
+            }
+            cursorVisible = true;
+        }
+
+        // Auto-save to localStorage (debounced)
+        function triggerAutoSave() {
+            if (autoSaveTimer) {
+                clearTimeout(autoSaveTimer);
+            }
+            autoSaveTimer = setTimeout(autoSave, AUTO_SAVE_DELAY);
+        }
+
+        function autoSave() {
+            try {
+                const saveData = {
+                    version: '1.0',
+                    nodes: nodes,
+                    connections: connections,
+                    nextId: nextId,
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.setItem('inf-autosave', JSON.stringify(saveData));
+                console.log('Auto-saved at', saveData.timestamp);
+
+                // Brief visual feedback (2 seconds)
+                const currentStatus = document.getElementById('status').textContent;
+                setStatus('✓ Auto-saved');
+                if (autoSaveStatusTimer) {
+                    clearTimeout(autoSaveStatusTimer);
+                }
+                autoSaveStatusTimer = setTimeout(() => {
+                    // Only restore if status hasn't been changed by user action
+                    if (document.getElementById('status').textContent === '✓ Auto-saved') {
+                        setStatus('Ready');
+                    }
+                }, 2000);
+            } catch (error) {
+                console.error('Auto-save failed:', error);
+                if (error.name === 'QuotaExceededError') {
+                    setStatus('⚠️ Auto-save failed: Storage full. Please save manually.');
+                } else {
+                    setStatus('⚠️ Auto-save failed. Please save manually.');
+                }
+            }
+        }
+
+        // Load from localStorage on startup
+        function autoLoad() {
+            try {
+                const saved = localStorage.getItem('inf-autosave');
+                if (!saved) {
+                    console.log('No auto-save found');
+                    return false;
+                }
+
+                const saveData = JSON.parse(saved);
+
+                // Validate the data structure
+                if (!saveData.nodes || !Array.isArray(saveData.nodes)) {
+                    console.warn('Invalid auto-save data: missing nodes array');
+                    return false;
+                }
+
+                // Validate each node has required properties
+                for (let node of saveData.nodes) {
+                    if (!node.id || !node.type) {
+                        console.warn('Invalid auto-save data: node missing required properties', node);
+                        return false;
+                    }
+                    // Check type-specific required properties
+                    if (node.type === 'circle' && node.radius === undefined) {
+                        console.warn('Invalid auto-save data: circle node missing radius', node);
+                        return false;
+                    }
+                    if ((node.type === 'rectangle' || node.type === 'diamond' || node.type === 'text') &&
+                        (node.width === undefined || node.height === undefined)) {
+                        console.warn('Invalid auto-save data: node missing dimensions', node);
+                        return false;
+                    }
+                }
+
+                // Load the data
+                nodes = saveData.nodes;
+                connections = saveData.connections || [];
+                nextId = saveData.nextId || 1;
+
+                // Rebuild nodeMap
+                nodeMap.clear();
+                nodes.forEach(node => {
+                    nodeMap.set(node.id, node);
+                });
+
+                render();
+                console.log('Auto-loaded from', saveData.timestamp);
+                setStatus(`Restored ${nodes.length} nodes from auto-save`);
+                return true;
+            } catch (error) {
+                console.error('Auto-load failed:', error);
+                return false;
+            }
+        }
+
+        // Helper function to constrain node position to canvas bounds
+        function constrainNodePosition(node) {
+            const margin = 20; // Keep at least 20px of node visible
+
+            if (node.type === 'circle') {
+                // For circles, constrain center point
+                node.x = Math.max(margin - node.radius, Math.min(canvas.width - margin + node.radius, node.x));
+                node.y = Math.max(margin - node.radius, Math.min(canvas.height - margin + node.radius, node.y));
+            } else {
+                // For rectangles, diamonds, and text
+                const minX = margin - node.width;
+                const maxX = canvas.width - margin;
+                const minY = margin - node.height;
+                const maxY = canvas.height - margin;
+
+                node.x = Math.max(minX, Math.min(maxX, node.x));
+                node.y = Math.max(minY, Math.min(maxY, node.y));
+            }
+        }
+
+        // Initialize canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            render();
+        }
+
+        // Debounced resize handler
+        function handleResize() {
+            if (resizeTimer) {
+                clearTimeout(resizeTimer);
+            }
+            resizeTimer = setTimeout(resizeCanvas, WINDOW_RESIZE_DEBOUNCE);
+        }
+
+        window.addEventListener('resize', handleResize);
+        resizeCanvas();
+
+        // Helper functions
+        function setStatus(text) {
+            document.getElementById('status').textContent = text;
+        }
+
+        function setNodeType(type) {
+            currentNodeType = type;
+            // Update button states for node type buttons only
+            document.getElementById('btn-rectangle').classList.remove('active');
+            document.getElementById('btn-circle').classList.remove('active');
+            document.getElementById('btn-diamond').classList.remove('active');
+            document.getElementById('btn-text').classList.remove('active');
+            document.getElementById(`btn-${type}`).classList.add('active');
+            setStatus(`Node type: ${type}`);
+        }
+
+        // Helper function to update alignment button states
+        function updateAlignmentButtons(align) {
+            document.getElementById('btn-align-left').classList.remove('active');
+            document.getElementById('btn-align-center').classList.remove('active');
+            document.getElementById('btn-align-right').classList.remove('active');
+            document.getElementById(`btn-align-${align}`).classList.add('active');
+        }
+
+        function setTextAlign(align) {
+            currentTextAlign = align;
+            updateAlignmentButtons(align);
+
+            // If a node is selected, update its alignment
+            if (selectedNode) {
+                selectedNode.textAlign = align;
+                render();
+                setStatus(`Text alignment: ${align}`);
+                triggerAutoSave();
+            } else {
+                setStatus(`Default text alignment: ${align}`);
+            }
+        }
+
+        function setConnectionType(directed) {
+            if (connectionMode) {
+                // Already in connection mode, just switch the type
+                directedMode = directed;
+                // Update button states
+                document.getElementById('btn-directed').classList.remove('active');
+                document.getElementById('btn-undirected').classList.remove('active');
+                document.getElementById(directed ? 'btn-directed' : 'btn-undirected').classList.add('active');
+                setStatus(`Connection type changed to ${directed ? 'Directed (arrows)' : 'Undirected (lines)'} - Click target node`);
+                // Only render if there's a connection preview to update
+                if (hoveredNode) {
+                    render();
+                }
+            } else if (selectedNode) {
+                // Start connection mode if a node is selected
+                directedMode = directed;
+                connectionMode = true;
+                connectionStart = selectedNode;
+                // Update button states
+                document.getElementById('btn-directed').classList.remove('active');
+                document.getElementById('btn-undirected').classList.remove('active');
+                document.getElementById(directed ? 'btn-directed' : 'btn-undirected').classList.add('active');
+                setStatus(`Connection mode: Click target node (press Esc to cancel)`);
+                render();
+            } else {
+                // No node selected, can't start connection - don't activate button
+                setStatus(`Select a node first, then click connection type to start connecting`);
+            }
+        }
+
+        function clearConnectionButtons() {
+            document.getElementById('btn-directed').classList.remove('active');
+            document.getElementById('btn-undirected').classList.remove('active');
+        }
+
+        function clearCanvas() {
+            if (confirm('Clear all nodes and connections?')) {
+                stopCursorBlink();
+                nodes = [];
+                connections = [];
+                nodeMap.clear();
+                selectedNode = null;
+                selectedConnection = null;
+                hoveredNode = null;
+                editingNode = null;
+                connectionMode = false;
+                connectionStart = null;
+
+                // Clear auto-save
+                localStorage.removeItem('inf-autosave');
+
+                render();
+                setStatus('Canvas cleared');
+            }
+        }
+
+        function saveToJSON() {
+            // Prompt for filename
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const defaultFilename = `inf-diagram-${timestamp}`;
+            const userFilename = prompt('Enter filename (without .json extension):', defaultFilename);
+
+            // If user cancels, don't save
+            if (userFilename === null) {
+                setStatus('Save cancelled');
+                return;
+            }
+
+            // Sanitize filename - remove invalid characters
+            const sanitized = userFilename.trim().replace(/[<>:"/\\|?*]/g, '-');
+            const filename = sanitized || defaultFilename;
+
+            // Create save data object
+            const saveData = {
+                version: '1.0',
+                nodes: nodes,
+                connections: connections,
+                nextId: nextId
+            };
+
+            // Convert to JSON string
+            const jsonString = JSON.stringify(saveData, null, 2);
+
+            // Create blob and download
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${filename}.json`;
+
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            setStatus(`Diagram saved to ${a.download}`);
+        }
+
+        function loadFromJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const saveData = JSON.parse(e.target.result);
+
+                    // Validate the data structure
+                    if (!saveData.nodes || !Array.isArray(saveData.nodes)) {
+                        throw new Error('Invalid file format: missing nodes array');
+                    }
+                    if (!saveData.connections || !Array.isArray(saveData.connections)) {
+                        throw new Error('Invalid file format: missing connections array');
+                    }
+
+                    // Stop any ongoing editing
+                    stopCursorBlink();
+
+                    // Load the data
+                    nodes = saveData.nodes;
+                    connections = saveData.connections;
+
+                    // Calculate nextId safely
+                    if (saveData.nextId) {
+                        nextId = saveData.nextId;
+                    } else {
+                        const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id)];
+                        nextId = allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
+                    }
+
+                    // Rebuild nodeMap
+                    nodeMap.clear();
+                    nodes.forEach(node => {
+                        nodeMap.set(node.id, node);
+                    });
+
+                    // Reset state
+                    selectedNode = null;
+                    selectedConnection = null;
+                    hoveredNode = null;
+                    editingNode = null;
+                    connectionMode = false;
+                    connectionStart = null;
+                    clearConnectionButtons();
+
+                    // Reset alignment buttons to default
+                    updateAlignmentButtons(currentTextAlign);
+
+                    render();
+                    setStatus(`Loaded ${nodes.length} nodes and ${connections.length} connections from ${file.name}`);
+
+                    // Trigger auto-save after loading
+                    triggerAutoSave();
+                } catch (error) {
+                    setStatus(`⚠️ Error loading file: ${error.message}`);
+                    console.error('Load error:', error);
+                }
+            };
+
+            reader.onerror = function() {
+                setStatus('⚠️ Error reading file');
+            };
+
+            reader.readAsText(file);
+
+            // Reset the file input so the same file can be loaded again
+            event.target.value = '';
+        }
+
+        function exportToPNG() {
+            // Check if canvas is empty
+            if (nodes.length === 0 && connections.length === 0) {
+                if (!confirm('Canvas is empty. Export anyway?')) {
+                    setStatus('Export cancelled');
+                    return;
+                }
+            }
+
+            // Prompt for filename
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const defaultFilename = `inf-diagram-${timestamp}`;
+            const userFilename = prompt('Enter filename (without .png extension):', defaultFilename);
+
+            // If user cancels, don't export
+            if (userFilename === null) {
+                setStatus('Export cancelled');
+                return;
+            }
+
+            // Sanitize filename - remove invalid characters
+            const sanitized = userFilename.trim().replace(/[<>:"/\\|?*]/g, '-');
+            const filename = sanitized || defaultFilename;
+
+            // Convert canvas to blob
+            canvas.toBlob(function(blob) {
+                if (!blob) {
+                    setStatus('⚠️ Error exporting image');
+                    return;
+                }
+
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${filename}.png`;
+
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                setStatus(`Image exported to ${a.download}`);
+            }, 'image/png');
+        }
+
+        function createNode(x, y, type = 'rectangle') {
+            const baseNode = {
+                id: nextId++,
+                type: type,
+                text: '',
+                textAlign: currentTextAlign
+            };
+
+            let node;
+            switch (type) {
+                case 'circle':
+                    node = {
+                        ...baseNode,
+                        x: x,  // Center x
+                        y: y,  // Center y
+                        radius: DEFAULT_CIRCLE_RADIUS
+                    };
+                    break;
+                case 'diamond':
+                    node = {
+                        ...baseNode,
+                        x: x - DEFAULT_DIAMOND_SIZE / 2,
+                        y: y - DEFAULT_DIAMOND_SIZE / 2,
+                        width: DEFAULT_DIAMOND_SIZE,
+                        height: DEFAULT_DIAMOND_SIZE
+                    };
+                    break;
+                case 'text':
+                    node = {
+                        ...baseNode,
+                        x: x - DEFAULT_TEXT_WIDTH / 2,
+                        y: y - DEFAULT_TEXT_HEIGHT / 2,
+                        width: DEFAULT_TEXT_WIDTH,
+                        height: DEFAULT_TEXT_HEIGHT
+                    };
+                    break;
+                case 'rectangle':
+                default:
+                    node = {
+                        ...baseNode,
+                        x: x - DEFAULT_RECTANGLE_WIDTH / 2,
+                        y: y - DEFAULT_RECTANGLE_HEIGHT / 2,
+                        width: DEFAULT_RECTANGLE_WIDTH,
+                        height: DEFAULT_RECTANGLE_HEIGHT
+                    };
+                    break;
+            }
+
+            nodeMap.set(node.id, node);
+            return node;
+        }
+
+        function createConnection(fromId, toId) {
+            // Prevent self-connections
+            if (fromId === toId) {
+                return null;
+            }
+
+            // Prevent duplicate connections
+            const exists = connections.some(conn =>
+                (conn.fromId === fromId && conn.toId === toId) ||
+                (conn.fromId === toId && conn.toId === fromId)
+            );
+
+            if (exists) {
+                return null;
+            }
+
+            return {
+                id: nextId++,
+                fromId: fromId,
+                toId: toId,
+                directed: directedMode
+            };
+        }
+
+        function isPointInNode(x, y, node) {
+            switch (node.type) {
+                case 'circle':
+                    const dx = x - node.x;
+                    const dy = y - node.y;
+                    return Math.sqrt(dx * dx + dy * dy) <= node.radius;
+
+                case 'diamond':
+                    // Point-in-polygon test for diamond
+                    const centerX = node.x + node.width / 2;
+                    const centerY = node.y + node.height / 2;
+
+                    // Check if point is inside diamond using cross product
+                    const vertices = [
+                        { x: centerX, y: node.y },  // Top
+                        { x: node.x + node.width, y: centerY },  // Right
+                        { x: centerX, y: node.y + node.height },  // Bottom
+                        { x: node.x, y: centerY }  // Left
+                    ];
+
+                    let inside = false;
+                    for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+                        const xi = vertices[i].x, yi = vertices[i].y;
+                        const xj = vertices[j].x, yj = vertices[j].y;
+
+                        const intersect = ((yi > y) !== (yj > y)) &&
+                            (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                        if (intersect) inside = !inside;
+                    }
+                    return inside;
+
+                case 'text':
+                case 'rectangle':
+                default:
+                    return x >= node.x && x <= node.x + node.width &&
+                           y >= node.y && y <= node.y + node.height;
+            }
+        }
+
+        function getNodeAtPoint(x, y) {
+            // Check from top to bottom (last drawn = on top)
+            for (let i = nodes.length - 1; i >= 0; i--) {
+                if (isPointInNode(x, y, nodes[i])) {
+                    return nodes[i];
+                }
+            }
+            return null;
+        }
+
+        function getResizeCorner(x, y, node) {
+            if (!node) return null;
+
+            switch (node.type) {
+                case 'circle':
+                    // 8 handles around circle
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i * Math.PI * 2) / 8;
+                        const handleX = node.x + Math.cos(angle) * node.radius;
+                        const handleY = node.y + Math.sin(angle) * node.radius;
+                        const dx = x - handleX;
+                        const dy = y - handleY;
+                        if (Math.sqrt(dx * dx + dy * dy) <= HANDLE_SIZE) {
+                            return `circle-${i}`;
+                        }
+                    }
+                    return null;
+
+                case 'diamond':
+                    // 4 handles at diamond points
+                    const centerX = node.x + node.width / 2;
+                    const centerY = node.y + node.height / 2;
+                    const corners = [
+                        { name: 'n', x: centerX, y: node.y },  // Top
+                        { name: 'e', x: node.x + node.width, y: centerY },  // Right
+                        { name: 's', x: centerX, y: node.y + node.height },  // Bottom
+                        { name: 'w', x: node.x, y: centerY }  // Left
+                    ];
+
+                    for (let corner of corners) {
+                        const dx = x - corner.x;
+                        const dy = y - corner.y;
+                        if (Math.sqrt(dx * dx + dy * dy) <= HANDLE_SIZE) {
+                            return corner.name;
+                        }
+                    }
+                    return null;
+
+                case 'text':
+                case 'rectangle':
+                default:
+                    // 4 corner handles
+                    const rectCorners = [
+                        { name: 'nw', x: node.x, y: node.y },
+                        { name: 'ne', x: node.x + node.width, y: node.y },
+                        { name: 'sw', x: node.x, y: node.y + node.height },
+                        { name: 'se', x: node.x + node.width, y: node.y + node.height }
+                    ];
+
+                    for (let corner of rectCorners) {
+                        const dx = x - corner.x;
+                        const dy = y - corner.y;
+                        if (Math.sqrt(dx * dx + dy * dy) <= HANDLE_SIZE) {
+                            return corner.name;
+                        }
+                    }
+                    return null;
+            }
+        }
+
+        function distanceToLineSegment(px, py, x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const lengthSquared = dx * dx + dy * dy;
+
+            if (lengthSquared === 0) {
+                // Line segment is actually a point
+                const dpx = px - x1;
+                const dpy = py - y1;
+                return Math.sqrt(dpx * dpx + dpy * dpy);
+            }
+
+            // Calculate projection of point onto line
+            let t = ((px - x1) * dx + (py - y1) * dy) / lengthSquared;
+            t = Math.max(0, Math.min(1, t));
+
+            // Find closest point on line segment
+            const closestX = x1 + t * dx;
+            const closestY = y1 + t * dy;
+
+            // Calculate distance
+            const distX = px - closestX;
+            const distY = py - closestY;
+            return Math.sqrt(distX * distX + distY * distY);
+        }
+
+        function getConnectionAtPoint(x, y) {
+            for (let i = connections.length - 1; i >= 0; i--) {
+                const conn = connections[i];
+                const fromNode = nodeMap.get(conn.fromId);
+                const toNode = nodeMap.get(conn.toId);
+
+                if (fromNode && toNode) {
+                    const fromCenter = getNodeCenter(fromNode);
+                    const toCenter = getNodeCenter(toNode);
+
+                    // Calculate edge points on both nodes
+                    const startPoint = getNodeEdgePoint(toCenter.x, toCenter.y, fromNode);
+                    const endPoint = getNodeEdgePoint(fromCenter.x, fromCenter.y, toNode);
+
+                    const distance = distanceToLineSegment(x, y, startPoint.x, startPoint.y, endPoint.x, endPoint.y);
+                    if (distance <= CONNECTION_THRESHOLD) {
+                        return conn;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function drawNode(node) {
+            const isSelected = node === selectedNode;
+
+            switch (node.type) {
+                case 'circle':
+                    drawCircleNode(node, isSelected);
+                    break;
+                case 'diamond':
+                    drawDiamondNode(node, isSelected);
+                    break;
+                case 'text':
+                    drawTextNode(node, isSelected);
+                    break;
+                case 'rectangle':
+                default:
+                    drawRectangleNode(node, isSelected);
+                    break;
+            }
+        }
+
+        function drawRectangleNode(node, isSelected) {
+            const isEditing = node === editingNode;
+
+            // Fill
+            ctx.fillStyle = isEditing ? '#fff9c4' : (isSelected ? '#e3f2fd' : '#fff');
+            ctx.fillRect(node.x, node.y, node.width, node.height);
+
+            // Border
+            ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
+            ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1);
+            ctx.strokeRect(node.x, node.y, node.width, node.height);
+
+            // Text
+            drawNodeText(node, node.x + node.width / 2, node.y + node.height / 2, node.width - 10);
+
+            // Draw resize handles if selected
+            if (isSelected) {
+                const corners = [
+                    { x: node.x, y: node.y },
+                    { x: node.x + node.width, y: node.y },
+                    { x: node.x, y: node.y + node.height },
+                    { x: node.x + node.width, y: node.y + node.height }
+                ];
+                drawResizeHandles(corners);
+            }
+        }
+
+        function drawCircleNode(node, isSelected) {
+            const isEditing = node === editingNode;
+
+            // Fill
+            ctx.fillStyle = isEditing ? '#fff9c4' : (isSelected ? '#e3f2fd' : '#fff');
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Border
+            ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
+            ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1);
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Text
+            drawNodeText(node, node.x, node.y, node.radius * 1.8);
+
+            // Draw resize handles if selected (8 points around circle)
+            if (isSelected) {
+                const handles = [];
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i * Math.PI * 2) / 8;
+                    handles.push({
+                        x: node.x + Math.cos(angle) * node.radius,
+                        y: node.y + Math.sin(angle) * node.radius
+                    });
+                }
+                drawResizeHandles(handles);
+            }
+        }
+
+        function drawDiamondNode(node, isSelected) {
+            const isEditing = node === editingNode;
+            const centerX = node.x + node.width / 2;
+            const centerY = node.y + node.height / 2;
+
+            // Fill
+            ctx.fillStyle = isEditing ? '#fff9c4' : (isSelected ? '#e3f2fd' : '#fff');
+            ctx.beginPath();
+            ctx.moveTo(centerX, node.y);  // Top
+            ctx.lineTo(node.x + node.width, centerY);  // Right
+            ctx.lineTo(centerX, node.y + node.height);  // Bottom
+            ctx.lineTo(node.x, centerY);  // Left
+            ctx.closePath();
+            ctx.fill();
+
+            // Border
+            ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
+            ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1);
+            ctx.beginPath();
+            ctx.moveTo(centerX, node.y);
+            ctx.lineTo(node.x + node.width, centerY);
+            ctx.lineTo(centerX, node.y + node.height);
+            ctx.lineTo(node.x, centerY);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Text
+            drawNodeText(node, centerX, centerY, node.width * 0.7);
+
+            // Draw resize handles if selected (4 diamond points)
+            if (isSelected) {
+                const corners = [
+                    { x: centerX, y: node.y },  // Top
+                    { x: node.x + node.width, y: centerY },  // Right
+                    { x: centerX, y: node.y + node.height },  // Bottom
+                    { x: node.x, y: centerY }  // Left
+                ];
+                drawResizeHandles(corners);
+            }
+        }
+
+        function drawTextNode(node, isSelected) {
+            const isEditing = node === editingNode;
+
+            // NO border - only draw text
+            // Text
+            drawNodeText(node, node.x + node.width / 2, node.y + node.height / 2, node.width - 10);
+
+            // Draw resize handles if selected or editing (show bounds even though no border)
+            if (isSelected || isEditing) {
+                // Draw faint selection rectangle
+                ctx.strokeStyle = isEditing ? '#ffa000' : '#2196f3';
+                ctx.lineWidth = isEditing ? 2 : 1;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(node.x, node.y, node.width, node.height);
+                ctx.setLineDash([]);
+
+                const corners = [
+                    { x: node.x, y: node.y },
+                    { x: node.x + node.width, y: node.y },
+                    { x: node.x, y: node.y + node.height },
+                    { x: node.x + node.width, y: node.y + node.height }
+                ];
+                drawResizeHandles(corners);
+            }
+        }
+
+        function drawNodeText(node, centerX, centerY, maxWidth) {
+            const isEditing = node === editingNode;
+            const displayText = node.text || (isEditing ? '' : '');
+            const textAlign = node.textAlign || 'center';
+
+            ctx.fillStyle = '#333';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = textAlign;
+            ctx.textBaseline = 'middle';
+
+            if (!displayText && !isEditing) return;
+
+            // Save context and set up clipping region for the node
+            ctx.save();
+            if (node.type === 'circle') {
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+                ctx.clip();
+            } else if (node.type === 'diamond') {
+                const cx = node.x + node.width / 2;
+                const cy = node.y + node.height / 2;
+                ctx.beginPath();
+                ctx.moveTo(cx, node.y);
+                ctx.lineTo(node.x + node.width, cy);
+                ctx.lineTo(cx, node.y + node.height);
+                ctx.lineTo(node.x, cy);
+                ctx.closePath();
+                ctx.clip();
+            } else {
+                // Rectangle and text nodes
+                ctx.beginPath();
+                ctx.rect(node.x, node.y, node.width, node.height);
+                ctx.clip();
+            }
+
+            // Calculate text x position based on alignment (with padding for left/right)
+            const TEXT_PADDING = 8;
+            let textX;
+            if (textAlign === 'left') {
+                textX = centerX - maxWidth / 2 + TEXT_PADDING;
+            } else if (textAlign === 'right') {
+                textX = centerX + maxWidth / 2 - TEXT_PADDING;
+            } else {
+                textX = centerX;
+            }
+
+            // Split by newlines first, then wrap each line
+            const paragraphs = displayText.split('\n');
+            const lines = [];
+
+            for (let paragraph of paragraphs) {
+                if (paragraph === '') {
+                    // Empty line (newline)
+                    lines.push('');
+                    continue;
+                }
+
+                // Word wrapping for this paragraph
+                const words = paragraph.split(' ');
+                let currentLine = '';
+
+                for (let word of words) {
+                    const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                    const metrics = ctx.measureText(testLine);
+
+                    if (metrics.width > maxWidth && currentLine) {
+                        // Current line is full, push it
+                        lines.push(currentLine);
+                        currentLine = word;
+
+                        // Check if the single word itself is too long
+                        if (ctx.measureText(word).width > maxWidth) {
+                            // Break the word into chunks
+                            let tempWord = '';
+                            for (let char of word) {
+                                const testWord = tempWord + char;
+                                if (ctx.measureText(testWord).width > maxWidth && tempWord) {
+                                    lines.push(tempWord);
+                                    tempWord = char;
+                                } else {
+                                    tempWord = testWord;
+                                }
+                            }
+                            currentLine = tempWord;
+                        }
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                if (currentLine) lines.push(currentLine);
+            }
+
+            const startY = centerY - (lines.length - 1) * LINE_HEIGHT / 2;
+
+            lines.forEach((line, i) => {
+                ctx.fillText(line, textX, startY + i * LINE_HEIGHT);
+            });
+
+            // Draw cursor if editing - place at end of last line (with blinking)
+            if (isEditing && cursorVisible) {
+                const lastLine = lines[lines.length - 1] || '';
+                const lastLineY = startY + (lines.length - 1) * LINE_HEIGHT;
+
+                // Calculate cursor position based on alignment
+                let cursorX;
+                if (textAlign === 'left') {
+                    cursorX = textX + ctx.measureText(lastLine).width;
+                } else if (textAlign === 'right') {
+                    cursorX = textX; // Text ends at textX for right alignment
+                } else {
+                    cursorX = textX + ctx.measureText(lastLine).width / 2;
+                }
+
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(cursorX + 2, lastLineY - 8);
+                ctx.lineTo(cursorX + 2, lastLineY + 8);
+                ctx.stroke();
+            }
+
+            // Restore context (remove clipping)
+            ctx.restore();
+        }
+
+        function drawResizeHandles(corners) {
+            ctx.fillStyle = '#2196f3';
+            corners.forEach(corner => {
+                ctx.fillRect(corner.x - HANDLE_SIZE / 2, corner.y - HANDLE_SIZE / 2,
+                            HANDLE_SIZE, HANDLE_SIZE);
+            });
+        }
+
+        function drawArrow(x1, y1, x2, y2, directed, isSelected) {
+            ctx.strokeStyle = isSelected ? '#2196f3' : '#666';
+            ctx.fillStyle = isSelected ? '#2196f3' : '#666';
+            ctx.lineWidth = isSelected ? 3 : 2;
+
+            // Draw line
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            // Draw arrowhead if directed
+            if (directed) {
+                const angle = Math.atan2(y2 - y1, x2 - x1);
+                const headLength = 20;
+                const headWidth = Math.PI / 6;
+
+                ctx.beginPath();
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(
+                    x2 - headLength * Math.cos(angle - headWidth),
+                    y2 - headLength * Math.sin(angle - headWidth)
+                );
+                ctx.lineTo(
+                    x2 - headLength * Math.cos(angle + headWidth),
+                    y2 - headLength * Math.sin(angle + headWidth)
+                );
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        function getNodeEdgePoint(fromX, fromY, toNode) {
+            switch (toNode.type) {
+                case 'circle':
+                    // Point on circle circumference at angle from fromX, fromY
+                    const angle = Math.atan2(toNode.y - fromY, toNode.x - fromX);
+                    return {
+                        x: toNode.x + Math.cos(angle) * toNode.radius,
+                        y: toNode.y + Math.sin(angle) * toNode.radius
+                    };
+
+                case 'diamond':
+                    // Intersection with diamond edges
+                    const centerX = toNode.x + toNode.width / 2;
+                    const centerY = toNode.y + toNode.height / 2;
+                    const dx = centerX - fromX;
+                    const dy = centerY - fromY;
+                    const ang = Math.atan2(dy, dx);
+
+                    // Diamond has 4 edges, find which one the line intersects
+                    const edges = [
+                        // Top edge: from (x, y) to (x+w, cy)
+                        { x1: centerX, y1: toNode.y, x2: toNode.x + toNode.width, y2: centerY },
+                        // Right edge: from (x+w, cy) to (cx, y+h)
+                        { x1: toNode.x + toNode.width, y1: centerY, x2: centerX, y2: toNode.y + toNode.height },
+                        // Bottom edge: from (cx, y+h) to (x, cy)
+                        { x1: centerX, y1: toNode.y + toNode.height, x2: toNode.x, y2: centerY },
+                        // Left edge: from (x, cy) to (cx, y)
+                        { x1: toNode.x, y1: centerY, x2: centerX, y2: toNode.y }
+                    ];
+
+                    // Find intersection with line from (fromX, fromY) through center
+                    for (let edge of edges) {
+                        const intersect = lineIntersection(fromX, fromY, centerX, centerY,
+                                                          edge.x1, edge.y1, edge.x2, edge.y2);
+                        if (intersect) return intersect;
+                    }
+                    return { x: centerX, y: centerY };
+
+                case 'text':
+                case 'rectangle':
+                default:
+                    // Rectangle edge calculation
+                    const nodeCenterX = toNode.x + toNode.width / 2;
+                    const nodeCenterY = toNode.y + toNode.height / 2;
+
+                    const dxx = nodeCenterX - fromX;
+                    const dyy = nodeCenterY - fromY;
+                    const angle2 = Math.atan2(dyy, dxx);
+
+                    const cos = Math.cos(angle2);
+                    const sin = Math.sin(angle2);
+
+                    let x, y;
+
+                    if (Math.abs(cos) > Math.abs(sin)) {
+                        if (cos > 0) {
+                            x = toNode.x;
+                        } else {
+                            x = toNode.x + toNode.width;
+                        }
+                        y = nodeCenterY - (nodeCenterX - x) * Math.tan(angle2);
+                    } else {
+                        if (sin > 0) {
+                            y = toNode.y;
+                        } else {
+                            y = toNode.y + toNode.height;
+                        }
+                        x = nodeCenterX - (nodeCenterY - y) / Math.tan(angle2);
+                    }
+
+                    return { x, y };
+            }
+        }
+
+        function lineIntersection(x1, y1, x2, y2, x3, y3, x4, y4) {
+            const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+            if (Math.abs(denom) < 0.0001) return null;
+
+            const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+            const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+
+            if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+                return {
+                    x: x1 + t * (x2 - x1),
+                    y: y1 + t * (y2 - y1)
+                };
+            }
+            return null;
+        }
+
+        function getNodeCenter(node) {
+            if (node.type === 'circle') {
+                return { x: node.x, y: node.y };
+            } else {
+                return {
+                    x: node.x + node.width / 2,
+                    y: node.y + node.height / 2
+                };
+            }
+        }
+
+        function drawConnection(conn) {
+            const fromNode = nodeMap.get(conn.fromId);
+            const toNode = nodeMap.get(conn.toId);
+
+            if (fromNode && toNode) {
+                const fromCenter = getNodeCenter(fromNode);
+                const toCenter = getNodeCenter(toNode);
+
+                // Calculate edge points on both nodes
+                const startPoint = getNodeEdgePoint(toCenter.x, toCenter.y, fromNode);
+                const endPoint = getNodeEdgePoint(fromCenter.x, fromCenter.y, toNode);
+
+                // For directed connections, pull back the endpoint slightly so arrowhead is visible
+                let adjustedEndPoint = endPoint;
+                if (conn.directed) {
+                    const dx = endPoint.x - startPoint.x;
+                    const dy = endPoint.y - startPoint.y;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    if (length > 0) {
+                        adjustedEndPoint = {
+                            x: endPoint.x - (dx / length) * ARROWHEAD_OFFSET,
+                            y: endPoint.y - (dy / length) * ARROWHEAD_OFFSET
+                        };
+                    }
+                }
+
+                const isSelected = conn === selectedConnection;
+                drawArrow(startPoint.x, startPoint.y, adjustedEndPoint.x, adjustedEndPoint.y, conn.directed, isSelected);
+            }
+        }
+
+        function render() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw connections first (behind nodes)
+            connections.forEach(conn => drawConnection(conn));
+
+            // Draw connection preview
+            if (connectionMode && connectionStart && hoveredNode) {
+                const startCenter = getNodeCenter(connectionStart);
+                const endCenter = getNodeCenter(hoveredNode);
+
+                const startPoint = getNodeEdgePoint(endCenter.x, endCenter.y, connectionStart);
+                const endPoint = getNodeEdgePoint(startCenter.x, startCenter.y, hoveredNode);
+
+                // For directed connections, pull back the endpoint slightly
+                let adjustedEndPoint = endPoint;
+                if (directedMode) {
+                    const dx = endPoint.x - startPoint.x;
+                    const dy = endPoint.y - startPoint.y;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    if (length > 0) {
+                        adjustedEndPoint = {
+                            x: endPoint.x - (dx / length) * ARROWHEAD_OFFSET,
+                            y: endPoint.y - (dy / length) * ARROWHEAD_OFFSET
+                        };
+                    }
+                }
+
+                ctx.strokeStyle = '#4caf50';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(startPoint.x, startPoint.y);
+                ctx.lineTo(adjustedEndPoint.x, adjustedEndPoint.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Draw nodes
+            nodes.forEach(node => drawNode(node));
+
+            // Draw hover effect
+            if (hoveredNode && hoveredNode !== selectedNode && !isDragging) {
+                ctx.strokeStyle = connectionMode ? '#4caf50' : '#2196f3';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+
+                switch (hoveredNode.type) {
+                    case 'circle':
+                        ctx.beginPath();
+                        ctx.arc(hoveredNode.x, hoveredNode.y, hoveredNode.radius + 2, 0, Math.PI * 2);
+                        ctx.stroke();
+                        break;
+                    case 'diamond':
+                        const centerX = hoveredNode.x + hoveredNode.width / 2;
+                        const centerY = hoveredNode.y + hoveredNode.height / 2;
+                        const offset = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, hoveredNode.y - offset);
+                        ctx.lineTo(hoveredNode.x + hoveredNode.width + offset, centerY);
+                        ctx.lineTo(centerX, hoveredNode.y + hoveredNode.height + offset);
+                        ctx.lineTo(hoveredNode.x - offset, centerY);
+                        ctx.closePath();
+                        ctx.stroke();
+                        break;
+                    default:
+                        // Rectangle and text
+                        ctx.strokeRect(hoveredNode.x - 2, hoveredNode.y - 2,
+                                      hoveredNode.width + 4, hoveredNode.height + 4);
+                        break;
+                }
+
+                ctx.setLineDash([]);
+            }
+        }
+
+        // Mouse event handlers
+        canvas.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (connectionMode) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const clickedNode = getNodeAtPoint(x, y);
+
+            if (clickedNode) {
+                // Enter edit mode on double-click
+                editingNode = clickedNode;
+                selectedNode = clickedNode;
+
+                // Update text alignment buttons to show node's alignment
+                const nodeAlign = clickedNode.textAlign || 'center';
+                updateAlignmentButtons(nodeAlign);
+
+                startCursorBlink();
+                setStatus(`Editing node #${clickedNode.id} - Click outside, press Esc, or Shift+Enter to finish`);
+                render();
+            } else {
+                // Create new node on empty space
+                const newNode = createNode(x, y, currentNodeType);
+                constrainNodePosition(newNode);
+                nodes.push(newNode);
+                selectedNode = newNode;
+
+                // Update text alignment buttons to show new node's alignment
+                updateAlignmentButtons(currentTextAlign);
+
+                // Automatically enter edit mode for new node
+                editingNode = newNode;
+                startCursorBlink();
+                render();
+                setStatus(`Created ${currentNodeType} node #${newNode.id} - Click outside, press Esc, or Shift+Enter to finish`);
+
+                // Trigger auto-save
+                triggerAutoSave();
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const clickedNode = getNodeAtPoint(x, y);
+
+            // Exit edit mode if clicking outside the editing node
+            if (editingNode && clickedNode !== editingNode) {
+                stopCursorBlink();
+                editingNode = null;
+                setStatus('Finished editing');
+                triggerAutoSave();
+            }
+
+            if (connectionMode) {
+                if (clickedNode && clickedNode !== connectionStart) {
+                    // Complete connection
+                    const conn = createConnection(connectionStart.id, clickedNode.id);
+                    if (conn) {
+                        connections.push(conn);
+                        setStatus(`Connected #${connectionStart.id} to #${clickedNode.id}`);
+                        connectionMode = false;
+                        connectionStart = null;
+                        clearConnectionButtons();
+
+                        // Trigger auto-save
+                        triggerAutoSave();
+                    } else {
+                        // Connection invalid - provide visual feedback
+                        setStatus(`⚠️ Connection already exists between these nodes`);
+                        // Flash the invalid target briefly
+                        const originalSelection = selectedNode;
+                        selectedNode = clickedNode;
+                        render();
+                        setTimeout(() => {
+                            selectedNode = originalSelection;
+                            render();
+                        }, 200);
+                        return;
+                    }
+                }
+                render();
+                return;
+            }
+
+            if (clickedNode) {
+                // If in connection mode and clicking a different node, switch connection start
+                if (connectionMode && clickedNode !== connectionStart) {
+                    connectionStart = clickedNode;
+                    setStatus(`Connection start changed to node #${clickedNode.id} - Click target node`);
+                    render();
+                    return;
+                }
+
+                selectedNode = clickedNode;
+                selectedConnection = null; // Deselect connection when selecting node
+
+                // Update text alignment buttons to show selected node's alignment
+                const nodeAlign = clickedNode.textAlign || 'center';
+                updateAlignmentButtons(nodeAlign);
+
+                // Bring selected node to front (z-ordering)
+                nodes = nodes.filter(n => n !== clickedNode).concat([clickedNode]);
+
+                // Check if clicking on resize handle
+                resizeCorner = getResizeCorner(x, y, clickedNode);
+
+                if (resizeCorner) {
+                    isResizing = true;
+                    // Set cursor for resize - handle circle and diamond cases
+                    if (resizeCorner.includes('circle')) {
+                        canvas.style.cursor = 'nwse-resize';
+                    } else if (resizeCorner === 'n' || resizeCorner === 's') {
+                        canvas.style.cursor = 'ns-resize';
+                    } else if (resizeCorner === 'e' || resizeCorner === 'w') {
+                        canvas.style.cursor = 'ew-resize';
+                    } else {
+                        canvas.style.cursor = resizeCorner.includes('n') && resizeCorner.includes('w') ? 'nwse-resize' :
+                                             resizeCorner.includes('n') && resizeCorner.includes('e') ? 'nesw-resize' :
+                                             resizeCorner.includes('s') && resizeCorner.includes('e') ? 'nwse-resize' :
+                                             'nesw-resize';
+                    }
+                } else {
+                    // Don't allow dragging the node while editing it (resizing is ok)
+                    if (editingNode === clickedNode) {
+                        render();
+                        return;
+                    }
+
+                    isDragging = true;
+                    // Calculate drag offset based on node type
+                    if (clickedNode.type === 'circle') {
+                        // For circles, x,y is the center
+                        dragOffset = {
+                            x: x - clickedNode.x,
+                            y: y - clickedNode.y
+                        };
+                    } else {
+                        // For rectangles, diamonds, and text, x,y is top-left
+                        dragOffset = {
+                            x: x - clickedNode.x,
+                            y: y - clickedNode.y
+                        };
+                    }
+                    canvas.style.cursor = 'move';
+                }
+                render();
+            } else {
+                // No node clicked, check for connection
+                const clickedConnection = getConnectionAtPoint(x, y);
+                if (clickedConnection) {
+                    selectedConnection = clickedConnection;
+                    selectedNode = null; // Deselect node when selecting connection
+                    setStatus(`Connection selected. Press Delete to remove.`);
+                    render();
+                } else {
+                    // Nothing clicked, deselect everything
+                    selectedNode = null;
+                    selectedConnection = null;
+
+                    // Reset text alignment buttons to default
+                    updateAlignmentButtons(currentTextAlign);
+
+                    render();
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const previousHoveredNode = hoveredNode;
+            hoveredNode = getNodeAtPoint(x, y);
+            const hoveredNodeChanged = previousHoveredNode !== hoveredNode;
+
+            if (isDragging && selectedNode) {
+                selectedNode.x = x - dragOffset.x;
+                selectedNode.y = y - dragOffset.y;
+                constrainNodePosition(selectedNode);
+                render();
+            } else if (isResizing && selectedNode) {
+
+                if (selectedNode.type === 'circle') {
+                    // Resize circle: adjust radius from center
+                    const dx = x - selectedNode.x;
+                    const dy = y - selectedNode.y;
+                    const newRadius = Math.max(MIN_NODE_SIZE / 2, Math.sqrt(dx * dx + dy * dy));
+                    selectedNode.radius = newRadius;
+                } else if (selectedNode.type === 'diamond') {
+                    // Resize diamond from 4 cardinal points
+                    const centerX = selectedNode.x + selectedNode.width / 2;
+                    const centerY = selectedNode.y + selectedNode.height / 2;
+
+                    if (resizeCorner === 'n') {
+                        // Top point
+                        const newHeight = Math.max(MIN_NODE_SIZE, centerY - y) * 2;
+                        selectedNode.y = centerY - newHeight / 2;
+                        selectedNode.height = newHeight;
+                    } else if (resizeCorner === 's') {
+                        // Bottom point
+                        const newHeight = Math.max(MIN_NODE_SIZE, y - centerY) * 2;
+                        selectedNode.y = centerY - newHeight / 2;
+                        selectedNode.height = newHeight;
+                    } else if (resizeCorner === 'e') {
+                        // Right point
+                        const newWidth = Math.max(MIN_NODE_SIZE, x - centerX) * 2;
+                        selectedNode.x = centerX - newWidth / 2;
+                        selectedNode.width = newWidth;
+                    } else if (resizeCorner === 'w') {
+                        // Left point
+                        const newWidth = Math.max(MIN_NODE_SIZE, centerX - x) * 2;
+                        selectedNode.x = centerX - newWidth / 2;
+                        selectedNode.width = newWidth;
+                    }
+                } else {
+                    // Rectangle and text: existing corner-drag logic
+                    if (resizeCorner === 'se') {
+                        selectedNode.width = Math.max(MIN_NODE_SIZE, x - selectedNode.x);
+                        selectedNode.height = Math.max(MIN_NODE_SIZE, y - selectedNode.y);
+                    } else if (resizeCorner === 'sw') {
+                        const newWidth = Math.max(MIN_NODE_SIZE, selectedNode.x + selectedNode.width - x);
+                        selectedNode.x = selectedNode.x + selectedNode.width - newWidth;
+                        selectedNode.width = newWidth;
+                        selectedNode.height = Math.max(MIN_NODE_SIZE, y - selectedNode.y);
+                    } else if (resizeCorner === 'ne') {
+                        selectedNode.width = Math.max(MIN_NODE_SIZE, x - selectedNode.x);
+                        const newHeight = Math.max(MIN_NODE_SIZE, selectedNode.y + selectedNode.height - y);
+                        selectedNode.y = selectedNode.y + selectedNode.height - newHeight;
+                        selectedNode.height = newHeight;
+                    } else if (resizeCorner === 'nw') {
+                        const newWidth = Math.max(MIN_NODE_SIZE, selectedNode.x + selectedNode.width - x);
+                        const newHeight = Math.max(MIN_NODE_SIZE, selectedNode.y + selectedNode.height - y);
+                        selectedNode.x = selectedNode.x + selectedNode.width - newWidth;
+                        selectedNode.y = selectedNode.y + selectedNode.height - newHeight;
+                        selectedNode.width = newWidth;
+                        selectedNode.height = newHeight;
+                    }
+                }
+                render();
+            } else {
+                // Update cursor based on hover state
+                if (hoveredNode && !connectionMode) {
+                    const corner = getResizeCorner(x, y, hoveredNode);
+                    if (corner) {
+                        // Set cursor for resize - handle different node types
+                        if (corner.includes('circle')) {
+                            canvas.style.cursor = 'nwse-resize';
+                        } else if (corner === 'n' || corner === 's') {
+                            canvas.style.cursor = 'ns-resize';
+                        } else if (corner === 'e' || corner === 'w') {
+                            canvas.style.cursor = 'ew-resize';
+                        } else {
+                            canvas.style.cursor = corner.includes('n') && corner.includes('w') ? 'nwse-resize' :
+                                                corner.includes('n') && corner.includes('e') ? 'nesw-resize' :
+                                                corner.includes('s') && corner.includes('e') ? 'nwse-resize' :
+                                                'nesw-resize';
+                        }
+                    } else {
+                        canvas.style.cursor = 'move';
+                    }
+                } else {
+                    canvas.style.cursor = connectionMode ? 'crosshair' : 'default';
+                }
+
+                // Only render if hovered node changed or in connection mode
+                if (hoveredNodeChanged || connectionMode) {
+                    render();
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            // Trigger auto-save if we were dragging or resizing
+            if (isDragging || isResizing) {
+                triggerAutoSave();
+            }
+
+            isDragging = false;
+            isResizing = false;
+            resizeCorner = null;
+            canvas.style.cursor = 'default';
+        });
+
+        // Keyboard event handlers
+        document.addEventListener('keydown', (e) => {
+            // Only handle keyboard shortcuts if body or canvas has focus
+            const activeElement = document.activeElement;
+            if (activeElement && activeElement.tagName !== 'BODY' && activeElement !== canvas && !editingNode) {
+                return; // Let other elements handle their own keyboard input
+            }
+
+            // Handle text editing mode
+            if (editingNode) {
+                if (e.key === 'Enter' && e.shiftKey) {
+                    // Shift+Enter: Finish editing
+                    stopCursorBlink();
+                    editingNode = null;
+                    setStatus('Finished editing');
+                    render();
+                    triggerAutoSave();
+                    e.preventDefault();
+                } else if (e.key === 'Enter') {
+                    // Enter: Add new line
+                    if (editingNode.text.length < MAX_TEXT_LENGTH) {
+                        editingNode.text = (editingNode.text || '') + '\n';
+                        // Reset cursor blink on input
+                        startCursorBlink();
+                        render(); // Immediate render so user sees the change
+                        triggerAutoSave();
+                    } else {
+                        setStatus(`⚠️ Text limit reached (${MAX_TEXT_LENGTH} characters max)`);
+                    }
+                    e.preventDefault();
+                } else if (e.key === 'Backspace') {
+                    // Delete last character
+                    if (editingNode.text.length > 0) {
+                        editingNode.text = editingNode.text.slice(0, -1);
+                        // Reset cursor blink on input
+                        startCursorBlink();
+                        // Update status to show current length
+                        const remaining = MAX_TEXT_LENGTH - editingNode.text.length;
+                        setStatus(`Editing node #${editingNode.id} - ${remaining} characters remaining`);
+                        render(); // Immediate render so user sees the change
+                        triggerAutoSave();
+                    }
+                    e.preventDefault();
+                } else if (e.key === 'Escape') {
+                    // Cancel editing
+                    stopCursorBlink();
+                    editingNode = null;
+                    setStatus('Cancelled editing');
+                    render();
+                    triggerAutoSave();
+                    e.preventDefault();
+                } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== '\t') {
+                    // Add character to text (with max length check)
+                    if (editingNode.text.length < MAX_TEXT_LENGTH) {
+                        editingNode.text = (editingNode.text || '') + e.key;
+                        // Reset cursor blink on input
+                        startCursorBlink();
+                        // Show remaining characters when getting close to limit
+                        const remaining = MAX_TEXT_LENGTH - editingNode.text.length;
+                        if (remaining <= 50) {
+                            setStatus(`Editing node #${editingNode.id} - ${remaining} characters remaining`);
+                        }
+                        render(); // Immediate render so user sees the character
+                        triggerAutoSave();
+                    } else {
+                        setStatus(`⚠️ Text limit reached (${MAX_TEXT_LENGTH} characters max)`);
+                    }
+                    e.preventDefault();
+                }
+                return;
+            }
+
+            // Normal keyboard shortcuts (when not editing)
+            if (e.key === 'Escape') {
+                if (connectionMode) {
+                    connectionMode = false;
+                    connectionStart = null;
+                    clearConnectionButtons();
+                    canvas.style.cursor = 'default';
+                    setStatus('Connection mode cancelled');
+                    render();
+                }
+            } else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey)) {
+                // Ctrl+C: Copy selected node
+                if (selectedNode) {
+                    // Store a copy of the selected node
+                    copiedNode = JSON.parse(JSON.stringify(selectedNode));
+                    setStatus(`Copied node #${selectedNode.id}`);
+                } else {
+                    setStatus('No node selected to copy');
+                }
+                e.preventDefault();
+            } else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) {
+                // Ctrl+V: Paste copied node
+                if (copiedNode) {
+                    // Create new node with copied properties
+                    const newNode = JSON.parse(JSON.stringify(copiedNode));
+
+                    // Assign new ID
+                    newNode.id = nextId++;
+
+                    // Offset position so it's not directly on top
+                    const PASTE_OFFSET = 20;
+                    if (newNode.type === 'circle') {
+                        newNode.x += PASTE_OFFSET;
+                        newNode.y += PASTE_OFFSET;
+                    } else {
+                        newNode.x += PASTE_OFFSET;
+                        newNode.y += PASTE_OFFSET;
+                    }
+
+                    // Keep within bounds
+                    constrainNodePosition(newNode);
+
+                    // Add to nodes array and map
+                    nodes.push(newNode);
+                    nodeMap.set(newNode.id, newNode);
+
+                    // Select the new node
+                    selectedNode = newNode;
+                    selectedConnection = null;
+
+                    setStatus(`Pasted node #${newNode.id}`);
+                    render();
+                    triggerAutoSave();
+                } else {
+                    setStatus('No node copied');
+                }
+                e.preventDefault();
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (selectedNode) {
+                    // Remove connections to/from this node
+                    connections = connections.filter(conn =>
+                        conn.fromId !== selectedNode.id && conn.toId !== selectedNode.id
+                    );
+
+                    // Remove node
+                    const id = selectedNode.id;
+                    nodes = nodes.filter(n => n.id !== id);
+                    nodeMap.delete(id);
+
+                    // Clear editingNode if we're deleting the node being edited
+                    if (editingNode && editingNode.id === id) {
+                        stopCursorBlink();
+                        editingNode = null;
+                    }
+
+                    selectedNode = null;
+
+                    setStatus(`Deleted node #${id}`);
+                    render();
+                    triggerAutoSave();
+                } else if (selectedConnection) {
+                    // Remove selected connection
+                    const id = selectedConnection.id;
+                    connections = connections.filter(conn => conn.id !== id);
+                    selectedConnection = null;
+
+                    setStatus(`Deleted connection #${id}`);
+                    render();
+                    triggerAutoSave();
+                }
+            }
+        });
+
+        // Initial render and auto-load
+        const loaded = autoLoad();
+        if (!loaded) {
+            setStatus('Double-click to create nodes');
+        }
+        render();
+    </script>
+</body>
+</html>
