@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Inf is a web-based diagram note-taking application implemented as a single HTML file with vanilla JavaScript and HTML Canvas. It supports multiple node types (rectangles, circles, diamonds, and text blocks) with inline text editing, visual connection tools, and advanced interaction features like z-ordering and bounds checking.
+Inf is a web-based diagram note-taking application implemented as a single HTML file with vanilla JavaScript and HTML Canvas. It supports multiple node types (rectangles, circles, diamonds, and text blocks) with inline text editing, visual connection tools, and advanced interaction features like z-ordering, infinite canvas with scrolling, adjustable canvas size, and zoom controls.
 
 ## How to Run
 
@@ -70,7 +70,7 @@ Simply open `index.html` in a web browser (Chrome recommended). No build step or
 }
 ```
 
-### Constants (index.html:184-198)
+### Constants (index.html:252-273)
 
 All magic numbers are extracted as constants for easy configuration:
 
@@ -86,14 +86,24 @@ const DEFAULT_TEXT_WIDTH = 150;           // Default text block width
 const DEFAULT_TEXT_HEIGHT = 60;           // Default text block height
 const ARROWHEAD_OFFSET = 3;              // Pullback distance for arrowhead visibility
 const MAX_TEXT_LENGTH = 1000;            // Maximum characters per node
-const WINDOW_RESIZE_DEBOUNCE = 100;      // Debounce delay for window resize (ms)
 const CURSOR_BLINK_RATE = 500;           // Cursor blink interval in milliseconds
 const LINE_HEIGHT = 18;                  // Line height for multi-line text
+const CANVAS_SIZE_STEP = 500;            // Canvas size increase/decrease step (pixels)
+const MIN_CANVAS_SIZE = 1000;            // Minimum canvas size (pixels)
+const MAX_CANVAS_SIZE = 20000;           // Maximum canvas size (pixels)
+const DEFAULT_CANVAS_WIDTH = 2000;       // Default canvas width (pixels)
+const DEFAULT_CANVAS_HEIGHT = 2000;      // Default canvas height (pixels)
+const ZOOM_STEP = 0.1;                   // Zoom in/out step (10%)
+const MIN_ZOOM = 0.1;                    // Minimum zoom level (10%)
+const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 ```
 
 ### State Management
 
-**Global state variables** (index.html:237-248):
+**Global state variables** (index.html:275-290):
+- `canvasWidth` - Current canvas width in pixels (default: 2000)
+- `canvasHeight` - Current canvas height in pixels (default: 2000)
+- `zoom` - Current zoom level (default: 1.0 = 100%)
 - `nodes[]` - Array of all node objects (order determines z-index)
 - `connections[]` - Array of all connection objects
 - `selectedNode` - Currently selected node (or null)
@@ -105,23 +115,23 @@ const LINE_HEIGHT = 18;                  // Line height for multi-line text
 - `currentNodeType` - String: 'rectangle', 'circle', 'diamond', or 'text'
 - `currentTextAlign` - String: 'left', 'center', or 'right' (default for new nodes)
 - `editingNode` - Node currently being edited (inline text editing)
+- `copiedNode` - Node copied to clipboard for paste operation
 
-**Interaction state** (index.html:210-214):
+**Interaction state** (index.html:292-296):
 - `isDragging` - Boolean for drag operation
 - `isResizing` - Boolean for resize operation
 - `resizeCorner` - String identifier for which handle is being dragged
 - `dragOffset` - Object {x, y} storing drag offset from node origin
 
-**Performance optimizations** (index.html:256-260):
+**Performance optimizations** (index.html:298):
 - `nodeMap` - Map<id, node> for O(1) node lookups
-- `resizeTimer` - Timer for debounced window resize
 
-**Auto-save state** (index.html:262-265):
+**Auto-save state** (index.html:300-303):
 - `autoSaveTimer` - Timer for debounced auto-save (1 second delay)
 - `autoSaveStatusTimer` - Timer for auto-save status message
 - `AUTO_SAVE_DELAY` - Constant: 1000ms delay before auto-save triggers
 
-**Cursor blink state** (index.html:267-291):
+**Cursor blink state** (index.html:305-334):
 - `cursorVisible` - Boolean for cursor visibility in blink cycle
 - `cursorBlinkInterval` - Timer for cursor blink animation (500ms interval)
 - `startCursorBlink()` - Starts cursor blinking animation, only renders if editingNode exists
@@ -129,39 +139,38 @@ const LINE_HEIGHT = 18;                  // Line height for multi-line text
 
 ### Key Functions
 
-**Helper Functions** (index.html:242-260):
-- `constrainNodePosition(node)` - Keeps nodes within canvas bounds (20px margin)
-  - Handles all node types with type-specific logic
-  - Ensures at least part of node remains visible
-  - Called during drag and node creation
+**Canvas Setup** (index.html:443-450):
+- `resizeCanvas()` - Updates canvas dimensions to custom size (canvasWidth x canvasHeight)
+- Canvas wrapped in scrollable container for navigation
+- `getMousePos(e)` - Helper function to get mouse coordinates accounting for zoom and scroll offset (index.html:1520-1528)
 
-**Canvas Setup** (index.html:262-257):
-- `resizeCanvas()` - Updates canvas dimensions to window size
-- `handleResize()` - Debounced resize handler (100ms delay)
-- Window resize events use debouncing for performance
-
-**Auto-save Functions** (index.html:293-391):
+**Auto-save Functions** (index.html:336-441):
 - `triggerAutoSave()` - Debounces auto-save with 1 second delay
 - `autoSave()` - Saves to localStorage with error handling
   - Shows "✓ Auto-saved" status for 2 seconds
   - Handles QuotaExceededError with user-visible message
-  - Saves: nodes, connections, nextId, timestamp
+  - Saves: nodes, connections, nextId, canvasWidth, canvasHeight, zoom, timestamp
 - `autoLoad()` - Loads from localStorage on startup
   - Validates data structure and node properties
   - Type-specific validation (circles need radius, etc.)
+  - Restores canvas size and zoom level if saved
   - Rebuilds nodeMap after loading
   - Shows "Restored X nodes from auto-save" status
 
-**UI Helper Functions** (index.html:412-446):
+**UI Helper Functions** (index.html:452-598):
 - `setStatus(text)` - Updates status bar text
 - `setNodeType(type)` - Changes current node type and updates UI
-- `updateAlignmentButtons(align)` - Helper to update alignment button states (lines 415-420)
-- `setTextAlign(align)` - Changes text alignment (lines 422-435)
+- `updateAlignmentButtons(align)` - Helper to update alignment button states
+- `setTextAlign(align)` - Changes text alignment
   - Updates `currentTextAlign` (default for new nodes)
   - If node selected: updates that node's `textAlign` and re-renders
   - Uses `updateAlignmentButtons()` helper
   - Shows status: "Text alignment: {align}" or "Default text alignment: {align}"
   - Triggers auto-save when changing node alignment
+- `increaseCanvasSize()` - Increases canvas size by 500px (up to 20000x20000)
+- `decreaseCanvasSize()` - Decreases canvas size by 500px (down to 1000x1000)
+- `zoomIn()` - Increases zoom by 10% (up to 300%)
+- `zoomOut()` - Decreases zoom by 10% (down to 10%)
 - `setConnectionType(directed)` - Starts/switches connection mode
   - If already in connection mode: switches type
   - If node selected: starts connection mode
@@ -169,22 +178,24 @@ const LINE_HEIGHT = 18;                  // Line height for multi-line text
 - `clearConnectionButtons()` - Resets connection button states
 - `clearCanvas()` - Clears all nodes, connections, and auto-save with confirmation
 
-**File Operations** (index.html:507-666):
-- `saveToJSON()` - Saves diagram to JSON file (lines 507-541)
+**File Operations** (index.html:599-791):
+- `saveToJSON()` - Saves diagram to JSON file
   - Prompts for filename with timestamp default
   - Sanitizes filename (removes invalid characters: `< > : " / \ | ? *`)
   - Creates downloadable blob with formatted JSON
-  - Saves: version, nodes, connections, nextId
-- `loadFromJSON(event)` - Loads diagram from JSON file (lines 543-618)
+  - Saves: version, nodes, connections, nextId, canvasWidth, canvasHeight, zoom
+- `loadFromJSON(event)` - Loads diagram from JSON file
   - Validates data structure
   - Calculates nextId safely (handles empty arrays)
+  - Restores canvas size and zoom level if saved
   - Rebuilds nodeMap after loading
   - Resets all interaction state
   - Triggers auto-save after successful load
-- `exportToPNG()` - Exports canvas as PNG image (lines 620-666)
+- `exportToPNG()` - Exports canvas as PNG image
   - Warns if canvas is empty
   - Prompts for filename with timestamp default
   - Sanitizes filename
+  - Temporarily sets zoom to 1.0 (100%) for export, then restores original zoom
   - Uses canvas.toBlob() for high-quality export
 
 **Node Management** (index.html:668-720):
@@ -291,7 +302,7 @@ const LINE_HEIGHT = 18;                  // Line height for multi-line text
 - Active button highlighted in blue
 - `setNodeType(type)` function updates state and UI
 
-**Text Alignment Toolbar** (index.html:176-183):
+**Text Alignment Toolbar** (index.html:196-203):
 - 3 buttons in horizontal layout: L (left), C (center), R (right)
 - Active button highlighted in blue (default: center)
 - `setTextAlign(align)` function updates state and UI
@@ -300,22 +311,36 @@ const LINE_HEIGHT = 18;                  // Line height for multi-line text
 - Buttons automatically update to show selected node's alignment using `updateAlignmentButtons()` helper
 - Revert to default alignment when node is deselected
 
-**File Operations Toolbar** (index.html:193-199):
-- 3 buttons in grid layout: Save, Load, Export
-- Save: Downloads diagram as JSON file with user-specified name
-- Load: Opens file picker to load JSON diagram
-- Export: Downloads canvas as PNG image with user-specified name
-- All filenames are sanitized to remove invalid characters
+**Canvas Size Toolbar** (index.html:205-211):
+- 2 buttons in grid layout: "Larger +" and "Smaller −"
+- Larger: Increases canvas size by 500px (up to 20000x20000)
+- Smaller: Decreases canvas size by 500px (down to 1000x1000)
+- Status bar shows current canvas size when changed
+- Canvas wrapped in scrollable container for navigation
 
-**Connection Type Toolbar** (index.html:185-191):
+**Zoom Toolbar** (index.html:213-219):
+- 2 buttons in grid layout: "Zoom In +" and "Zoom Out −"
+- Zoom In: Increases zoom by 10% (up to 300%)
+- Zoom Out: Decreases zoom by 10% (down to 10%)
+- Status bar shows current zoom percentage when changed
+- Mouse coordinates automatically adjusted for zoom level
+
+**Connection Type Toolbar** (index.html:221-227):
 - 2 buttons: "Directed →" and "Undirected —"
 - Buttons only activate when connection mode starts
 - Can switch between types while in connection mode
 - Automatically deactivate after connection completes or is cancelled
 - No flash when clicking without a node selected
 
-**Clear Canvas Button** (index.html:173):
-- Single button below connection type toolbar
+**File Operations Toolbar** (index.html:229-235):
+- 3 buttons in grid layout: Save, Load, Export
+- Save: Downloads diagram as JSON file with user-specified name (includes canvas size and zoom)
+- Load: Opens file picker to load JSON diagram (restores canvas size and zoom)
+- Export: Downloads canvas as PNG image with user-specified name (always at 100% zoom)
+- All filenames are sanitized to remove invalid characters
+
+**Clear Canvas Button** (index.html:238):
+- Single button below file operations toolbar
 - Prompts for confirmation before clearing
 
 **Status Bar** (index.html:176):
@@ -329,6 +354,7 @@ const LINE_HEIGHT = 18;                  // Line height for multi-line text
    - Saves 1 second after any change
    - Shows "✓ Auto-saved" status briefly
    - Automatically restored on page refresh
+   - Saves canvas size and zoom level
    - Protected against storage quota errors
 2. **Create nodes**: Double-click empty canvas, automatically enters edit mode
 3. **Choose node type**: Click node type button (Rectangle/Circle/Diamond/Text) before creating
@@ -347,18 +373,30 @@ const LINE_HEIGHT = 18;                  // Line height for multi-line text
    - Filters Alt, Tab, Ctrl, Meta keys
    - Supports all printable characters including Shift combinations
    - **Auto-save**: Triggers on text input, Enter, Backspace, and exit
-6. **Move nodes**: Click and drag node body (disabled while editing)
-   - Bounds checking keeps nodes partially visible (20px margin)
+6. **Adjustable canvas size**: Buttons to increase/decrease canvas size
+   - Click "Larger +" to increase by 500px (up to 20000x20000)
+   - Click "Smaller −" to decrease by 500px (down to 1000x1000)
+   - Canvas wrapped in scrollable container for navigation
+   - Infinite canvas - nodes can be placed anywhere
+   - Canvas size saved in auto-save and JSON files
+7. **Zoom controls**: Buttons to zoom in/out
+   - Click "Zoom In +" to increase zoom by 10% (up to 300%)
+   - Click "Zoom Out −" to decrease zoom by 10% (down to 10%)
+   - Mouse coordinates automatically adjusted for zoom level
+   - Zoom level saved in auto-save and JSON files
+   - PNG exports always use 100% zoom for consistency
+8. **Move nodes**: Click and drag node body (disabled while editing)
+   - No bounds checking - infinite canvas
    - Z-ordering: Selected nodes move to front
    - **Auto-save**: Triggers after drag completes
-7. **Resize nodes**: Drag handles (works even while editing)
+9. **Resize nodes**: Drag handles (works even while editing)
    - Rectangle/Text: 4 corner handles
    - Circle: 8 radial handles around circumference
    - Diamond: 4 cardinal point handles (N, E, S, W)
    - Minimum size enforcement (40px)
    - Type-specific cursors (ns-resize, ew-resize, nwse-resize, nesw-resize)
    - **Auto-save**: Triggers after resize completes
-8. **Create connections**:
+10. **Create connections**:
    - Select a node (click it)
    - Click "Directed →" or "Undirected —" button
    - Click target node to complete connection
@@ -368,37 +406,41 @@ const LINE_HEIGHT = 18;                  // Line height for multi-line text
    - Press Esc to cancel (cursor resets)
    - Visual feedback for invalid connections (flash + warning)
    - **Auto-save**: Triggers after connection created
-9. **Edge-to-edge connections**: Lines connect at node boundaries, not centers
+11. **Edge-to-edge connections**: Lines connect at node boundaries, not centers
    - Arrowheads pulled back 3px for visibility
    - Works correctly for all node shape combinations
-10. **Select connections**: Click on connection line (highlights in blue)
+12. **Select connections**: Click on connection line (highlights in blue)
    - 8px click tolerance
-11. **Delete items**: Select node or connection, press Delete/Backspace
+13. **Delete items**: Select node or connection, press Delete/Backspace
    - Disabled while editing text
    - Clears editingNode reference if deleting edited node
    - Removes associated connections when deleting nodes
    - **Auto-save**: Triggers after deletion
-12. **Save diagram**: Button to save as JSON file
+14. **Save diagram**: Button to save as JSON file
    - Prompts for filename (sanitized automatically)
    - Downloads with .json extension
-   - Saves all nodes, connections, and state
-13. **Load diagram**: Button to load JSON file
+   - Saves all nodes, connections, canvas size, zoom level, and state
+15. **Load diagram**: Button to load JSON file
    - Opens file picker
    - Validates data structure and node properties
+   - Restores canvas size and zoom level
    - Triggers auto-save after loading
-14. **Export diagram**: Button to export as PNG image
+16. **Export diagram**: Button to export as PNG image
    - Prompts for filename (sanitized automatically)
    - Warns if canvas is empty
+   - Always exports at 100% zoom for consistency
    - High-quality canvas export
-15. **Clear canvas**: Button at bottom of toolbar with confirmation
+17. **Clear canvas**: Button at bottom of toolbar with confirmation
    - Clears auto-save data as well
-16. **Z-ordering**: Selected nodes automatically move to front
-17. **Bounds checking**: Nodes cannot be completely dragged off-screen
+18. **Z-ordering**: Selected nodes automatically move to front
+19. **Copy/Paste nodes**: Ctrl+C to copy, Ctrl+V to paste
+   - Pasted nodes offset by 20px to avoid overlapping
 
 ## User Interface
 
-- **Toolbar** (top-left): Node type selector, text alignment selector, connection type selector, file operations (Save/Load/Export), clear button
-- **Status bar** (bottom-left): Shows current mode, feedback, and auto-save status ("✓ Auto-saved")
+- **Toolbar** (top-left): Node type selector, text alignment selector, canvas size controls, zoom controls, connection type selector, file operations (Save/Load/Export), clear button
+- **Scrollable canvas container**: Canvas wrapped in scrollable div for navigation of large canvases
+- **Status bar** (bottom-left): Shows current mode, feedback, canvas size, zoom level, and auto-save status ("✓ Auto-saved")
 - **Canvas cursor**: Default cursor, changes contextually
   - Move cursor over nodes
   - Resize cursors over handles (type-specific)
@@ -417,6 +459,8 @@ const LINE_HEIGHT = 18;                  // Line height for multi-line text
   - Text limit feedback (warning message when limit reached, character counter at <50 remaining)
   - Auto-save status feedback ("✓ Auto-saved" shown for 2 seconds)
   - Storage quota error feedback (warns user to save manually)
+  - Canvas size feedback (shows current dimensions when changed)
+  - Zoom level feedback (shows current percentage when changed)
 
 ## Node Type Details
 
@@ -480,7 +524,7 @@ Text alignment can be set globally (default for new nodes) or per-node:
 
 **How it works**:
 - Automatically saves to browser's localStorage every 1 second after changes
-- On page load/refresh: Automatically restores previous state
+- On page load/refresh: Automatically restores previous state including canvas size and zoom
 - Shows "✓ Auto-saved" status briefly when save occurs
 - Handles storage quota errors gracefully with user warnings
 
@@ -490,12 +534,14 @@ Text alignment can be set globally (default for new nodes) or per-node:
 - Text input (typing, Enter, Backspace)
 - Finishing text editing (Shift+Enter, Esc, click outside)
 - Changing text alignment of selected node
+- Changing canvas size or zoom level
 - Loading a JSON file
 
 **Storage format**:
 - Key: `inf-autosave` in localStorage
-- Data: `{ version, nodes, connections, nextId, timestamp }`
+- Data: `{ version, nodes, connections, nextId, canvasWidth, canvasHeight, zoom, timestamp }`
 - Validation on load: Checks data structure and node properties
+- Canvas size and zoom restored if present in saved data
 
 **Error handling**:
 - QuotaExceededError: Shows "⚠️ Auto-save failed: Storage full. Please save manually."
@@ -530,37 +576,37 @@ When `editingNode` is set (index.html:1722-1776):
 
 ## Performance Optimizations
 
-1. **NodeMap for O(1) lookups** (index.html:256)
+1. **NodeMap for O(1) lookups** (index.html:298)
    - Map<id, node> replaces O(n) array searches
    - Used in `getConnectionAtPoint()` and `drawConnection()`
    - Synchronized with nodes array (create, delete, clear)
 
-2. **Debounced window resize** (index.html:393-398)
-   - 100ms debounce prevents excessive redraws
-   - Improves performance on large diagrams
-
-3. **Debounced auto-save** (index.html:293-299)
+2. **Debounced auto-save** (index.html:336-342)
    - 1 second debounce prevents excessive localStorage writes
    - Only saves after user stops making changes
 
-4. **Conditional rendering** (index.html:1576-1688)
+3. **Conditional rendering** (index.html:1724-1827)
    - Only renders when hover state changes or in connection mode
    - Reduces unnecessary full canvas redraws
 
-5. **Optimized cursor blink** (index.html:278-286)
+4. **Optimized cursor blink** (index.html:314-325)
    - Only renders during blink if editingNode still exists
    - Prevents unnecessary renders after edit mode ends
    - Uses CURSOR_BLINK_RATE constant (500ms)
 
-6. **Optimized text editing** (index.html:1722-1776)
+5. **Optimized text editing** (index.html:1839-1895)
    - Length checks before string operations
    - Early filtering of unwanted key combinations
    - Character counter only shown when <50 remaining
    - Immediate render on input for responsive typing
 
-7. **Text clipping** (index.html:1043-1064)
+6. **Text clipping** (index.html:1151-1172)
    - Canvas clipping prevents expensive overflow calculations
    - Shape-specific clip regions (circle, diamond, rectangle)
+
+7. **Zoom transform with coordinate adjustment** (index.html:1520-1528)
+   - Mouse coordinates adjusted for zoom and scroll in one function
+   - Efficient canvas scaling for zoom rendering
 
 ## Connection Behavior
 
@@ -595,40 +641,38 @@ When `editingNode` is set (index.html:1722-1776):
 ## Z-Ordering
 
 Nodes are rendered in array order (last = on top). When a node is selected:
-- It's moved to end of `nodes` array (index.html:1125)
+- It's moved to end of `nodes` array (index.html:1651)
 - Automatically brings it to front
 - All subsequent operations render it on top
 - Order persists until another node is selected
 
-## Bounds Checking
+## Infinite Canvas
 
-`constrainNodePosition(node)` function (index.html:242-260):
-- Called during node drag and creation
-- Keeps at least 20px of node visible on canvas
-- Type-specific logic:
-  - Circles: Constrains center point accounting for radius
-  - Other types: Constrains top-left position accounting for dimensions
-- Prevents nodes from being completely lost off-screen
-- Allows partial off-screen positioning for flexibility
+The canvas is no longer bounded, allowing for unlimited workspace:
+- Nodes can be placed anywhere without position constraints
+- Canvas size adjustable from 1000x1000 to 20000x20000 pixels
+- Scrollbars appear automatically when canvas exceeds window size
+- Zoom controls (10%-300%) allow viewing at different scales
+- Mouse coordinates automatically adjusted for both zoom and scroll offset
+- Canvas size and zoom level persist across sessions
 
 ## Extensibility
 
 The codebase uses a node-based architecture where nodes have a `type` field. Four types are implemented: 'rectangle', 'circle', 'diamond', and 'text'.
 
 **To add a new node type:**
-1. Add constant for default size (index.html:184-196)
-2. Add button to toolbar HTML (index.html:155-163)
-3. Update `createNode()` to handle new type (index.html:312-371)
+1. Add constant for default size (index.html:252-273)
+2. Add button to toolbar HTML (index.html:186-193)
+3. Update `createNode()` to handle new type (index.html:793-840)
    - Add to nodeMap
    - Return appropriate data structure
-4. Create new `draw[Type]Node()` function (similar to index.html:568-695)
-5. Add case to `drawNode()` dispatcher (index.html:552-566)
-6. Update `isPointInNode()` for shape-specific hit detection (index.html:373-410)
-7. Update `getNodeEdgePoint()` for shape-specific edge calculations (index.html:773-865)
-8. Update `getResizeCorner()` for shape-specific handles (index.html:412-471)
-9. Update resize logic in mousemove handler if needed (index.html:1175-1244)
-10. Update `constrainNodePosition()` if needed (index.html:242-260)
-11. Update hover effect in `render()` if needed (index.html:978-1006)
+4. Create new `draw[Type]Node()` function (similar to index.html:1012-1137)
+5. Add case to `drawNode()` dispatcher (index.html:992-1010)
+6. Update `isPointInNode()` for shape-specific hit detection (index.html:834-871)
+7. Update `getNodeEdgePoint()` for shape-specific edge calculations (index.html:1304-1376)
+8. Update `getResizeCorner()` for shape-specific handles (index.html:883-941)
+9. Update resize logic in mousemove handler if needed (index.html:1730-1786)
+10. Update hover effect in `render()` if needed (index.html:1483-1514)
 
 ## Known Limitations
 
@@ -637,9 +681,8 @@ The codebase uses a node-based architecture where nodes have a `type` field. Fou
 - No multi-select
 - Connections are straight lines (no routing or curves)
 - No styling options (colors, fonts, line styles, line width)
-- No zoom/pan
+- No panning via drag (use scrollbars or trackpad gestures)
 - Text editing is append-only (no cursor positioning within text, no selection)
-- No copy/paste
 - No alignment guides or snapping
 - No font size controls
 - No bold/italic/underline formatting
@@ -663,27 +706,29 @@ The codebase uses a node-based architecture where nodes have a `type` field. Fou
 ## Common Development Tasks
 
 **When adding new features:**
-1. Add constants near line 213
-2. Add state variables near line 235
-3. Add helper functions after line 393
+1. Add constants near line 252
+2. Add state variables near line 275
+3. Add helper functions after line 443
 4. Add rendering logic in appropriate draw function
-5. Add event handlers after existing handlers (line 1403+)
-6. Update toolbar HTML if adding UI controls (lines 165-211)
+5. Add event handlers after existing handlers (line 1530+)
+6. Update toolbar HTML if adding UI controls (lines 183-241)
 7. Add auto-save trigger if feature modifies data
 
 **When debugging mouse interactions:**
-- Check `getBoundingClientRect()` is called on `canvas`, not `e`
+- Check `getMousePos()` is being used (accounts for zoom and scroll offset)
 - Verify hit detection thresholds (8px for handles and connections)
 - Test in Chrome first before other browsers
-- Remember that editing mode disables drag/resize
-- Check if bounds checking is preventing intended behavior
+- Remember that editing mode disables drag but not resize
+- Check if zoom level is affecting coordinate calculations
 - Verify z-ordering isn't causing selection issues
+- Ensure scroll offset is properly accounted for
 
 **When debugging performance:**
 - Check if nodeMap is being used for node lookups
-- Verify debouncing is working for window resize
+- Verify debouncing is working for auto-save
 - Check if unnecessary renders are occurring
 - Look for O(n²) operations in loops
+- Monitor performance with large canvases and high zoom levels
 
 **When adding new node types:**
 - Start by adding constant for default size
@@ -692,8 +737,8 @@ The codebase uses a node-based architecture where nodes have a `type` field. Fou
 - Update all geometric functions to handle the new shape
 - Consider how resize handles should work for the shape
 - Test edge point calculations for connections with all other node types
-- Update bounds checking if shape has unusual dimensions
 - Add type-specific hover effect if needed
+- Test interaction with zoom and coordinate transformation
 
 **When modifying connection behavior:**
 - Remember connections are edge-to-edge, not center-to-center
@@ -704,53 +749,60 @@ The codebase uses a node-based architecture where nodes have a `type` field. Fou
 
 ## File Structure
 
-Everything is in `index.html` (~1844 lines):
+Everything is in `index.html` (~1970 lines):
 
-**HTML & CSS** (lines 1-211):
-- Lines 1-163: HTML structure and CSS styles
-- Lines 165-211: HTML controls panel (toolbar, buttons, status bar)
-  - Lines 166-174: Node type buttons
-  - Lines 176-183: Text alignment buttons
-  - Lines 185-191: Connection type buttons
-  - Lines 193-199: File operations buttons (Save, Load, Export)
-  - Line 201: Clear canvas button
-  - Line 204: Hidden file input element
+**HTML & CSS** (lines 1-243):
+- Lines 1-177: HTML structure and CSS styles
+  - Lines 22-30: Scrollable canvas container CSS
+- Lines 179-243: HTML controls panel (toolbar, buttons, status bar)
+  - Lines 186-193: Node type buttons
+  - Lines 196-203: Text alignment buttons
+  - Lines 205-211: Canvas size buttons (Larger/Smaller)
+  - Lines 213-219: Zoom buttons (Zoom In/Out)
+  - Lines 221-227: Connection type buttons
+  - Lines 229-235: File operations buttons (Save, Load, Export)
+  - Line 238: Clear canvas button
+  - Line 241: Hidden file input element
+  - Line 243: Status bar
 
-**JavaScript** (lines 213-1844):
-- Lines 213-233: Canvas setup and constants (including CURSOR_BLINK_RATE, LINE_HEIGHT)
-- Lines 235-248: Global state variables (including currentTextAlign)
-- Lines 250-265: Performance optimizations and auto-save state
-- Lines 267-291: Cursor blink state and functions (startCursorBlink, stopCursorBlink)
-- Lines 293-391: Auto-save functions (triggerAutoSave, autoSave with error handling, autoLoad with validation)
-- Lines 393-398: Bounds checking helper
-- Lines 400-407: Canvas resize with debouncing
-- Lines 409-485: UI helper functions (status, node type, updateAlignmentButtons, text alignment, connection type, canvas clear)
-- Lines 487-666: File operations (saveToJSON, loadFromJSON, exportToPNG - all with filename sanitization)
-- Lines 668-720: Node and connection creation (nodes include textAlign property)
-- Lines 722-878: Geometric calculations and hit detection
-- Lines 880-1310: Rendering functions (with edit mode visual feedback, text clipping with 8px padding, and alignment support)
-- Lines 1312-1348: Main render loop with connection previews and hover effects
-- Lines 1350-1401: Mouse event handlers setup
-- Lines 1403-1444: Double-click handler (create/edit nodes with cursor blink, updates alignment buttons, triggers auto-save)
-- Lines 1447-1574: Mouse down handler (select, connect, drag, resize, updates alignment buttons, triggers auto-save)
-- Lines 1576-1688: Mouse move handler (hover, drag, resize with bounds checking)
-- Lines 1690-1699: Mouse up handler (end drag/resize, triggers auto-save)
-- Lines 1701-1820: Keyboard handlers (multi-line text, Shift+Enter, character counter, immediate render, auto-save triggers, focus check)
-- Lines 1822-1827: Initialization with auto-load
+**JavaScript** (lines 245-1970):
+- Lines 246-273: Canvas setup and constants (including canvas size and zoom constants)
+- Lines 275-290: Global state variables (including canvasWidth, canvasHeight, zoom, copiedNode)
+- Lines 292-296: Interaction state
+- Line 298: Performance optimization (nodeMap)
+- Lines 300-303: Auto-save state
+- Lines 305-334: Cursor blink state and functions
+- Lines 336-441: Auto-save functions (with canvas size and zoom persistence)
+- Lines 443-450: Canvas setup (resizeCanvas)
+- Lines 452-598: UI helper functions (including canvas size and zoom controls)
+- Lines 599-791: File operations (with canvas size and zoom save/restore, PNG export at 100% zoom)
+- Lines 793-840: Node and connection creation
+- Lines 842-990: Geometric calculations and hit detection
+- Lines 992-1262: Rendering functions (with zoom transform)
+- Lines 1436-1518: Main render loop with zoom transform
+- Lines 1520-1528: Mouse coordinate helper (getMousePos with zoom and scroll)
+- Lines 1530-1584: Double-click handler (create/edit nodes)
+- Lines 1586-1715: Mouse down handler (with zoom-adjusted coordinates)
+- Lines 1717-1820: Mouse move handler (with zoom-adjusted coordinates)
+- Lines 1822-1831: Mouse up handler
+- Lines 1833-1999: Keyboard handlers (including Ctrl+C/V for copy/paste)
+- Lines 2001-2006: Initialization with auto-load
 
 ## Code Quality Notes
 
 **Performance:**
 - O(1) node lookups via nodeMap
-- Debounced window resize (100ms)
+- Debounced auto-save (1 second)
 - Conditional rendering in mousemove
+- Efficient zoom transform with coordinate adjustment
 - No unused variables or dead code
 
 **Error Handling:**
 - Connection validation (no self-connections, no duplicates)
 - Visual feedback for invalid operations
-- Bounds checking prevents lost nodes
 - Max text length prevents memory issues
+- Storage quota error handling
+- Canvas size and zoom validation
 
 **Maintainability:**
 - All magic numbers extracted as constants
@@ -758,6 +810,7 @@ Everything is in `index.html` (~1844 lines):
 - Comprehensive comments
 - Consistent code style
 - Single responsibility principle
+- Clean separation of concerns
 
 **User Experience:**
 - Visual feedback for all actions
@@ -766,3 +819,6 @@ Everything is in `index.html` (~1844 lines):
 - No UI flashing or glitches
 - Keyboard shortcuts filtered appropriately
 - Z-ordering feels natural
+- Infinite canvas with scrollable navigation
+- Zoom controls for flexible viewing
+- Canvas size and zoom persistence

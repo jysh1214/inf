@@ -15,6 +15,18 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             overflow: hidden;
             background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: auto;
+            background: #e0e0e0;
         }
 
         #canvas {
@@ -164,7 +176,9 @@
     </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
 
     <div id="controls">
         <h3>Inf - v0.1</h3>
@@ -185,6 +199,22 @@
                 <button onclick="setTextAlign('left')" class="node-btn" id="btn-align-left">L</button>
                 <button onclick="setTextAlign('center')" class="node-btn active" id="btn-align-center">C</button>
                 <button onclick="setTextAlign('right')" class="node-btn" id="btn-align-right">R</button>
+            </div>
+        </div>
+
+        <div class="node-types">
+            <h4>Canvas Size</h4>
+            <div class="node-type-buttons">
+                <button onclick="increaseCanvasSize()" class="node-btn">Larger +</button>
+                <button onclick="decreaseCanvasSize()" class="node-btn">Smaller −</button>
+            </div>
+        </div>
+
+        <div class="node-types">
+            <h4>Zoom</h4>
+            <div class="node-type-buttons">
+                <button onclick="zoomIn()" class="node-btn">Zoom In +</button>
+                <button onclick="zoomOut()" class="node-btn">Zoom Out −</button>
             </div>
         </div>
 
@@ -230,11 +260,21 @@
         const DEFAULT_TEXT_HEIGHT = 60;
         const ARROWHEAD_OFFSET = 3;
         const MAX_TEXT_LENGTH = 1000;
-        const WINDOW_RESIZE_DEBOUNCE = 100;
         const CURSOR_BLINK_RATE = 500;
         const LINE_HEIGHT = 18;
+        const CANVAS_SIZE_STEP = 500;
+        const MIN_CANVAS_SIZE = 1000;
+        const MAX_CANVAS_SIZE = 20000;
+        const DEFAULT_CANVAS_WIDTH = 2000;
+        const DEFAULT_CANVAS_HEIGHT = 2000;
+        const ZOOM_STEP = 0.1;
+        const MIN_ZOOM = 0.1;
+        const MAX_ZOOM = 3.0;
 
         // State
+        let canvasWidth = DEFAULT_CANVAS_WIDTH;
+        let canvasHeight = DEFAULT_CANVAS_HEIGHT;
+        let zoom = 1.0;
         let nodes = [];
         let connections = [];
         let selectedNode = null;
@@ -256,9 +296,6 @@
 
         // Node lookup map for performance
         let nodeMap = new Map();
-
-        // Debounce timer for window resize
-        let resizeTimer = null;
 
         // Auto-save timer
         let autoSaveTimer = null;
@@ -307,6 +344,9 @@
                     nodes: nodes,
                     connections: connections,
                     nextId: nextId,
+                    canvasWidth: canvasWidth,
+                    canvasHeight: canvasHeight,
+                    zoom: zoom,
                     timestamp: new Date().toISOString()
                 };
                 localStorage.setItem('inf-autosave', JSON.stringify(saveData));
@@ -374,6 +414,16 @@
                 connections = saveData.connections || [];
                 nextId = saveData.nextId || 1;
 
+                // Restore canvas size and zoom if saved
+                if (saveData.canvasWidth && saveData.canvasHeight) {
+                    canvasWidth = saveData.canvasWidth;
+                    canvasHeight = saveData.canvasHeight;
+                    resizeCanvas();
+                }
+                if (saveData.zoom !== undefined) {
+                    zoom = saveData.zoom;
+                }
+
                 // Rebuild nodeMap
                 nodeMap.clear();
                 nodes.forEach(node => {
@@ -390,42 +440,14 @@
             }
         }
 
-        // Helper function to constrain node position to canvas bounds
-        function constrainNodePosition(node) {
-            const margin = 20; // Keep at least 20px of node visible
-
-            if (node.type === 'circle') {
-                // For circles, constrain center point
-                node.x = Math.max(margin - node.radius, Math.min(canvas.width - margin + node.radius, node.x));
-                node.y = Math.max(margin - node.radius, Math.min(canvas.height - margin + node.radius, node.y));
-            } else {
-                // For rectangles, diamonds, and text
-                const minX = margin - node.width;
-                const maxX = canvas.width - margin;
-                const minY = margin - node.height;
-                const maxY = canvas.height - margin;
-
-                node.x = Math.max(minX, Math.min(maxX, node.x));
-                node.y = Math.max(minY, Math.min(maxY, node.y));
-            }
-        }
-
         // Initialize canvas size
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
             render();
         }
 
-        // Debounced resize handler
-        function handleResize() {
-            if (resizeTimer) {
-                clearTimeout(resizeTimer);
-            }
-            resizeTimer = setTimeout(resizeCanvas, WINDOW_RESIZE_DEBOUNCE);
-        }
-
-        window.addEventListener('resize', handleResize);
+        // Initial canvas setup
         resizeCanvas();
 
         // Helper functions
@@ -464,6 +486,46 @@
                 triggerAutoSave();
             } else {
                 setStatus(`Default text alignment: ${align}`);
+            }
+        }
+
+        function increaseCanvasSize() {
+            const newWidth = Math.min(MAX_CANVAS_SIZE, canvasWidth + CANVAS_SIZE_STEP);
+            const newHeight = Math.min(MAX_CANVAS_SIZE, canvasHeight + CANVAS_SIZE_STEP);
+            if (newWidth !== canvasWidth || newHeight !== canvasHeight) {
+                canvasWidth = newWidth;
+                canvasHeight = newHeight;
+                resizeCanvas();
+                setStatus(`Canvas size: ${canvasWidth}x${canvasHeight}px`);
+            }
+        }
+
+        function decreaseCanvasSize() {
+            const newWidth = Math.max(MIN_CANVAS_SIZE, canvasWidth - CANVAS_SIZE_STEP);
+            const newHeight = Math.max(MIN_CANVAS_SIZE, canvasHeight - CANVAS_SIZE_STEP);
+            if (newWidth !== canvasWidth || newHeight !== canvasHeight) {
+                canvasWidth = newWidth;
+                canvasHeight = newHeight;
+                resizeCanvas();
+                setStatus(`Canvas size: ${canvasWidth}x${canvasHeight}px`);
+            }
+        }
+
+        function zoomIn() {
+            const newZoom = Math.min(MAX_ZOOM, zoom + ZOOM_STEP);
+            if (newZoom !== zoom) {
+                zoom = newZoom;
+                render();
+                setStatus(`Zoom: ${Math.round(zoom * 100)}%`);
+            }
+        }
+
+        function zoomOut() {
+            const newZoom = Math.max(MIN_ZOOM, zoom - ZOOM_STEP);
+            if (newZoom !== zoom) {
+                zoom = newZoom;
+                render();
+                setStatus(`Zoom: ${Math.round(zoom * 100)}%`);
             }
         }
 
@@ -544,7 +606,10 @@
                 version: '1.0',
                 nodes: nodes,
                 connections: connections,
-                nextId: nextId
+                nextId: nextId,
+                canvasWidth: canvasWidth,
+                canvasHeight: canvasHeight,
+                zoom: zoom
             };
 
             // Convert to JSON string
@@ -595,6 +660,16 @@
                     } else {
                         const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id)];
                         nextId = allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
+                    }
+
+                    // Restore canvas size and zoom if saved
+                    if (saveData.canvasWidth && saveData.canvasHeight) {
+                        canvasWidth = saveData.canvasWidth;
+                        canvasHeight = saveData.canvasHeight;
+                        resizeCanvas();
+                    }
+                    if (saveData.zoom !== undefined) {
+                        zoom = saveData.zoom;
                     }
 
                     // Rebuild nodeMap
@@ -660,8 +735,17 @@
             const sanitized = userFilename.trim().replace(/[<>:"/\\|?*]/g, '-');
             const filename = sanitized || defaultFilename;
 
+            // Temporarily set zoom to 1.0 for export
+            const originalZoom = zoom;
+            zoom = 1.0;
+            render();
+
             // Convert canvas to blob
             canvas.toBlob(function(blob) {
+                // Restore original zoom
+                zoom = originalZoom;
+                render();
+
                 if (!blob) {
                     setStatus('⚠️ Error exporting image');
                     return;
@@ -1364,6 +1448,10 @@
             // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Apply zoom transform
+            ctx.save();
+            ctx.scale(zoom, zoom);
+
             // Draw connections first (behind nodes)
             connections.forEach(conn => drawConnection(conn));
 
@@ -1435,6 +1523,19 @@
 
                 ctx.setLineDash([]);
             }
+
+            // Restore transform
+            ctx.restore();
+        }
+
+        // Helper function to get mouse coordinates accounting for zoom and scroll
+        function getMousePos(e) {
+            const container = document.getElementById('canvas-container');
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (e.clientX - rect.left + container.scrollLeft) / zoom,
+                y: (e.clientY - rect.top + container.scrollTop) / zoom
+            };
         }
 
         // Mouse event handlers
@@ -1444,9 +1545,9 @@
 
             if (connectionMode) return;
 
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const pos = getMousePos(e);
+            const x = pos.x;
+            const y = pos.y;
 
             const clickedNode = getNodeAtPoint(x, y);
 
@@ -1465,7 +1566,6 @@
             } else {
                 // Create new node on empty space
                 const newNode = createNode(x, y, currentNodeType);
-                constrainNodePosition(newNode);
                 nodes.push(newNode);
                 selectedNode = newNode;
 
@@ -1484,9 +1584,9 @@
         });
 
         canvas.addEventListener('mousedown', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const pos = getMousePos(e);
+            const x = pos.x;
+            const y = pos.y;
 
             const clickedNode = getNodeAtPoint(x, y);
 
@@ -1613,9 +1713,9 @@
         });
 
         canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const pos = getMousePos(e);
+            const x = pos.x;
+            const y = pos.y;
 
             const previousHoveredNode = hoveredNode;
             hoveredNode = getNodeAtPoint(x, y);
@@ -1624,7 +1724,6 @@
             if (isDragging && selectedNode) {
                 selectedNode.x = x - dragOffset.x;
                 selectedNode.y = y - dragOffset.y;
-                constrainNodePosition(selectedNode);
                 render();
             } else if (isResizing && selectedNode) {
 
@@ -1839,9 +1938,6 @@
                         newNode.x += PASTE_OFFSET;
                         newNode.y += PASTE_OFFSET;
                     }
-
-                    // Keep within bounds
-                    constrainNodePosition(newNode);
 
                     // Add to nodes array and map
                     nodes.push(newNode);
