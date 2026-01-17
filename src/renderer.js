@@ -30,6 +30,15 @@ function drawRectangleNode(node, isSelected) {
     ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1);
     ctx.strokeRect(node.x, node.y, node.width, node.height);
 
+    // Dashed border for nodes with subgraphs
+    if (node.subgraph) {
+        ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#666');
+        ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1.5);
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(node.x, node.y, node.width, node.height);
+        ctx.setLineDash([]); // Reset to solid
+    }
+
     // Text
     drawNodeText(node, node.x + node.width / 2, node.y + node.height / 2, node.width - 10);
 
@@ -60,6 +69,17 @@ function drawCircleNode(node, isSelected) {
     ctx.beginPath();
     ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
     ctx.stroke();
+
+    // Dashed border for nodes with subgraphs
+    if (node.subgraph) {
+        ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#666');
+        ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1.5);
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset to solid
+    }
 
     // Text
     drawNodeText(node, node.x, node.y, node.radius * 1.8);
@@ -104,6 +124,21 @@ function drawDiamondNode(node, isSelected) {
     ctx.closePath();
     ctx.stroke();
 
+    // Dashed border for nodes with subgraphs
+    if (node.subgraph) {
+        ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#666');
+        ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1.5);
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(centerX, node.y);
+        ctx.lineTo(node.x + node.width, centerY);
+        ctx.lineTo(centerX, node.y + node.height);
+        ctx.lineTo(node.x, centerY);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset to solid
+    }
+
     // Text
     drawNodeText(node, centerX, centerY, node.width * 0.7);
 
@@ -125,6 +160,15 @@ function drawTextNode(node, isSelected) {
     // NO border - only draw text
     // Text
     drawNodeText(node, node.x + node.width / 2, node.y + node.height / 2, node.width - 10);
+
+    // Dashed border for text nodes with subgraphs (always show)
+    if (node.subgraph && !isSelected && !isEditing) {
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(node.x, node.y, node.width, node.height);
+        ctx.setLineDash([]);
+    }
 
     // Draw resize handles if selected or editing (show bounds even though no border)
     if (isSelected || isEditing) {

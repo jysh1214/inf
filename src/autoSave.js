@@ -39,7 +39,11 @@ function autoSave() {
             canvasWidth: canvasWidth,
             canvasHeight: canvasHeight,
             zoom: zoom,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            // Subgraph navigation state
+            subgraphStack: subgraphStack,
+            currentDepth: currentDepth,
+            currentPath: currentPath
         };
         localStorage.setItem('inf-autosave', JSON.stringify(saveData));
         console.log('Auto-saved at', saveData.timestamp);
@@ -122,9 +126,27 @@ function autoLoad() {
             nodeMap.set(node.id, node);
         });
 
+        // Restore subgraph navigation state
+        if (saveData.subgraphStack !== undefined) {
+            subgraphStack = saveData.subgraphStack;
+        }
+        if (saveData.currentDepth !== undefined) {
+            currentDepth = saveData.currentDepth;
+        }
+        if (saveData.currentPath !== undefined) {
+            currentPath = saveData.currentPath;
+        }
+
         render();
         console.log('Auto-loaded from', saveData.timestamp);
-        setStatus(`Restored ${nodes.length} nodes from auto-save`);
+
+        // Update status with breadcrumb if we're in a subgraph
+        if (currentDepth > 0) {
+            updateBreadcrumb();
+        } else {
+            setStatus(`Restored ${nodes.length} nodes from auto-save`);
+        }
+
         return true;
     } catch (error) {
         console.error('Auto-load failed:', error);

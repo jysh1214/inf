@@ -42,3 +42,9 @@ let autoSaveStatusTimer = null;
 // Cursor blink state for text editing
 let cursorVisible = true;
 let cursorBlinkInterval = null;
+
+// Subgraph navigation state
+let subgraphStack = [];  // Array of {parentState, nodeId, nodePath, fileHandle?} objects
+let currentDepth = 0;     // Track nesting depth for breadcrumb display (0 = root level)
+let currentPath = [];     // Array of node IDs representing the path: [parentNodeId, childNodeId, ...]
+let fileHandleMap = new Map(); // Map<nodeId, FileSystemFileHandle> for file-based subgraphs

@@ -164,6 +164,11 @@ function validateNode(node, index) {
             throw new Error(`Node ${index} (id: ${node.id}): 'textAlign' must be one of: ${validAlignments.join(', ')} (got '${node.textAlign}')`);
         }
     }
+
+    // Validate subgraph field (optional)
+    if (node.subgraph !== undefined && node.subgraph !== null) {
+        validateSubgraph(node.subgraph, node.id, index);
+    }
 }
 
 function validateConnection(conn, index, nodeIds) {
@@ -204,6 +209,451 @@ function validateConnection(conn, index, nodeIds) {
     }
     if (!nodeIds.has(conn.toId)) {
         throw new Error(`Connection ${index} (id: ${conn.id}): 'toId' ${conn.toId} references non-existent node`);
+    }
+}
+
+function validateSubgraph(subgraph, nodeId, nodeIndex) {
+    // Check if subgraph is null/undefined (valid - no subgraph)
+    if (subgraph === null || subgraph === undefined) {
+        return; // No subgraph is valid
+    }
+
+    // Check if it's a file path (string)
+    if (typeof subgraph === 'string') {
+        // Validate it's a non-empty string ending in .json
+        if (subgraph.trim() === '') {
+            throw new Error(`Node ${nodeIndex} (id: ${nodeId}): 'subgraph' file path cannot be empty`);
+        }
+        if (!subgraph.toLowerCase().endsWith('.json')) {
+            throw new Error(`Node ${nodeIndex} (id: ${nodeId}): 'subgraph' file path must end with .json (got '${subgraph}')`);
+        }
+        // Note: We don't validate file existence here, only format
+        return;
+    }
+
+    // Check if it's an embedded subgraph object
+    if (typeof subgraph === 'object') {
+        // Validate it has the same structure as a diagram file
+        if (!subgraph.nodes || !Array.isArray(subgraph.nodes)) {
+            throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' missing or invalid "nodes" array`);
+        }
+        if (!subgraph.connections || !Array.isArray(subgraph.connections)) {
+            throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' missing or invalid "connections" array`);
+        }
+
+        // Check for null/undefined elements
+        if (subgraph.nodes.some((n, i) => n === null || n === undefined)) {
+            throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' nodes array contains null or undefined elements`);
+        }
+        if (subgraph.connections.some((c, i) => c === null || c === undefined)) {
+            throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' connections array contains null or undefined elements`);
+        }
+
+        // Validate each node in the subgraph
+        const subNodeIds = new Set();
+        subgraph.nodes.forEach((node, idx) => {
+            validateNode(node, idx);
+            subNodeIds.add(node.id);
+        });
+
+        // Check for duplicate node IDs
+        if (subNodeIds.size !== subgraph.nodes.length) {
+            throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' contains duplicate node IDs`);
+        }
+
+        // Validate each connection in the subgraph
+        const subConnIds = new Set();
+        subgraph.connections.forEach((conn, idx) => {
+            validateConnection(conn, idx, subNodeIds);
+            subConnIds.add(conn.id);
+        });
+
+        // Check for duplicate connection IDs
+        if (subConnIds.size !== subgraph.connections.length) {
+            throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' contains duplicate connection IDs`);
+        }
+
+        // Validate optional canvas dimensions
+        if (subgraph.canvasWidth !== undefined && subgraph.canvasWidth !== null) {
+            if (!isValidNumber(subgraph.canvasWidth)) {
+                throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' canvasWidth must be a valid number`);
+            }
+            if (subgraph.canvasWidth < MIN_CANVAS_SIZE || subgraph.canvasWidth > MAX_CANVAS_SIZE) {
+                throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' canvasWidth must be between ${MIN_CANVAS_SIZE} and ${MAX_CANVAS_SIZE}`);
+            }
+        }
+        if (subgraph.canvasHeight !== undefined && subgraph.canvasHeight !== null) {
+            if (!isValidNumber(subgraph.canvasHeight)) {
+                throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' canvasHeight must be a valid number`);
+            }
+            if (subgraph.canvasHeight < MIN_CANVAS_SIZE || subgraph.canvasHeight > MAX_CANVAS_SIZE) {
+                throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' canvasHeight must be between ${MIN_CANVAS_SIZE} and ${MAX_CANVAS_SIZE}`);
+            }
+        }
+
+        // Validate optional zoom
+        if (subgraph.zoom !== undefined && subgraph.zoom !== null) {
+            if (!isValidNumber(subgraph.zoom)) {
+                throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' zoom must be a valid number`);
+            }
+            if (subgraph.zoom < MIN_ZOOM || subgraph.zoom > MAX_ZOOM) {
+                throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' zoom must be between ${MIN_ZOOM} and ${MAX_ZOOM}`);
+            }
+        }
+
+        return;
+    }
+
+    // Invalid type
+    throw new Error(`Node ${nodeIndex} (id: ${nodeId}): 'subgraph' must be a string (file path) or object (embedded subgraph), got ${typeof subgraph}`);
+}
+
+// Subgraph management functions
+async function createNewSubgraph(node) {
+    try {
+        // Prompt user to choose subgraph type
+        const choice = confirm('Create embedded subgraph?\n\nClick OK for Embedded (stored in this file)\nClick Cancel for File-based (separate JSON file)');
+
+        if (choice) {
+            // Create embedded subgraph
+            node.subgraph = {
+                version: '1.0',
+                nodes: [],
+                connections: [],
+                nextId: 1,
+                canvasWidth: DEFAULT_CANVAS_WIDTH,
+                canvasHeight: DEFAULT_CANVAS_HEIGHT,
+                zoom: 1.0
+            };
+            setStatus(`Created embedded subgraph for node #${node.id} - Entering...`);
+            render();
+            triggerAutoSave();
+
+            // Enter the subgraph immediately
+            await enterSubgraph(node);
+        } else {
+            // Create file-based subgraph
+            if ('showSaveFilePicker' in window) {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                const fileHandle = await window.showSaveFilePicker({
+                    suggestedName: `subgraph-node-${node.id}-${timestamp}.json`,
+                    types: [{
+                        description: 'JSON Files',
+                        accept: { 'application/json': ['.json'] }
+                    }]
+                });
+
+                // Create initial empty subgraph data
+                const subgraphData = {
+                    version: '1.0',
+                    nodes: [],
+                    connections: [],
+                    nextId: 1,
+                    canvasWidth: DEFAULT_CANVAS_WIDTH,
+                    canvasHeight: DEFAULT_CANVAS_HEIGHT,
+                    zoom: 1.0
+                };
+
+                // Write to file
+                const writable = await fileHandle.createWritable();
+                await writable.write(JSON.stringify(subgraphData, null, 2));
+                await writable.close();
+
+                // Store file handle
+                fileHandleMap.set(node.id, fileHandle);
+
+                // Set node's subgraph to filename
+                node.subgraph = fileHandle.name;
+
+                setStatus(`Created file-based subgraph '${fileHandle.name}' for node #${node.id} - Entering...`);
+                render();
+                triggerAutoSave();
+
+                // Enter the subgraph immediately
+                await enterSubgraph(node);
+            } else {
+                setStatus('⚠️ File System Access API not supported. Creating embedded subgraph instead.');
+                node.subgraph = {
+                    version: '1.0',
+                    nodes: [],
+                    connections: [],
+                    nextId: 1,
+                    canvasWidth: DEFAULT_CANVAS_WIDTH,
+                    canvasHeight: DEFAULT_CANVAS_HEIGHT,
+                    zoom: 1.0
+                };
+                render();
+                triggerAutoSave();
+
+                // Enter the subgraph immediately
+                await enterSubgraph(node);
+            }
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            setStatus('Subgraph creation cancelled');
+        } else {
+            setStatus(`⚠️ Error creating subgraph: ${error.message}`);
+            console.error('Subgraph creation error:', error);
+        }
+    }
+}
+
+async function loadSubgraphFromFile(filePath, nodeId) {
+    try {
+        // Check if we already have a file handle for this node
+        let fileHandle = fileHandleMap.get(nodeId);
+
+        if (!fileHandle) {
+            // Need to prompt user to select the file
+            if ('showOpenFilePicker' in window) {
+                const handles = await window.showOpenFilePicker({
+                    types: [{
+                        description: 'JSON Files',
+                        accept: { 'application/json': ['.json'] }
+                    }],
+                    multiple: false
+                });
+                fileHandle = handles[0];
+                fileHandleMap.set(nodeId, fileHandle);
+            } else {
+                throw new Error('File System Access API not supported in this browser');
+            }
+        }
+
+        // Read file contents
+        const file = await fileHandle.getFile();
+        const contents = await file.text();
+
+        // Parse and validate JSON
+        const subgraphData = JSON.parse(contents);
+
+        // Validate the subgraph data using a temporary node
+        const tempNode = { id: nodeId, subgraph: subgraphData };
+        validateSubgraph(tempNode.subgraph, nodeId, -1);
+
+        return subgraphData;
+    } catch (error) {
+        throw new Error(`Failed to load subgraph file: ${error.message}`);
+    }
+}
+
+async function enterSubgraph(node) {
+    try {
+        let subgraphData = null;
+
+        // Determine if it's a file path or embedded subgraph
+        if (typeof node.subgraph === 'string') {
+            // File path - load from file
+            setStatus(`Loading subgraph from ${node.subgraph}...`);
+            subgraphData = await loadSubgraphFromFile(node.subgraph, node.id);
+        } else if (typeof node.subgraph === 'object') {
+            // Embedded subgraph
+            subgraphData = node.subgraph;
+        } else {
+            throw new Error('Invalid subgraph format');
+        }
+
+        // Stop any ongoing editing
+        stopCursorBlink();
+
+        // Save current state to stack
+        const currentState = {
+            parentState: {
+                nodes: JSON.parse(JSON.stringify(nodes)),
+                connections: JSON.parse(JSON.stringify(connections)),
+                nextId: nextId,
+                canvasWidth: canvasWidth,
+                canvasHeight: canvasHeight,
+                zoom: zoom
+            },
+            nodeId: node.id,
+            nodePath: [...currentPath, node.id],
+            fileHandle: fileHandleMap.get(node.id) || null
+        };
+        subgraphStack.push(currentState);
+
+        // Update path
+        currentPath.push(node.id);
+        currentDepth++;
+
+        // Load subgraph data
+        nodes = subgraphData.nodes;
+        connections = subgraphData.connections;
+
+        // Calculate nextId safely
+        if (subgraphData.nextId !== undefined && subgraphData.nextId !== null) {
+            nextId = subgraphData.nextId;
+        } else {
+            const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id)];
+            nextId = allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
+        }
+
+        // Restore canvas size and zoom if saved in subgraph
+        if (subgraphData.canvasWidth && subgraphData.canvasHeight) {
+            canvasWidth = subgraphData.canvasWidth;
+            canvasHeight = subgraphData.canvasHeight;
+            resizeCanvas();
+        }
+        if (subgraphData.zoom !== undefined) {
+            zoom = subgraphData.zoom;
+        }
+
+        // Rebuild nodeMap
+        nodeMap.clear();
+        nodes.forEach(n => {
+            nodeMap.set(n.id, n);
+        });
+
+        // Reset all selection and interaction state
+        selectedNode = null;
+        selectedConnection = null;
+        hoveredNode = null;
+        editingNode = null;
+        connectionMode = false;
+        connectionStart = null;
+        isDragging = false;
+        isResizing = false;
+        resizeCorner = null;
+        isPanning = false;
+        panStart = { x: 0, y: 0 };
+        scrollStart = { x: 0, y: 0 };
+        copiedNode = null;
+        clearConnectionButtons();
+
+        // Reset alignment buttons
+        updateAlignmentButtons(currentTextAlign);
+
+        // Update status with breadcrumb
+        updateBreadcrumb();
+
+        render();
+
+        // Trigger auto-save
+        triggerAutoSave();
+
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            setStatus('Subgraph navigation cancelled');
+        } else {
+            setStatus(`⚠️ Error loading subgraph: ${error.message}`);
+            console.error('Subgraph load error:', error);
+        }
+    }
+}
+
+function updateBreadcrumb() {
+    if (currentDepth === 0) {
+        setStatus('Root - Double-click to create nodes');
+    } else {
+        // Show last 2-3 levels to avoid overflow
+        const pathToShow = currentPath.slice(-2);
+        const breadcrumb = pathToShow.map(id => `Node #${id}`).join(' > ');
+        const prefix = currentPath.length > 2 ? '... > ' : '';
+        setStatus(`${prefix}${breadcrumb} - Double-click to create nodes, Esc to go back`);
+    }
+}
+
+async function exitSubgraph() {
+    // Can't exit if we're at root level
+    if (currentDepth === 0 || subgraphStack.length === 0) {
+        setStatus('Already at root level');
+        return;
+    }
+
+    try {
+        // Stop any ongoing editing
+        stopCursorBlink();
+        editingNode = null;
+
+        // Save current subgraph state
+        const currentSubgraphData = {
+            version: '1.0',
+            nodes: nodes,
+            connections: connections,
+            nextId: nextId,
+            canvasWidth: canvasWidth,
+            canvasHeight: canvasHeight,
+            zoom: zoom
+        };
+
+        // Pop from stack to get parent state
+        const stackEntry = subgraphStack.pop();
+        const parentNodeId = stackEntry.nodeId;
+        const parentState = stackEntry.parentState;
+        const fileHandle = stackEntry.fileHandle;
+
+        // Restore parent state
+        nodes = parentState.nodes;
+        connections = parentState.connections;
+        nextId = parentState.nextId;
+        canvasWidth = parentState.canvasWidth;
+        canvasHeight = parentState.canvasHeight;
+        zoom = parentState.zoom;
+
+        // Rebuild nodeMap
+        nodeMap.clear();
+        nodes.forEach(n => {
+            nodeMap.set(n.id, n);
+        });
+
+        // Find the parent node we came from
+        const parentNode = nodeMap.get(parentNodeId);
+        if (parentNode) {
+            // Update parent node's subgraph with current changes
+            if (typeof parentNode.subgraph === 'object') {
+                // Embedded subgraph - update in-place
+                parentNode.subgraph = currentSubgraphData;
+            } else if (typeof parentNode.subgraph === 'string' && fileHandle) {
+                // File-based subgraph - save to file
+                try {
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(JSON.stringify(currentSubgraphData, null, 2));
+                    await writable.close();
+                } catch (error) {
+                    console.error('Failed to save subgraph file:', error);
+                    setStatus(`⚠️ Failed to save changes to ${parentNode.subgraph}: ${error.message}`);
+                }
+            }
+        }
+
+        // Update depth and path
+        currentDepth--;
+        currentPath.pop();
+
+        // Resize canvas
+        resizeCanvas();
+
+        // Reset all selection and interaction state
+        selectedNode = null;
+        selectedConnection = null;
+        hoveredNode = null;
+        editingNode = null;
+        connectionMode = false;
+        connectionStart = null;
+        isDragging = false;
+        isResizing = false;
+        resizeCorner = null;
+        isPanning = false;
+        panStart = { x: 0, y: 0 };
+        scrollStart = { x: 0, y: 0 };
+        copiedNode = null;
+        clearConnectionButtons();
+
+        // Reset alignment buttons
+        updateAlignmentButtons(currentTextAlign);
+
+        // Update status with breadcrumb
+        updateBreadcrumb();
+
+        render();
+
+        // Trigger auto-save
+        triggerAutoSave();
+
+    } catch (error) {
+        setStatus(`⚠️ Error exiting subgraph: ${error.message}`);
+        console.error('Exit subgraph error:', error);
     }
 }
 

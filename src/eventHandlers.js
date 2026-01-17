@@ -50,6 +50,29 @@ canvas.addEventListener('mousedown', (e) => {
 
     const clickedNode = getNodeAtPoint(x, y);
 
+    // Ctrl+Click behavior for subgraphs
+    if (clickedNode && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        // Exit edit mode if active
+        if (editingNode) {
+            stopCursorBlink();
+            editingNode = null;
+        }
+
+        if (clickedNode.subgraph) {
+            // Node has subgraph - enter it
+            enterSubgraph(clickedNode);
+        } else {
+            // Node has no subgraph - create new one
+            createNewSubgraph(clickedNode);
+        }
+
+        return false; // Don't continue with normal click handling
+    }
+
     // Exit edit mode if clicking outside the editing node
     if (editingNode && clickedNode !== editingNode) {
         stopCursorBlink();
@@ -403,7 +426,11 @@ document.addEventListener('keydown', (e) => {
             canvas.style.cursor = 'grab';
             setStatus('Connection mode cancelled');
             render();
+        } else if (currentDepth > 0) {
+            // Exit subgraph and return to parent
+            exitSubgraph();
         }
+        e.preventDefault();
     } else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey)) {
         // Ctrl+C: Copy selected node
         if (selectedNode) {
@@ -432,6 +459,14 @@ document.addEventListener('keydown', (e) => {
             nodes.push(newNode);
             nodeMap.set(newNode.id, newNode);
 
+            // If original node had a file handle, copy it to the new node
+            if (copiedNode.subgraph && typeof copiedNode.subgraph === 'string') {
+                const originalHandle = fileHandleMap.get(copiedNode.id);
+                if (originalHandle) {
+                    fileHandleMap.set(newNode.id, originalHandle);
+                }
+            }
+
             // Select the new node
             selectedNode = newNode;
             selectedConnection = null;
@@ -454,6 +489,7 @@ document.addEventListener('keydown', (e) => {
             const id = selectedNode.id;
             nodes = nodes.filter(n => n.id !== id);
             nodeMap.delete(id);
+            fileHandleMap.delete(id);  // Clean up file handle if exists
 
             // Clear editingNode if we're deleting the node being edited
             if (editingNode && editingNode.id === id) {
@@ -476,5 +512,14 @@ document.addEventListener('keydown', (e) => {
             render();
             triggerAutoSave();
         }
+    }
+});
+
+// Prevent context menu on Ctrl+Click (which browsers may interpret as "save image")
+canvas.addEventListener('contextmenu', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
     }
 });
