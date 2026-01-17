@@ -7,7 +7,7 @@ Use this concise prompt when asking AI assistants to create structured notes in 
 ## The Prompt
 
 ```
-Please follow the INF_NOTE_GUIDE.md format to create a structured note diagram for [TOPIC/DOCUMENTATION/REPOSITORY].
+Please follow the inf/INF_NOTE_GUIDE.md format to create a structured note diagram for [TOPIC/DOCUMENTATION/REPOSITORY].
 
 Structure:
 - Comprehensive overview / full picture at root level
@@ -15,12 +15,12 @@ Structure:
 - Use appropriate node types: rectangle (concepts), circle (entry/exit points), diamond (decisions), text (annotations)
 - Create meaningful connections (directed for flow/dependency, undirected for associations)
 
-Output:
+Output: (in DEST)
 - Main JSON file with root-level overview
 - Separate JSON files for each subgraph (named clearly, e.g., "module-authentication.json", "concept-event-loop.json")
 - In parent nodes, use `"subgraph": "filename.json"` to reference the files
 
-Follow the format in INF_NOTE_GUIDE.md.
+Follow the format in inf/INF_NOTE_GUIDE.md.
 ```
 
 ---
