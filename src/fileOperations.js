@@ -1,18 +1,7 @@
-function saveToJSON() {
-    // Prompt for filename
+async function saveToJSON() {
+    // Generate default filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
     const defaultFilename = `inf-diagram-${timestamp}`;
-    const userFilename = prompt('Enter filename (without .json extension):', defaultFilename);
-
-    // If user cancels, don't save
-    if (userFilename === null) {
-        setStatus('Save cancelled');
-        return;
-    }
-
-    // Sanitize filename - remove invalid characters
-    const sanitized = userFilename.trim().replace(/[<>:"/\\|?*]/g, '-');
-    const filename = sanitized || defaultFilename;
 
     // Create save data object
     const saveData = {
@@ -28,19 +17,62 @@ function saveToJSON() {
     // Convert to JSON string
     const jsonString = JSON.stringify(saveData, null, 2);
 
-    // Create blob and download
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}.json`;
+    // Use File System Access API if available (Chrome/Edge)
+    if ('showSaveFilePicker' in window) {
+        try {
+            const fileHandle = await window.showSaveFilePicker({
+                suggestedName: `${defaultFilename}.json`,
+                types: [{
+                    description: 'JSON Files',
+                    accept: { 'application/json': ['.json'] }
+                }]
+            });
 
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+            const writable = await fileHandle.createWritable();
+            await writable.write(jsonString);
+            await writable.close();
 
-    setStatus(`Diagram saved to ${a.download}`);
+            setStatus(`Diagram saved to ${fileHandle.name}`);
+        } catch (error) {
+            // Handle different error types
+            if (error.name === 'AbortError') {
+                setStatus('Save cancelled');
+            } else if (error.name === 'SecurityError' || error.name === 'NotAllowedError') {
+                setStatus('⚠️ Permission denied. Please try again.');
+                console.error('Save error:', error);
+            } else {
+                console.error('Save error:', error);
+                setStatus(`⚠️ Error saving file: ${error.message}`);
+            }
+        }
+    } else {
+        // Fallback for browsers without File System Access API
+        const userFilename = prompt('Enter filename (without .json extension):', defaultFilename);
+
+        // If user cancels, don't save
+        if (userFilename === null) {
+            setStatus('Save cancelled');
+            return;
+        }
+
+        // Sanitize filename - remove invalid characters
+        const sanitized = userFilename.trim().replace(/[<>:"/\\|?*]/g, '-');
+        const filename = sanitized || defaultFilename;
+
+        // Create blob and download
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.json`;
+
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setStatus(`Diagram saved to ${a.download}`);
+    }
 }
 
 function loadFromJSON(event) {
@@ -124,7 +156,7 @@ function loadFromJSON(event) {
     event.target.value = '';
 }
 
-function exportToPNG() {
+async function exportToPNG() {
     // Check if canvas is empty
     if (nodes.length === 0 && connections.length === 0) {
         if (!confirm('Canvas is empty. Export anyway?')) {
@@ -133,20 +165,9 @@ function exportToPNG() {
         }
     }
 
-    // Prompt for filename
+    // Generate default filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
     const defaultFilename = `inf-diagram-${timestamp}`;
-    const userFilename = prompt('Enter filename (without .png extension):', defaultFilename);
-
-    // If user cancels, don't export
-    if (userFilename === null) {
-        setStatus('Export cancelled');
-        return;
-    }
-
-    // Sanitize filename - remove invalid characters
-    const sanitized = userFilename.trim().replace(/[<>:"/\\|?*]/g, '-');
-    const filename = sanitized || defaultFilename;
 
     // Temporarily set zoom to 1.0 for export
     const originalZoom = zoom;
@@ -154,7 +175,7 @@ function exportToPNG() {
     render();
 
     // Convert canvas to blob
-    canvas.toBlob(function(blob) {
+    canvas.toBlob(async function(blob) {
         // Restore original zoom
         zoom = originalZoom;
         render();
@@ -164,17 +185,60 @@ function exportToPNG() {
             return;
         }
 
-        // Create download link
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${filename}.png`;
+        // Use File System Access API if available (Chrome/Edge)
+        if ('showSaveFilePicker' in window) {
+            try {
+                const fileHandle = await window.showSaveFilePicker({
+                    suggestedName: `${defaultFilename}.png`,
+                    types: [{
+                        description: 'PNG Images',
+                        accept: { 'image/png': ['.png'] }
+                    }]
+                });
 
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
 
-        setStatus(`Image exported to ${a.download}`);
+                setStatus(`Image exported to ${fileHandle.name}`);
+            } catch (error) {
+                // Handle different error types
+                if (error.name === 'AbortError') {
+                    setStatus('Export cancelled');
+                } else if (error.name === 'SecurityError' || error.name === 'NotAllowedError') {
+                    setStatus('⚠️ Permission denied. Please try again.');
+                    console.error('Export error:', error);
+                } else {
+                    console.error('Export error:', error);
+                    setStatus(`⚠️ Error exporting image: ${error.message}`);
+                }
+            }
+        } else {
+            // Fallback for browsers without File System Access API
+            const userFilename = prompt('Enter filename (without .png extension):', defaultFilename);
+
+            // If user cancels, don't export
+            if (userFilename === null) {
+                setStatus('Export cancelled');
+                return;
+            }
+
+            // Sanitize filename - remove invalid characters
+            const sanitized = userFilename.trim().replace(/[<>:"/\\|?*]/g, '-');
+            const filename = sanitized || defaultFilename;
+
+            // Create download link
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${filename}.png`;
+
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            setStatus(`Image exported to ${a.download}`);
+        }
     }, 'image/png');
 }

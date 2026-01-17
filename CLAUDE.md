@@ -19,6 +19,7 @@ Inf is a web-based diagram note-taking application implemented as a single HTML 
 - **Build**: Python script merges into single `index.html`
 - **Distribution**: Single file with all HTML/CSS/JS embedded
 - **Rendering**: HTML Canvas API for drawing nodes and arrows
+- **File operations**: File System Access API for save location picker (Chrome/Edge), with fallback for other browsers
 - **No dependencies**: Pure vanilla JavaScript (no frameworks)
 - **Browser compatibility**: Chrome only (recommended and tested)
 
@@ -293,11 +294,14 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 - `clearCanvas()` - Clears all nodes, connections, and auto-save with confirmation
 
 **File Operations** (src/615-807):
-- `saveToJSON()` - Saves diagram to JSON file
+- `saveToJSON()` - Saves diagram to JSON file (async)
+  - Uses File System Access API in Chrome/Edge (lets user choose save location)
+  - Falls back to download prompt in other browsers
   - Prompts for filename with timestamp default
   - Sanitizes filename (removes invalid characters: `< > : " / \ | ? *`)
   - Creates downloadable blob with formatted JSON
   - Saves: version, nodes, connections, nextId, canvasWidth, canvasHeight, zoom
+  - Enhanced error handling: specific messages for AbortError, SecurityError, NotAllowedError
 - `loadFromJSON(event)` - Loads diagram from JSON file
   - Validates data structure
   - Calculates nextId safely (handles empty arrays)
@@ -305,12 +309,15 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
   - Rebuilds nodeMap after loading
   - Resets all interaction state
   - Triggers auto-save after successful load
-- `exportToPNG()` - Exports canvas as PNG image
+- `exportToPNG()` - Exports canvas as PNG image (async)
+  - Uses File System Access API in Chrome/Edge (lets user choose save location)
+  - Falls back to download prompt in other browsers
   - Warns if canvas is empty
-  - Prompts for filename with timestamp default
-  - Sanitizes filename
+  - Prompts for filename with timestamp default (fallback mode)
+  - Sanitizes filename (removes invalid characters: `< > : " / \ | ? *`)
   - Temporarily sets zoom to 1.0 (100%) for export, then restores original zoom
   - Uses canvas.toBlob() for high-quality export
+  - Enhanced error handling: specific messages for AbortError, SecurityError, NotAllowedError
 
 **Node Management** (src/809-856):
 - `createNode(x, y, type)` - Creates new node of specified type at position
@@ -452,9 +459,9 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 
 **File Operations Toolbar** (src/243-247):
 - 3 buttons in grid layout: Save, Load, Export
-- Save: Downloads diagram as JSON file with user-specified name (includes canvas size and zoom)
+- Save: Opens file picker to choose location (Chrome/Edge) or downloads to Downloads folder (includes canvas size and zoom)
 - Load: Opens file picker to load JSON diagram (restores canvas size and zoom)
-- Export: Downloads canvas as PNG image with user-specified name (always at 100% zoom)
+- Export: Opens file picker to choose location (Chrome/Edge) or downloads to Downloads folder (always at 100% zoom)
 - All filenames are sanitized to remove invalid characters
 
 **Clear Canvas Button** (src/250):
@@ -540,7 +547,9 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
    - Removes associated connections when deleting nodes
    - **Auto-save**: Triggers after deletion
 15. **Save diagram**: Button to save as JSON file
-   - Prompts for filename (sanitized automatically)
+   - **Chrome/Edge**: Shows native file picker to choose save location
+   - **Other browsers**: Prompts for filename, saves to Downloads folder
+   - Filename automatically sanitized (removes invalid characters)
    - Downloads with .json extension
    - Saves all nodes, connections, canvas size, zoom level, and state
 16. **Load diagram**: Button to load JSON file
@@ -549,7 +558,8 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
    - Restores canvas size and zoom level
    - Triggers auto-save after loading
 17. **Export diagram**: Button to export as PNG image
-   - Prompts for filename (sanitized automatically)
+   - **Chrome/Edge**: Shows native file picker to choose save location
+   - **Other browsers**: Prompts for filename, saves to Downloads folder
    - Warns if canvas is empty
    - Always exports at 100% zoom for consistency
    - High-quality canvas export
@@ -820,6 +830,8 @@ The codebase uses a node-based architecture where nodes have a `type` field. Fou
 
 **Browser Compatibility:**
 - Safari may have double-click issues (Chrome recommended)
+- File System Access API (save location picker) available in Chrome/Edge only
+  - Safari/Firefox use fallback download-to-Downloads-folder method
 
 **Text Editing Limitations:**
 - Max 1000 characters per node (enforced with visual feedback)
@@ -959,6 +971,8 @@ The codebase is organized into modular source files that are merged into a singl
 - Max text length prevents memory issues
 - Storage quota error handling
 - Canvas size and zoom validation
+- File System Access API error handling (AbortError, SecurityError, NotAllowedError)
+- Specific user-friendly error messages for file save/export failures
 
 **Maintainability:**
 - All magic numbers extracted as constants
