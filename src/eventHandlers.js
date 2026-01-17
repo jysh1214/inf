@@ -485,7 +485,8 @@ document.addEventListener('keydown', (e) => {
             const id = selectedNode.id;
             nodes = nodes.filter(n => n.id !== id);
             nodeMap.delete(id);
-            fileHandleMap.delete(id);  // Clean up file handle if exists
+            fileHandleMap.delete(id);  // Clean up file handle from memory
+            deleteFileHandle(id);  // Clean up file handle from IndexedDB (async, no await needed)
 
             // Clear editingNode if we're deleting the node being edited
             if (editingNode && editingNode.id === id) {

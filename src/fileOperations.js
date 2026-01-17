@@ -365,8 +365,9 @@ async function createNewSubgraph(node) {
                 await writable.write(JSON.stringify(subgraphData, null, 2));
                 await writable.close();
 
-                // Store file handle
+                // Store file handle in memory and IndexedDB
                 fileHandleMap.set(node.id, fileHandle);
+                await storeFileHandle(node.id, fileHandle);
 
                 // Set node's subgraph to filename
                 node.subgraph = fileHandle.name;
@@ -422,8 +423,9 @@ async function createNewSubgraph(node) {
                     // Validate subgraph structure
                     validateSubgraph(subgraphData, node.id, null);
 
-                    // Validation passed - store file handle and link it
+                    // Validation passed - store file handle in memory and IndexedDB
                     fileHandleMap.set(node.id, fileHandle);
+                    await storeFileHandle(node.id, fileHandle);
                     node.subgraph = fileHandle.name;
 
                     setStatus(`Linked existing file '${fileHandle.name}' as subgraph for node #${node.id} - Entering...`);
@@ -452,11 +454,28 @@ async function createNewSubgraph(node) {
 
 async function loadSubgraphFromFile(filePath, nodeId) {
     try {
-        // Check if we already have a file handle for this node
+        // Check if we already have a file handle for this node (memory cache)
         let fileHandle = fileHandleMap.get(nodeId);
 
+        // If not in memory, try IndexedDB (persistent storage)
         if (!fileHandle) {
-            // Need to prompt user to select the file
+            fileHandle = await getFileHandle(nodeId);
+
+            // If found in IndexedDB, verify we still have permission
+            if (fileHandle) {
+                const hasPermission = await verifyPermission(fileHandle);
+                if (!hasPermission) {
+                    // Permission lost, need to reselect
+                    fileHandle = null;
+                } else {
+                    // Store in memory cache for faster access
+                    fileHandleMap.set(nodeId, fileHandle);
+                }
+            }
+        }
+
+        // If still no handle, prompt user to select the file
+        if (!fileHandle) {
             if ('showOpenFilePicker' in window) {
                 const handles = await window.showOpenFilePicker({
                     types: [{
@@ -466,7 +485,10 @@ async function loadSubgraphFromFile(filePath, nodeId) {
                     multiple: false
                 });
                 fileHandle = handles[0];
+
+                // Store in both memory and IndexedDB
                 fileHandleMap.set(nodeId, fileHandle);
+                await storeFileHandle(nodeId, fileHandle);
             } else {
                 throw new Error('File System Access API not supported in this browser');
             }

@@ -37,6 +37,7 @@ def build():
         'autoSave.js',
         'uiHelpers.js',
         'ui.js',
+        'indexedDB.js',
         'fileOperations.js',
         'nodeManager.js',
         'connectionManager.js',
