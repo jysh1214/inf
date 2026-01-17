@@ -18,10 +18,11 @@ Structure:
 Output:
 - Main JSON file with root-level overview
 - Separate JSON files for each subgraph (named clearly, e.g., "module-authentication.json", "concept-event-loop.json")
-- In parent nodes, use `"subgraph": "filename.json"` to reference the files
+- In parent nodes, use `"subgraph": "/absolute/path/to/filename.json"` to reference the files
 - Save all assets in DEST
 
 Important:
+- Subgraph file paths must be absolute paths (e.g., "/path/to/file.json")
 - canvasWidth and canvasHeight must be between 1000-20000 (use 2000 as default)
 - All IDs must be unique, nextId must be greater than any used ID
 

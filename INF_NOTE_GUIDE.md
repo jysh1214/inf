@@ -256,7 +256,7 @@ Store complete diagram data inside the node's `subgraph` property:
 
 ### File-Based Subgraphs
 
-Reference an external JSON file by storing the filename as a string:
+Reference an external JSON file by storing the file path as a string:
 
 ```json
 {
@@ -268,12 +268,13 @@ Reference an external JSON file by storing the filename as a string:
   "y": 100,
   "width": 120,
   "height": 80,
-  "subgraph": "external-system-details.json"
+  "subgraph": "/path/to/external-system-details.json"
 }
 ```
 
 **File-based subgraphs:**
-- Store the filename (string) in the `subgraph` property
+- Store the file path (string) in the `subgraph` property
+- **Must use absolute paths** (e.g., `/home/user/diagrams/module.json`)
 - Must be a valid `.json` file
 - File must contain a valid Inf diagram structure
 - Useful for reusing diagrams across multiple projects
@@ -521,11 +522,12 @@ The application validates JSON files when loading. Here are the key rules:
 
 ✅ **Valid:**
 - `null` or `undefined` (no subgraph)
-- String ending with `.json` (file-based)
+- String ending with `.json` using absolute path (file-based)
 - Valid diagram object (embedded, recursively validated)
 
 ❌ **Invalid:**
 - String not ending with `.json`
+- Relative paths (must use absolute paths for file-based subgraphs)
 - Object missing required diagram fields
 - Circular references (detected at runtime)
 
