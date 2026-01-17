@@ -120,8 +120,23 @@ The app supports multiple storage mechanisms:
      - Saves current subgraph changes (to parent node object or external file)
      - Pops from `subgraphStack` to restore parent state
      - Updates navigation breadcrumb
-   - **File-based subgraphs**: FileSystemFileHandle objects are stored in `fileHandleMap` (session-only, not persisted to localStorage)
+   - **File-based subgraphs**: Three-tier file access system
+     - `fileHandleMap` (memory): Session-only cache for fast access
+     - IndexedDB: Persistent FileSystemFileHandle storage (survives page reload)
+     - Workspace folder: Directory-level permission for batch file access
+   - **Workspace folder**: Users can authorize a folder via Directory Picker API (`selectWorkspaceFolder()`)
+     - All files in authorized folder open automatically without file picker
+     - Directory handle stored in IndexedDB (persists across reloads)
+     - `findFileInDirectory()` searches workspace for subgraph files by filename
    - **Circular reference prevention**: Validates that embedded subgraphs don't create cycles via node ID path checking, and file-based subgraphs aren't already in the stack
+
+4. **IndexedDB for Persistent Storage** (`indexedDB.js`):
+   - Stores FileSystemFileHandle objects (can't use localStorage)
+   - Stores FileSystemDirectoryHandle for workspace folder
+   - DB_VERSION = 2 (v1: fileHandles, v2: added directoryHandle store)
+   - Functions: `storeFileHandle()`, `getFileHandle()`, `deleteFileHandle()`, `storeDirectoryHandle()`, `getDirectoryHandle()`, `findFileInDirectory()`
+   - Verifies permissions before using stored handles (`verifyPermission()`)
+   - File access priority: memory cache → IndexedDB → workspace folder → file picker
 
 ### Validation System
 
@@ -129,7 +144,7 @@ The app supports multiple storage mechanisms:
 - File existence and size checks
 - HTML structure validation
 - Placeholder replacement verification
-- Module inclusion checks (all 11 JS files)
+- Module inclusion checks (all 12 JS files)
 - CSS inclusion verification
 - Constants and function presence checks
 - Event listener verification
@@ -208,10 +223,27 @@ The modal system in `ui.js` provides a template for future UI components:
 ### File System Access API Strategy
 
 For file operations:
-- **Prefer** File System Access API when available (`'showSaveFilePicker' in window`)
+- **Prefer** File System Access API when available (`'showSaveFilePicker' in window`, `'showDirectoryPicker' in window`)
 - **Fallback** to prompt-based input and blob downloads for unsupported browsers
-- **Session-only** file handles: FileSystemFileHandle objects cannot be serialized to localStorage
-- After page reload, prompt user to reselect files when needed
+- **IndexedDB persistence**: FileSystemFileHandle objects ARE stored in IndexedDB (not localStorage)
+  - Handles persist across page reloads
+  - Permission verification on retrieval (`verifyPermission()`)
+  - Three-tier access: memory → IndexedDB → workspace → file picker
+
+### Workspace Folder Strategy
+
+**Recommended workflow** for file-based subgraphs:
+1. User clicks "Set Folder" to authorize a workspace directory
+2. All diagram files for a project live in that folder
+3. Files in workspace open automatically (no picker prompts)
+4. Directory permission persists across sessions (stored in IndexedDB)
+
+**Implementation:**
+- Use Directory Picker API (`showDirectoryPicker()`)
+- Store `FileSystemDirectoryHandle` in IndexedDB
+- Search workspace by filename using `dirHandle.getFileHandle(filename)`
+- Falls back to individual file picker for files outside workspace
+- Best UX: Minimal permission prompts, maximum automation
 
 ### Event Handler Priority
 

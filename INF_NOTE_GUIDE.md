@@ -256,7 +256,7 @@ Store complete diagram data inside the node's `subgraph` property:
 
 ### File-Based Subgraphs
 
-Reference an external JSON file by storing the file path as a string:
+Reference an external JSON file by storing a filename reference as a string:
 
 ```json
 {
@@ -268,17 +268,30 @@ Reference an external JSON file by storing the file path as a string:
   "y": 100,
   "width": 120,
   "height": 80,
-  "subgraph": "/path/to/external-system-details.json"
+  "subgraph": "external-system-details.json"
 }
 ```
 
 **File-based subgraphs:**
-- Store the file path (string) in the `subgraph` property
-- **Must use absolute paths** (e.g., `/home/user/diagrams/module.json`)
+- Store the file path (string) in the `subgraph` property as a reference
+- Path can be absolute (e.g., `/home/user/diagrams/module.json`) or just a filename
 - Must be a valid `.json` file
 - File must contain a valid Inf diagram structure
 - Useful for reusing diagrams across multiple projects
 - Changes require manually saving the external file
+
+**Workspace Folder (Recommended):**
+- Click "Set Folder" in the Workspace section to authorize a folder
+- All subgraph files in that folder open automatically (no file picker prompts)
+- Folder permission persists across page reloads
+- Best practice: Keep all related diagram files in one workspace folder
+- Files outside the workspace still require manual file picker selection
+
+**File Access Priority:**
+1. **Memory cache** - Files already opened this session (instant)
+2. **IndexedDB** - Previously opened files with stored handles (fast)
+3. **Workspace folder** - Files in authorized folder (automatic, no picker)
+4. **File picker** - Manual selection for files not found above (fallback)
 
 ### Circular Reference Prevention
 
@@ -522,12 +535,11 @@ The application validates JSON files when loading. Here are the key rules:
 
 ✅ **Valid:**
 - `null` or `undefined` (no subgraph)
-- String ending with `.json` using absolute path (file-based)
+- String ending with `.json` (file-based reference)
 - Valid diagram object (embedded, recursively validated)
 
 ❌ **Invalid:**
 - String not ending with `.json`
-- Relative paths (must use absolute paths for file-based subgraphs)
 - Object missing required diagram fields
 - Circular references (detected at runtime)
 
