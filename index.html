@@ -19,12 +19,27 @@
             padding: 0;
         }
 
+        #app-layout {
+            display: flex;
+            flex-direction: row;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            flex: 0 0 320px;
+            display: flex;
+            flex-direction: column;
+            background: #f5f5f5;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border-right: 1px solid #dee2e6;
+        }
+
         #canvas-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            flex: 1;
+            position: relative;
             overflow: auto;
             background: #e0e0e0;
         }
@@ -39,14 +54,13 @@
         }
 
         #controls {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.95);
+            position: static;
+            flex: 1;
+            background: white;
             padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            max-width: 300px;
+            border-radius: 0;
+            box-shadow: none;
+            max-width: none;
         }
 
         #controls h3 {
@@ -75,15 +89,15 @@
         }
 
         #status {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
+            position: static;
+            flex: 0 0 auto;
             background: rgba(0, 0, 0, 0.8);
             color: white;
-            padding: 8px 12px;
-            border-radius: 4px;
+            padding: 10px 15px;
+            border-radius: 0;
             font-size: 13px;
             font-family: monospace;
+            border-top: 1px solid #495057;
         }
 
         button {
@@ -176,11 +190,9 @@
     </style>
 </head>
 <body>
-    <div id="canvas-container">
-        <canvas id="canvas"></canvas>
-    </div>
-
-    <div id="controls">
+    <div id="app-layout">
+        <div id="sidebar">
+            <div id="controls">
         <h3 id="app-title">Inf</h3>
 
         <div class="node-types">
@@ -236,11 +248,15 @@
         </div>
 
         <button onclick="clearCanvas()">Clear Canvas</button>
+            </div>
+            <div id="status">Ready</div>
+        </div>
+        <div id="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
     </div>
 
     <input type="file" id="file-input" accept=".json" style="display: none;" onchange="loadFromJSON(event)">
-
-    <div id="status">Ready</div>
 
     <script>
         // Canvas setup
