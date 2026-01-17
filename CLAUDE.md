@@ -303,12 +303,33 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
   - Saves: version, nodes, connections, nextId, canvasWidth, canvasHeight, zoom
   - Enhanced error handling: specific messages for AbortError, SecurityError, NotAllowedError
 - `loadFromJSON(event)` - Loads diagram from JSON file
-  - Validates data structure
+  - Comprehensive JSON validation with detailed error messages:
+    - JSON parsing errors (malformed JSON)
+    - Missing or invalid top-level structure (null, undefined, non-object)
+    - Null/undefined element detection in arrays
+    - Node validation:
+      - Required fields: id (positive integer), type (string), x (number), y (number)
+      - Robust null/undefined checks for all fields
+      - NaN/Infinity rejection for numeric fields
+      - Valid node types: rectangle, circle, diamond, text
+      - Type-specific fields: radius for circles, width/height for others
+      - Dimension range validation: 1-10000 pixels
+      - Optional fields: text (string), textAlign (left/center/right)
+    - Connection validation:
+      - Required fields: id (positive integer), fromId (integer), toId (integer), directed (boolean)
+      - Null/undefined checks for all fields
+      - Integer validation for all IDs
+      - Valid node references (fromId/toId point to existing nodes)
+    - Duplicate ID detection (both nodes and connections)
+    - Canvas size validation: 1000-20000px, rejects NaN/Infinity
+    - Zoom validation: 0.1-3.0, rejects NaN/Infinity
+    - nextId validation: must be positive integer if present
   - Calculates nextId safely (handles empty arrays)
   - Restores canvas size and zoom level if saved
   - Rebuilds nodeMap after loading
   - Resets all interaction state
   - Triggers auto-save after successful load
+  - Helper functions: isValidNumber(), isValidId(), validateNode(), validateConnection()
 - `exportToPNG()` - Exports canvas as PNG image (async)
   - Uses File System Access API in Chrome/Edge (lets user choose save location)
   - Falls back to download prompt in other browsers
@@ -318,6 +339,33 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
   - Temporarily sets zoom to 1.0 (100%) for export, then restores original zoom
   - Uses canvas.toBlob() for high-quality export
   - Enhanced error handling: specific messages for AbortError, SecurityError, NotAllowedError
+
+**Validation Helper Functions** (src/fileOperations.js):
+- `isValidNumber(value)` - Robust numeric validation
+  - Returns true only if value is a number AND not NaN AND finite
+  - Rejects: NaN, Infinity, -Infinity, null, undefined, strings, objects
+  - Used for: x, y, width, height, radius, canvasWidth, canvasHeight, zoom
+  - Example: `isValidNumber(5)` → true, `isValidNumber(NaN)` → false
+- `isValidId(value)` - Integer ID validation
+  - Returns true only if value is a valid number AND an integer AND positive
+  - Rejects: floats (1.5), zero, negative numbers, NaN, Infinity, null
+  - Used for: all node IDs, connection IDs, fromId, toId, nextId
+  - Example: `isValidId(5)` → true, `isValidId(5.5)` → false, `isValidId(0)` → false
+- `validateNode(node, index)` - Comprehensive node validation
+  - Checks node is an object (not null, undefined, or primitive)
+  - Validates all required fields with robust null/undefined/NaN checks
+  - Validates node type against whitelist: rectangle, circle, diamond, text
+  - Type-specific validation: radius for circles, width/height for others
+  - Range validation: dimensions must be 1-10000 pixels
+  - Optional field validation: text (string), textAlign (left/center/right)
+  - Throws descriptive errors with node index and field names
+- `validateConnection(conn, index, nodeIds)` - Comprehensive connection validation
+  - Checks connection is an object (not null, undefined, or primitive)
+  - Validates all required fields with robust null/undefined checks
+  - Validates all IDs are positive integers
+  - Validates directed is boolean (not truthy/falsy values)
+  - Cross-references fromId/toId against Set of valid node IDs
+  - Throws descriptive errors with connection index and field names
 
 **Node Management** (src/809-856):
 - `createNode(x, y, type)` - Creates new node of specified type at position
@@ -554,8 +602,18 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
    - Saves all nodes, connections, canvas size, zoom level, and state
 16. **Load diagram**: Button to load JSON file
    - Opens file picker
-   - Validates data structure and node properties
-   - Restores canvas size and zoom level
+   - Comprehensive validation with detailed error messages:
+     - JSON format validation (detects malformed JSON)
+     - Required field validation with null/undefined checks
+     - Type validation (rejects NaN, Infinity, null for numeric fields)
+     - ID validation (all IDs must be positive integers)
+     - Node type validation (rectangle, circle, diamond, text)
+     - Dimension range validation (1-10000 pixels for all node sizes)
+     - Connection reference validation (ensures fromId/toId point to existing nodes)
+     - Duplicate ID detection (both nodes and connections)
+     - Range validation (canvas size: 1000-20000px, zoom: 0.1-3.0)
+     - Null element detection in arrays
+   - Restores canvas size and zoom level if saved
    - Triggers auto-save after loading
 17. **Export diagram**: Button to export as PNG image
    - **Chrome/Edge**: Shows native file picker to choose save location
@@ -889,6 +947,21 @@ The codebase uses a node-based architecture where nodes have a `type` field. Fou
 - Test with all node type combinations
 - Verify hit detection matches actual line segment
 
+**When debugging file operations and validation:**
+- JSON validation errors show specific field and reason in status bar
+- Check browser console for full error stack traces
+- Common validation failures:
+  - "must be a positive integer" → ID is float, zero, negative, NaN, or Infinity
+  - "must be a valid number" → Value is NaN, Infinity, null, or non-numeric
+  - "references non-existent node" → Connection has invalid fromId/toId
+  - "duplicate IDs found" → Multiple nodes or connections share same ID
+  - "too large (max: 10000)" → Node dimensions exceed maximum allowed size
+- Use helper functions for custom validation:
+  - `isValidNumber(value)` for numeric fields
+  - `isValidId(value)` for ID fields
+- Test with edge cases: null, undefined, NaN, Infinity, negative numbers, floats
+- Validation happens before any data is loaded (all-or-nothing approach)
+
 ## File Structure
 
 The codebase is organized into modular source files that are merged into a single `index.html` by the build script:
@@ -923,8 +996,10 @@ The codebase is organized into modular source files that are merged into a singl
   - Button handlers (node type, alignment, canvas size, zoom)
   - Connection mode handlers
   - `clearCanvas()` - Reset functionality
-- `src/fileOperations.js` (~186 lines): File I/O
-  - `saveToJSON()`, `loadFromJSON()`, `exportToPNG()` - Import/export
+- `src/fileOperations.js` (~448 lines): File I/O with comprehensive validation
+  - `isValidNumber()`, `isValidId()` - Validation helper functions
+  - `validateNode()`, `validateConnection()` - Comprehensive validation functions
+  - `saveToJSON()`, `loadFromJSON()`, `exportToPNG()` - Import/export with error handling
 - `src/nodeManager.js` (~186 lines): Node management
   - `createNode()`, `createConnection()` - Node/connection creation
   - `isPointInNode()`, `getNodeAtPoint()` - Hit detection
@@ -973,6 +1048,19 @@ The codebase is organized into modular source files that are merged into a singl
 - Canvas size and zoom validation
 - File System Access API error handling (AbortError, SecurityError, NotAllowedError)
 - Specific user-friendly error messages for file save/export failures
+- Comprehensive JSON validation on load with robust checks:
+  - Malformed JSON detection
+  - Null/undefined checks for all required fields
+  - NaN and Infinity rejection for all numeric fields
+  - Type checking (numbers, strings, booleans, integers)
+  - ID validation (all IDs must be positive integers)
+  - Node type validation (rectangle, circle, diamond, text)
+  - Dimension range validation (1-10000 pixels)
+  - Connection reference validation (fromId/toId exist)
+  - Duplicate ID detection (both nodes and connections)
+  - Null element detection in arrays
+  - Range validation for canvas size (1000-20000px) and zoom (0.1-3.0)
+  - Helper functions: isValidNumber(), isValidId()
 
 **Maintainability:**
 - All magic numbers extracted as constants

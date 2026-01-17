@@ -75,6 +75,138 @@ async function saveToJSON() {
     }
 }
 
+// Validation helper functions
+function isValidNumber(value) {
+    return typeof value === 'number' && !isNaN(value) && isFinite(value);
+}
+
+function isValidId(value) {
+    return isValidNumber(value) && Number.isInteger(value) && value > 0;
+}
+
+function validateNode(node, index) {
+    // Constants for validation
+    const MAX_NODE_SIZE = 10000;
+    const MIN_NODE_SIZE = 1;
+
+    // Check if node is null or not an object
+    if (node === null || node === undefined || typeof node !== 'object') {
+        throw new Error(`Node ${index}: must be an object (got ${node === null ? 'null' : typeof node})`);
+    }
+
+    // Check required fields with robust null/undefined checks
+    if (node.id === null || node.id === undefined) {
+        throw new Error(`Node ${index}: missing 'id' field`);
+    }
+    if (!isValidId(node.id)) {
+        throw new Error(`Node ${index}: 'id' must be a positive integer (got ${node.id})`);
+    }
+
+    if (node.type === null || node.type === undefined || typeof node.type !== 'string') {
+        throw new Error(`Node ${index} (id: ${node.id}): missing or invalid 'type' field`);
+    }
+
+    if (!isValidNumber(node.x)) {
+        throw new Error(`Node ${index} (id: ${node.id}): 'x' must be a valid number (got ${node.x})`);
+    }
+    if (!isValidNumber(node.y)) {
+        throw new Error(`Node ${index} (id: ${node.id}): 'y' must be a valid number (got ${node.y})`);
+    }
+
+    // Validate node type
+    const validTypes = ['rectangle', 'circle', 'diamond', 'text'];
+    if (!validTypes.includes(node.type)) {
+        throw new Error(`Node ${index} (id: ${node.id}): invalid type '${node.type}'. Must be one of: ${validTypes.join(', ')}`);
+    }
+
+    // Type-specific validation
+    if (node.type === 'circle') {
+        if (!isValidNumber(node.radius)) {
+            throw new Error(`Node ${index} (id: ${node.id}): circle 'radius' must be a valid number (got ${node.radius})`);
+        }
+        if (node.radius <= MIN_NODE_SIZE) {
+            throw new Error(`Node ${index} (id: ${node.id}): circle 'radius' must be greater than ${MIN_NODE_SIZE}`);
+        }
+        if (node.radius > MAX_NODE_SIZE) {
+            throw new Error(`Node ${index} (id: ${node.id}): circle 'radius' too large (max: ${MAX_NODE_SIZE})`);
+        }
+    } else if (node.type === 'rectangle' || node.type === 'diamond' || node.type === 'text') {
+        if (!isValidNumber(node.width)) {
+            throw new Error(`Node ${index} (id: ${node.id}): '${node.type}' 'width' must be a valid number (got ${node.width})`);
+        }
+        if (node.width <= MIN_NODE_SIZE) {
+            throw new Error(`Node ${index} (id: ${node.id}): '${node.type}' 'width' must be greater than ${MIN_NODE_SIZE}`);
+        }
+        if (node.width > MAX_NODE_SIZE) {
+            throw new Error(`Node ${index} (id: ${node.id}): '${node.type}' 'width' too large (max: ${MAX_NODE_SIZE})`);
+        }
+
+        if (!isValidNumber(node.height)) {
+            throw new Error(`Node ${index} (id: ${node.id}): '${node.type}' 'height' must be a valid number (got ${node.height})`);
+        }
+        if (node.height <= MIN_NODE_SIZE) {
+            throw new Error(`Node ${index} (id: ${node.id}): '${node.type}' 'height' must be greater than ${MIN_NODE_SIZE}`);
+        }
+        if (node.height > MAX_NODE_SIZE) {
+            throw new Error(`Node ${index} (id: ${node.id}): '${node.type}' 'height' too large (max: ${MAX_NODE_SIZE})`);
+        }
+    }
+
+    // Validate text field (optional but if present must be string)
+    if (node.text !== undefined && node.text !== null && typeof node.text !== 'string') {
+        throw new Error(`Node ${index} (id: ${node.id}): 'text' must be a string (got ${typeof node.text})`);
+    }
+
+    // Validate textAlign field (optional but if present must be valid)
+    if (node.textAlign !== undefined && node.textAlign !== null) {
+        const validAlignments = ['left', 'center', 'right'];
+        if (!validAlignments.includes(node.textAlign)) {
+            throw new Error(`Node ${index} (id: ${node.id}): 'textAlign' must be one of: ${validAlignments.join(', ')} (got '${node.textAlign}')`);
+        }
+    }
+}
+
+function validateConnection(conn, index, nodeIds) {
+    // Check if connection is null or not an object
+    if (conn === null || conn === undefined || typeof conn !== 'object') {
+        throw new Error(`Connection ${index}: must be an object (got ${conn === null ? 'null' : typeof conn})`);
+    }
+
+    // Check required fields with robust null/undefined checks
+    if (conn.id === null || conn.id === undefined) {
+        throw new Error(`Connection ${index}: missing 'id' field`);
+    }
+    if (!isValidId(conn.id)) {
+        throw new Error(`Connection ${index}: 'id' must be a positive integer (got ${conn.id})`);
+    }
+
+    if (conn.fromId === null || conn.fromId === undefined) {
+        throw new Error(`Connection ${index} (id: ${conn.id}): missing 'fromId' field`);
+    }
+    if (!isValidId(conn.fromId)) {
+        throw new Error(`Connection ${index} (id: ${conn.id}): 'fromId' must be a positive integer (got ${conn.fromId})`);
+    }
+
+    if (conn.toId === null || conn.toId === undefined) {
+        throw new Error(`Connection ${index} (id: ${conn.id}): missing 'toId' field`);
+    }
+    if (!isValidId(conn.toId)) {
+        throw new Error(`Connection ${index} (id: ${conn.id}): 'toId' must be a positive integer (got ${conn.toId})`);
+    }
+
+    if (typeof conn.directed !== 'boolean') {
+        throw new Error(`Connection ${index} (id: ${conn.id}): 'directed' must be a boolean (got ${typeof conn.directed})`);
+    }
+
+    // Validate node references
+    if (!nodeIds.has(conn.fromId)) {
+        throw new Error(`Connection ${index} (id: ${conn.id}): 'fromId' ${conn.fromId} references non-existent node`);
+    }
+    if (!nodeIds.has(conn.toId)) {
+        throw new Error(`Connection ${index} (id: ${conn.id}): 'toId' ${conn.toId} references non-existent node`);
+    }
+}
+
 function loadFromJSON(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -82,17 +214,86 @@ function loadFromJSON(event) {
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
-            const saveData = JSON.parse(e.target.result);
+            // Parse JSON
+            let saveData;
+            try {
+                saveData = JSON.parse(e.target.result);
+            } catch (parseError) {
+                throw new Error('Invalid JSON format: ' + parseError.message);
+            }
 
-            // Validate the data structure
+            // Validate top-level structure
+            if (saveData === null || saveData === undefined || typeof saveData !== 'object') {
+                throw new Error('Invalid file format: root must be an object');
+            }
             if (!saveData.nodes || !Array.isArray(saveData.nodes)) {
-                throw new Error('Invalid file format: missing nodes array');
+                throw new Error('Invalid file format: missing or invalid "nodes" array');
             }
             if (!saveData.connections || !Array.isArray(saveData.connections)) {
-                throw new Error('Invalid file format: missing connections array');
+                throw new Error('Invalid file format: missing or invalid "connections" array');
             }
 
-            // Stop any ongoing editing
+            // Check for null/undefined elements in arrays
+            if (saveData.nodes.some((node, i) => node === null || node === undefined)) {
+                throw new Error('Invalid file format: nodes array contains null or undefined elements');
+            }
+            if (saveData.connections.some((conn, i) => conn === null || conn === undefined)) {
+                throw new Error('Invalid file format: connections array contains null or undefined elements');
+            }
+
+            // Validate each node
+            const nodeIds = new Set();
+            saveData.nodes.forEach((node, index) => {
+                validateNode(node, index);
+                nodeIds.add(node.id);
+            });
+
+            // Check for duplicate node IDs
+            if (nodeIds.size !== saveData.nodes.length) {
+                throw new Error('Invalid file format: duplicate node IDs found');
+            }
+
+            // Validate each connection
+            const connectionIds = new Set();
+            saveData.connections.forEach((conn, index) => {
+                validateConnection(conn, index, nodeIds);
+                connectionIds.add(conn.id);
+            });
+
+            // Check for duplicate connection IDs
+            if (connectionIds.size !== saveData.connections.length) {
+                throw new Error('Invalid file format: duplicate connection IDs found');
+            }
+
+            // Validate optional canvas size
+            if (saveData.canvasWidth !== undefined && saveData.canvasWidth !== null) {
+                if (!isValidNumber(saveData.canvasWidth)) {
+                    throw new Error(`Invalid canvasWidth: must be a valid number (got ${saveData.canvasWidth})`);
+                }
+                if (saveData.canvasWidth < MIN_CANVAS_SIZE || saveData.canvasWidth > MAX_CANVAS_SIZE) {
+                    throw new Error(`Invalid canvasWidth: must be between ${MIN_CANVAS_SIZE} and ${MAX_CANVAS_SIZE} (got ${saveData.canvasWidth})`);
+                }
+            }
+            if (saveData.canvasHeight !== undefined && saveData.canvasHeight !== null) {
+                if (!isValidNumber(saveData.canvasHeight)) {
+                    throw new Error(`Invalid canvasHeight: must be a valid number (got ${saveData.canvasHeight})`);
+                }
+                if (saveData.canvasHeight < MIN_CANVAS_SIZE || saveData.canvasHeight > MAX_CANVAS_SIZE) {
+                    throw new Error(`Invalid canvasHeight: must be between ${MIN_CANVAS_SIZE} and ${MAX_CANVAS_SIZE} (got ${saveData.canvasHeight})`);
+                }
+            }
+
+            // Validate optional zoom
+            if (saveData.zoom !== undefined && saveData.zoom !== null) {
+                if (!isValidNumber(saveData.zoom)) {
+                    throw new Error(`Invalid zoom: must be a valid number (got ${saveData.zoom})`);
+                }
+                if (saveData.zoom < MIN_ZOOM || saveData.zoom > MAX_ZOOM) {
+                    throw new Error(`Invalid zoom: must be between ${MIN_ZOOM} and ${MAX_ZOOM} (got ${saveData.zoom})`);
+                }
+            }
+
+            // All validation passed - stop any ongoing editing
             stopCursorBlink();
 
             // Load the data
@@ -100,7 +301,10 @@ function loadFromJSON(event) {
             connections = saveData.connections;
 
             // Calculate nextId safely
-            if (saveData.nextId) {
+            if (saveData.nextId !== undefined && saveData.nextId !== null) {
+                if (!isValidId(saveData.nextId)) {
+                    throw new Error(`Invalid nextId: must be a positive integer (got ${saveData.nextId})`);
+                }
                 nextId = saveData.nextId;
             } else {
                 const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id)];
