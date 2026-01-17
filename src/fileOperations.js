@@ -406,18 +406,36 @@ async function createNewSubgraph(node) {
                 });
                 const fileHandle = handles[0];
 
-                // Store file handle
-                fileHandleMap.set(node.id, fileHandle);
+                // Read and validate file contents before linking
+                try {
+                    const file = await fileHandle.getFile();
+                    const contents = await file.text();
 
-                // Set node's subgraph to filename
-                node.subgraph = fileHandle.name;
+                    // Parse JSON
+                    let subgraphData;
+                    try {
+                        subgraphData = JSON.parse(contents);
+                    } catch (parseError) {
+                        throw new Error(`Invalid JSON in file '${fileHandle.name}': ${parseError.message}`);
+                    }
 
-                setStatus(`Linked existing file '${fileHandle.name}' as subgraph for node #${node.id} - Entering...`);
-                render();
-                triggerAutoSave();
+                    // Validate subgraph structure
+                    validateSubgraph(subgraphData, node.id, null);
 
-                // Enter the subgraph immediately
-                await enterSubgraph(node);
+                    // Validation passed - store file handle and link it
+                    fileHandleMap.set(node.id, fileHandle);
+                    node.subgraph = fileHandle.name;
+
+                    setStatus(`Linked existing file '${fileHandle.name}' as subgraph for node #${node.id} - Entering...`);
+                    render();
+                    triggerAutoSave();
+
+                    // Enter the subgraph immediately
+                    await enterSubgraph(node);
+                } catch (validationError) {
+                    setStatus(`⚠️ Invalid subgraph file: ${validationError.message}`);
+                    console.error('File validation error:', validationError);
+                }
             } else {
                 setStatus('⚠️ File System Access API not supported. Cannot load existing file.');
             }

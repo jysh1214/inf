@@ -5,13 +5,14 @@ let subgraphModalResolve = null;
 
 /**
  * Show the subgraph type selection modal
- * Returns a Promise that resolves with 'embedded', 'file', or null (cancelled)
+ * Returns a Promise that resolves with 'embedded', 'new-file', 'existing-file', or null (cancelled)
  */
 function showSubgraphModal() {
     return new Promise((resolve) => {
         const modal = document.getElementById('subgraph-modal');
         if (!modal) {
             console.error('Subgraph modal not found');
+            setStatus('⚠️ Error: Modal UI not loaded');
             resolve(null);
             return;
         }
@@ -42,7 +43,7 @@ function closeSubgraphModal() {
 
 /**
  * Handle subgraph type selection
- * @param {string} type - Either 'embedded' or 'file'
+ * @param {string} type - Either 'embedded', 'new-file', or 'existing-file'
  */
 function selectSubgraphType(type) {
     // Close the modal
@@ -76,7 +77,7 @@ document.addEventListener('keydown', (e) => {
         if (modal && modal.style.display === 'flex') {
             closeSubgraphModal();
             e.preventDefault();
-            e.stopPropagation();
+            e.stopImmediatePropagation();
         }
     }
 });
