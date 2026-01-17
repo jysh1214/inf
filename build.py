@@ -36,6 +36,7 @@ def build():
         'state.js',
         'autoSave.js',
         'uiHelpers.js',
+        'ui.js',
         'fileOperations.js',
         'nodeManager.js',
         'connectionManager.js',

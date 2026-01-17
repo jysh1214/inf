@@ -84,6 +84,37 @@
 
     <input type="file" id="file-input" accept=".json" style="display: none;" onchange="loadFromJSON(event)">
 
+    <!-- Subgraph Type Selection Modal -->
+    <div id="subgraph-modal" class="modal" style="display: none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <h2 class="modal-title">Create Subgraph</h2>
+            <p class="modal-description">Choose how to store the subgraph data:</p>
+
+            <div class="modal-options">
+                <div class="modal-option" onclick="selectSubgraphType('embedded')">
+                    <div class="option-icon">📦</div>
+                    <h3>Embedded</h3>
+                    <p>Store subgraph data within this diagram file. Changes are automatically saved with the parent.</p>
+                </div>
+
+                <div class="modal-option" onclick="selectSubgraphType('new-file')">
+                    <div class="option-icon">📄</div>
+                    <h3>New File</h3>
+                    <p>Create a new JSON file for the subgraph. Useful for organizing complex diagrams.</p>
+                </div>
+
+                <div class="modal-option" onclick="selectSubgraphType('existing-file')">
+                    <div class="option-icon">🔗</div>
+                    <h3>Load Existing</h3>
+                    <p>Link to an existing JSON file. Perfect for reusing diagrams across multiple projects.</p>
+                </div>
+            </div>
+
+            <button class="modal-cancel" onclick="closeSubgraphModal()">Cancel</button>
+        </div>
+    </div>
+
     <script>
 <!-- JS -->
     </script>

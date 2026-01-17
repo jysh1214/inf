@@ -311,10 +311,16 @@ function validateSubgraph(subgraph, nodeId, nodeIndex) {
 // Subgraph management functions
 async function createNewSubgraph(node) {
     try {
-        // Prompt user to choose subgraph type
-        const choice = confirm('Create embedded subgraph?\n\nClick OK for Embedded (stored in this file)\nClick Cancel for File-based (separate JSON file)');
+        // Prompt user to choose subgraph type using modal
+        const choice = await showSubgraphModal();
 
-        if (choice) {
+        // User cancelled
+        if (!choice) {
+            setStatus('Subgraph creation cancelled');
+            return;
+        }
+
+        if (choice === 'embedded') {
             // Create embedded subgraph
             node.subgraph = {
                 version: VERSION,
@@ -331,8 +337,8 @@ async function createNewSubgraph(node) {
 
             // Enter the subgraph immediately
             await enterSubgraph(node);
-        } else {
-            // Create file-based subgraph
+        } else if (choice === 'new-file') {
+            // Create new file-based subgraph
             if ('showSaveFilePicker' in window) {
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
                 const fileHandle = await window.showSaveFilePicker({
@@ -387,6 +393,33 @@ async function createNewSubgraph(node) {
 
                 // Enter the subgraph immediately
                 await enterSubgraph(node);
+            }
+        } else if (choice === 'existing-file') {
+            // Load existing file as subgraph
+            if ('showOpenFilePicker' in window) {
+                const handles = await window.showOpenFilePicker({
+                    types: [{
+                        description: 'JSON Files',
+                        accept: { 'application/json': ['.json'] }
+                    }],
+                    multiple: false
+                });
+                const fileHandle = handles[0];
+
+                // Store file handle
+                fileHandleMap.set(node.id, fileHandle);
+
+                // Set node's subgraph to filename
+                node.subgraph = fileHandle.name;
+
+                setStatus(`Linked existing file '${fileHandle.name}' as subgraph for node #${node.id} - Entering...`);
+                render();
+                triggerAutoSave();
+
+                // Enter the subgraph immediately
+                await enterSubgraph(node);
+            } else {
+                setStatus('⚠️ File System Access API not supported. Cannot load existing file.');
             }
         }
     } catch (error) {

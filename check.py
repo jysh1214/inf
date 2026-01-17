@@ -96,6 +96,7 @@ def check_modules_included(content):
         'state.js',
         'autoSave.js',
         'uiHelpers.js',
+        'ui.js',
         'fileOperations.js',
         'nodeManager.js',
         'connectionManager.js',
@@ -116,7 +117,7 @@ def check_modules_included(content):
             print(f"  {m}")
         return False
     else:
-        print(f"{Colors.OKGREEN}✓ All 10 modules included{Colors.ENDC}")
+        print(f"{Colors.OKGREEN}✓ All 11 modules included{Colors.ENDC}")
         return True
 
 def check_css_included(content):
