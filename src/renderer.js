@@ -535,10 +535,9 @@ function render() {
 
 // Helper function to get mouse coordinates accounting for zoom and scroll
 function getMousePos(e) {
-    const container = document.getElementById('canvas-container');
     const rect = canvas.getBoundingClientRect();
     return {
-        x: (e.clientX - rect.left + container.scrollLeft) / zoom,
-        y: (e.clientY - rect.top + container.scrollTop) / zoom
+        x: (e.clientX - rect.left) / zoom,
+        y: (e.clientY - rect.top) / zoom
     };
 }
