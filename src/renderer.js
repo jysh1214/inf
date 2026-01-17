@@ -25,19 +25,10 @@ function drawRectangleNode(node, isSelected) {
     ctx.fillStyle = isEditing ? '#fff9c4' : (isSelected ? '#e3f2fd' : '#fff');
     ctx.fillRect(node.x, node.y, node.width, node.height);
 
-    // Border
+    // Border - thicker for nodes with subgraphs
     ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
-    ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1);
+    ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
     ctx.strokeRect(node.x, node.y, node.width, node.height);
-
-    // Dashed border for nodes with subgraphs
-    if (node.subgraph) {
-        ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#666');
-        ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1.5);
-        ctx.setLineDash([5, 5]);
-        ctx.strokeRect(node.x, node.y, node.width, node.height);
-        ctx.setLineDash([]); // Reset to solid
-    }
 
     // Text
     drawNodeText(node, node.x + node.width / 2, node.y + node.height / 2, node.width - 10);
@@ -63,23 +54,12 @@ function drawCircleNode(node, isSelected) {
     ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Border
+    // Border - thicker for nodes with subgraphs
     ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
-    ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1);
+    ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
     ctx.beginPath();
     ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
     ctx.stroke();
-
-    // Dashed border for nodes with subgraphs
-    if (node.subgraph) {
-        ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#666');
-        ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1.5);
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]); // Reset to solid
-    }
 
     // Text
     drawNodeText(node, node.x, node.y, node.radius * 1.8);
@@ -113,9 +93,9 @@ function drawDiamondNode(node, isSelected) {
     ctx.closePath();
     ctx.fill();
 
-    // Border
+    // Border - thicker for nodes with subgraphs
     ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
-    ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1);
+    ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
     ctx.beginPath();
     ctx.moveTo(centerX, node.y);
     ctx.lineTo(node.x + node.width, centerY);
@@ -123,21 +103,6 @@ function drawDiamondNode(node, isSelected) {
     ctx.lineTo(node.x, centerY);
     ctx.closePath();
     ctx.stroke();
-
-    // Dashed border for nodes with subgraphs
-    if (node.subgraph) {
-        ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#666');
-        ctx.lineWidth = isEditing ? 3 : (isSelected ? 2 : 1.5);
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(centerX, node.y);
-        ctx.lineTo(node.x + node.width, centerY);
-        ctx.lineTo(centerX, node.y + node.height);
-        ctx.lineTo(node.x, centerY);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.setLineDash([]); // Reset to solid
-    }
 
     // Text
     drawNodeText(node, centerX, centerY, node.width * 0.7);
@@ -161,20 +126,18 @@ function drawTextNode(node, isSelected) {
     // Text
     drawNodeText(node, node.x + node.width / 2, node.y + node.height / 2, node.width - 10);
 
-    // Dashed border for text nodes with subgraphs (always show)
+    // Thick border for text nodes with subgraphs (always show)
     if (node.subgraph && !isSelected && !isEditing) {
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 4;
         ctx.strokeRect(node.x, node.y, node.width, node.height);
-        ctx.setLineDash([]);
     }
 
     // Draw resize handles if selected or editing (show bounds even though no border)
     if (isSelected || isEditing) {
         // Draw faint selection rectangle
         ctx.strokeStyle = isEditing ? '#ffa000' : '#2196f3';
-        ctx.lineWidth = isEditing ? 2 : 1;
+        ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 2 : 1);
         ctx.setLineDash([5, 5]);
         ctx.strokeRect(node.x, node.y, node.width, node.height);
         ctx.setLineDash([]);
