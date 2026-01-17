@@ -6,12 +6,21 @@ const STORE_NAME = 'fileHandles';
 const DIR_STORE_NAME = 'directoryHandle';
 
 let db = null;
+let dbPromise = null;
 
 /**
  * Initialize IndexedDB
+ * Uses singleton promise to prevent race conditions
  */
 async function initDB() {
-    return new Promise((resolve, reject) => {
+    // If already initialized, return existing db
+    if (db) return db;
+
+    // If initialization in progress, wait for it
+    if (dbPromise) return dbPromise;
+
+    // Start new initialization
+    dbPromise = new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onerror = () => reject(request.error);
@@ -30,6 +39,14 @@ async function initDB() {
             }
         };
     });
+
+    try {
+        db = await dbPromise;
+        return db;
+    } catch (error) {
+        dbPromise = null; // Reset on failure so retry is possible
+        throw error;
+    }
 }
 
 /**
@@ -38,16 +55,27 @@ async function initDB() {
  * @param {FileSystemFileHandle} fileHandle - File handle to store
  */
 async function storeFileHandle(nodeId, fileHandle) {
-    if (!db) await initDB();
+    try {
+        if (!db) await initDB();
 
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.put(fileHandle, nodeId);
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put(fileHandle, nodeId);
 
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-    });
+            request.onsuccess = () => resolve();
+            request.onerror = () => {
+                if (request.error.name === 'QuotaExceededError') {
+                    reject(new Error('Storage quota exceeded. Consider clearing old file handles.'));
+                } else {
+                    reject(request.error);
+                }
+            };
+        });
+    } catch (error) {
+        console.error('Failed to store file handle:', error);
+        throw error;
+    }
 }
 
 /**
@@ -56,16 +84,21 @@ async function storeFileHandle(nodeId, fileHandle) {
  * @returns {Promise<FileSystemFileHandle|null>} File handle or null if not found
  */
 async function getFileHandle(nodeId) {
-    if (!db) await initDB();
+    try {
+        if (!db) await initDB();
 
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([STORE_NAME], 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.get(nodeId);
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(nodeId);
 
-        request.onsuccess = () => resolve(request.result || null);
-        request.onerror = () => reject(request.error);
-    });
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
+        });
+    } catch (error) {
+        console.error('Failed to retrieve file handle:', error);
+        return null; // Return null on error to allow fallback to file picker
+    }
 }
 
 /**
@@ -73,16 +106,21 @@ async function getFileHandle(nodeId) {
  * @param {number} nodeId - Node ID
  */
 async function deleteFileHandle(nodeId) {
-    if (!db) await initDB();
+    try {
+        if (!db) await initDB();
 
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.delete(nodeId);
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.delete(nodeId);
 
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-    });
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    } catch (error) {
+        console.warn(`Failed to delete file handle for node ${nodeId}:`, error);
+        // Don't throw - deletion failure shouldn't break the app
+    }
 }
 
 /**
@@ -91,19 +129,24 @@ async function deleteFileHandle(nodeId) {
  * @returns {Promise<boolean>} True if permission granted
  */
 async function verifyPermission(fileHandle) {
-    const options = { mode: 'read' };
+    try {
+        const options = { mode: 'read' };
 
-    // Check if permission is already granted
-    if ((await fileHandle.queryPermission(options)) === 'granted') {
-        return true;
+        // Check if permission is already granted
+        if ((await fileHandle.queryPermission(options)) === 'granted') {
+            return true;
+        }
+
+        // Request permission
+        if ((await fileHandle.requestPermission(options)) === 'granted') {
+            return true;
+        }
+
+        return false;
+    } catch (error) {
+        console.error('Permission verification failed:', error);
+        return false;
     }
-
-    // Request permission
-    if ((await fileHandle.requestPermission(options)) === 'granted') {
-        return true;
-    }
-
-    return false;
 }
 
 /**
@@ -111,16 +154,27 @@ async function verifyPermission(fileHandle) {
  * @param {FileSystemDirectoryHandle} dirHandle - Directory handle to store
  */
 async function storeDirectoryHandle(dirHandle) {
-    if (!db) await initDB();
+    try {
+        if (!db) await initDB();
 
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([DIR_STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(DIR_STORE_NAME);
-        const request = store.put(dirHandle, 'workspace');
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([DIR_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(DIR_STORE_NAME);
+            const request = store.put(dirHandle, 'workspace');
 
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-    });
+            request.onsuccess = () => resolve();
+            request.onerror = () => {
+                if (request.error.name === 'QuotaExceededError') {
+                    reject(new Error('Storage quota exceeded.'));
+                } else {
+                    reject(request.error);
+                }
+            };
+        });
+    } catch (error) {
+        console.error('Failed to store directory handle:', error);
+        throw error;
+    }
 }
 
 /**
@@ -128,16 +182,21 @@ async function storeDirectoryHandle(dirHandle) {
  * @returns {Promise<FileSystemDirectoryHandle|null>} Directory handle or null
  */
 async function getDirectoryHandle() {
-    if (!db) await initDB();
+    try {
+        if (!db) await initDB();
 
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([DIR_STORE_NAME], 'readonly');
-        const store = transaction.objectStore(DIR_STORE_NAME);
-        const request = store.get('workspace');
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([DIR_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(DIR_STORE_NAME);
+            const request = store.get('workspace');
 
-        request.onsuccess = () => resolve(request.result || null);
-        request.onerror = () => reject(request.error);
-    });
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
+        });
+    } catch (error) {
+        console.error('Failed to retrieve directory handle:', error);
+        return null; // Return null on error to allow fallback
+    }
 }
 
 /**

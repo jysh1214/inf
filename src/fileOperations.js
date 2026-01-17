@@ -393,7 +393,12 @@ async function createNewSubgraph(node) {
 
                 // Store file handle in memory and IndexedDB
                 fileHandleMap.set(node.id, fileHandle);
-                await storeFileHandle(node.id, fileHandle);
+                try {
+                    await storeFileHandle(node.id, fileHandle);
+                } catch (storeError) {
+                    console.warn('Failed to persist file handle to IndexedDB:', storeError);
+                    // Continue anyway - handle is in memory cache
+                }
 
                 // Set node's subgraph to filename
                 node.subgraph = fileHandle.name;
@@ -451,7 +456,12 @@ async function createNewSubgraph(node) {
 
                     // Validation passed - store file handle in memory and IndexedDB
                     fileHandleMap.set(node.id, fileHandle);
-                    await storeFileHandle(node.id, fileHandle);
+                    try {
+                        await storeFileHandle(node.id, fileHandle);
+                    } catch (storeError) {
+                        console.warn('Failed to persist file handle to IndexedDB:', storeError);
+                        // Continue anyway - handle is in memory cache
+                    }
                     node.subgraph = fileHandle.name;
 
                     setStatus(`Linked existing file '${fileHandle.name}' as subgraph for node #${node.id} - Entering...`);
@@ -502,17 +512,21 @@ async function loadSubgraphFromFile(filePath, nodeId) {
 
         // If still no handle, try to find in authorized directory
         if (!fileHandle && filePath) {
-            // Extract filename from path
-            const filename = filePath.includes('/') || filePath.includes('\\')
-                ? filePath.split(/[/\\]/).pop()
-                : filePath;
+            // Extract filename from path (handles Unix, Windows, UNC, and mixed paths)
+            const pathParts = filePath.split(/[\\/]/).filter(Boolean);
+            const filename = pathParts.length > 0 ? pathParts[pathParts.length - 1] : filePath;
 
             fileHandle = await findFileInDirectory(filename);
 
             if (fileHandle) {
                 // Found in directory! Store for future use
                 fileHandleMap.set(nodeId, fileHandle);
-                await storeFileHandle(nodeId, fileHandle);
+                try {
+                    await storeFileHandle(nodeId, fileHandle);
+                } catch (storeError) {
+                    console.warn('Failed to persist file handle to IndexedDB:', storeError);
+                    // Continue anyway - handle is in memory cache
+                }
                 setStatus(`Opened ${filename} from workspace`);
             }
         }
@@ -531,25 +545,54 @@ async function loadSubgraphFromFile(filePath, nodeId) {
 
                 // Store in both memory and IndexedDB
                 fileHandleMap.set(nodeId, fileHandle);
-                await storeFileHandle(nodeId, fileHandle);
+                try {
+                    await storeFileHandle(nodeId, fileHandle);
+                } catch (storeError) {
+                    console.warn('Failed to persist file handle to IndexedDB:', storeError);
+                    // Continue anyway - handle is in memory cache
+                }
             } else {
                 throw new Error('File System Access API not supported in this browser');
             }
         }
 
         // Read file contents
-        const file = await fileHandle.getFile();
-        const contents = await file.text();
+        let file, contents, subgraphData;
 
-        // Parse and validate JSON
-        const subgraphData = JSON.parse(contents);
+        try {
+            file = await fileHandle.getFile();
+        } catch (error) {
+            throw new Error(`Failed to access file: ${error.message}`);
+        }
 
-        // Validate the subgraph data using a temporary node
-        const tempNode = { id: nodeId, subgraph: subgraphData };
-        validateSubgraph(tempNode.subgraph, nodeId, -1);
+        try {
+            contents = await file.text();
+        } catch (error) {
+            throw new Error(`Failed to read file contents: ${error.message}`);
+        }
+
+        // Parse JSON
+        try {
+            subgraphData = JSON.parse(contents);
+        } catch (error) {
+            throw new Error(`Invalid JSON format: ${error.message}`);
+        }
+
+        // Validate the subgraph data
+        try {
+            const tempNode = { id: nodeId, subgraph: subgraphData };
+            validateSubgraph(tempNode.subgraph, nodeId, -1);
+        } catch (error) {
+            throw new Error(`Invalid subgraph structure: ${error.message}`);
+        }
 
         return subgraphData;
     } catch (error) {
+        // If error already has context, rethrow as-is
+        if (error.message.includes('Failed to') || error.message.includes('Invalid')) {
+            throw error;
+        }
+        // Otherwise add generic context
         throw new Error(`Failed to load subgraph file: ${error.message}`);
     }
 }
