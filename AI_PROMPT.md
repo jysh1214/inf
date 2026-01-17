@@ -21,6 +21,10 @@ Output:
 - In parent nodes, use `"subgraph": "filename.json"` to reference the files
 - Save all assets in DEST
 
+Important:
+- canvasWidth and canvasHeight must be between 1000-20000 (use 2000 as default)
+- All IDs must be unique, nextId must be greater than any used ID
+
 Follow the format in inf/INF_NOTE_GUIDE.md.
 ```
 

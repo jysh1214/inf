@@ -32,7 +32,7 @@ Every Inf diagram JSON file has the following top-level fields:
 
 ```json
 {
-  "version": "0.3",
+  "version": "1.0",
   "nodes": [],
   "connections": [],
   "nextId": 1,
@@ -46,13 +46,13 @@ Every Inf diagram JSON file has the following top-level fields:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `version` | string | Yes | Format version (current: "0.3") |
+| `version` | string | Yes | Format version (current: "1.0") |
 | `nodes` | array | Yes | Array of node objects |
 | `connections` | array | Yes | Array of connection objects |
 | `nextId` | number | Yes | Next available ID for new nodes/connections |
-| `canvasWidth` | number | Yes | Canvas width in pixels (1000-20000) |
-| `canvasHeight` | number | Yes | Canvas height in pixels (1000-20000) |
-| `zoom` | number | Yes | Zoom level (0.1-3.0) |
+| `canvasWidth` | number | Yes | Canvas width in pixels (1000-20000, default: 2000) |
+| `canvasHeight` | number | Yes | Canvas height in pixels (1000-20000, default: 2000) |
+| `zoom` | number | Yes | Zoom level (0.1-3.0, default: 1.0) |
 
 ---
 
@@ -227,7 +227,7 @@ Store complete diagram data inside the node's `subgraph` property:
   "width": 120,
   "height": 80,
   "subgraph": {
-    "version": "0.3",
+    "version": "1.0",
     "nodes": [
       {
         "id": 1,
@@ -307,7 +307,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "0.3",
+  "version": "1.0",
   "nodes": [],
   "connections": [],
   "nextId": 1,
@@ -321,7 +321,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "0.3",
+  "version": "1.0",
   "nodes": [
     {
       "id": 1,
@@ -393,7 +393,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "0.3",
+  "version": "1.0",
   "nodes": [
     {
       "id": 1,
@@ -405,7 +405,7 @@ The application validates and prevents circular references at runtime.
       "width": 120,
       "height": 80,
       "subgraph": {
-        "version": "0.3",
+        "version": "1.0",
         "nodes": [
           {
             "id": 1,
