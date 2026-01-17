@@ -8,15 +8,99 @@ Inf is a web-based diagram note-taking application implemented as a single HTML 
 
 ## How to Run
 
-Simply open `index.html` in a web browser (Chrome recommended). No build step or dependencies required.
+**End Users**: Simply open `index.html` in a web browser (Chrome recommended). No installation needed.
+
+**Developers**: Edit source files in `src/` directory, then run `python3 build.py` to rebuild `index.html`. Optionally run `python3 check.py` to validate the build, or use `python3 build.py --check` to build and validate in one command.
 
 ## Implementation Architecture
 
 ### Technology Stack
-- **Single file**: `index.html` contains all HTML, CSS, and JavaScript
+- **Source**: Modular JavaScript files in `src/` directory
+- **Build**: Python script merges into single `index.html`
+- **Distribution**: Single file with all HTML/CSS/JS embedded
 - **Rendering**: HTML Canvas API for drawing nodes and arrows
-- **No dependencies**: Pure vanilla JavaScript
-- **Browser compatibility**: Works best in Chrome; Safari may have double-click issues
+- **No dependencies**: Pure vanilla JavaScript (no frameworks)
+- **Browser compatibility**: Chrome only (recommended and tested)
+
+### Development Workflow
+
+**Modular source** → **Build script** → **Validation** → **Single-file output**
+
+1. Edit source files in `src/` directory
+2. Run `python3 build.py` to generate `index.html`
+3. (Optional) Run `python3 check.py` to validate the build
+   - Or use `python3 build.py --check` to build and validate in one step
+4. Open `index.html` in browser to test
+5. Changes in `src/` automatically included on rebuild
+
+### Build Scripts
+
+**build.py** (~90 lines):
+- Reads all source files from `src/` in dependency order
+- Replaces placeholders (`<!-- CSS -->`, `<!-- JS -->`) in template
+- Adds build timestamp comment
+- Outputs complete `index.html`
+- Usage:
+  - `python3 build.py` - Build only
+  - `python3 build.py --check` - Build and validate
+
+**check.py** (~450 lines):
+- Validates generated `index.html` for correctness
+- 12 validation checks:
+  1. File exists
+  2. File size (50-100 KB)
+  3. HTML structure (DOCTYPE, tags)
+  4. No unreplaced placeholders
+  5. All 10 modules included
+  6. CSS included
+  7. Constants defined
+  8. Key functions present
+  9. Event listeners set up
+  10. DOM elements present
+  11. Build timestamp
+  12. No syntax errors
+- Returns exit code 0 on success, 1 on failure
+- Usage: `python3 check.py`
+
+### File Structure
+
+```
+inf/
+├── src/                      # Source files (for development)
+│   ├── template.html         # HTML skeleton with placeholders
+│   ├── styles.css            # All CSS styles
+│   ├── constants.js          # Configuration constants (~23 lines)
+│   ├── state.js              # Global state variables (~44 lines)
+│   ├── autoSave.js           # Auto-save/load system (~138 lines)
+│   ├── uiHelpers.js          # UI controls and helpers (~144 lines)
+│   ├── fileOperations.js     # Save/load/export (~186 lines)
+│   ├── nodeManager.js        # Node creation and management (~186 lines)
+│   ├── connectionManager.js  # Connection utilities (~48 lines)
+│   ├── renderer.js           # All drawing functions (~536 lines)
+│   ├── eventHandlers.js      # Mouse/keyboard events (~487 lines)
+│   └── main.js               # Initialization (~11 lines)
+├── build.py                  # Python build script (~90 lines)
+├── check.py                  # Python validation script (~450 lines)
+├── index.html                # Generated output (single-file app)
+├── index.backup.html         # Backup of original monolithic file
+├── CLAUDE.md                 # Development documentation
+└── README.md                 # Build instructions
+```
+
+**Benefits of modular structure:**
+- ✅ Maintainability: 10 files of ~50-536 lines each (vs 1 file of 2,059 lines)
+- ✅ Discoverability: Clear file names indicate responsibility
+- ✅ Collaboration: Easier to work on separate features in parallel
+- ✅ Single-file output: Users still get simple "just open it" experience
+- ✅ No npm dependency: Just Python (usually pre-installed)
+
+**Build process:**
+1. `build.py` reads all source files from `src/` directory
+2. Replaces `<!-- CSS -->` placeholder with `styles.css` content
+3. Replaces `<!-- JS -->` placeholder with concatenated JavaScript files
+4. Adds build timestamp comment
+5. Writes complete `index.html` file
+6. (Optional) `check.py` validates the build output with 12 checks
 
 ### Layout Architecture
 
@@ -97,7 +181,7 @@ This approach eliminates overlapping elements and provides clear visual separati
 }
 ```
 
-### Constants (index.html:268-289)
+### Constants (src/constants.js)
 
 All magic numbers are extracted as constants for easy configuration:
 
@@ -127,7 +211,7 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 
 ### State Management
 
-**Global state variables** (index.html:291-306):
+**Global state variables** (src/state.js):
 - `canvasWidth` - Current canvas width in pixels (default: 2000)
 - `canvasHeight` - Current canvas height in pixels (default: 2000)
 - `zoom` - Current zoom level (default: 1.0 = 100%)
@@ -144,7 +228,7 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 - `editingNode` - Node currently being edited (inline text editing)
 - `copiedNode` - Node copied to clipboard for paste operation
 
-**Interaction state** (index.html:308-317):
+**Interaction state** (src/state.js):
 - `isDragging` - Boolean for node drag operation
 - `isResizing` - Boolean for resize operation
 - `resizeCorner` - String identifier for which handle is being dragged
@@ -153,28 +237,28 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 - `panStart` - Object {x, y} storing mouse position when panning started
 - `scrollStart` - Object {x, y} storing container scroll position when panning started
 
-**Performance optimizations** (index.html:319):
+**Performance optimizations** (src/state.js):
 - `nodeMap` - Map<id, node> for O(1) node lookups
 
-**Auto-save state** (index.html:321-324):
+**Auto-save state** (src/state.js):
 - `autoSaveTimer` - Timer for debounced auto-save (1 second delay)
 - `autoSaveStatusTimer` - Timer for auto-save status message
 - `AUTO_SAVE_DELAY` - Constant: 1000ms delay before auto-save triggers
 
-**Cursor blink state** (index.html:326-352):
+**Cursor blink state** (src/state.js, src/autoSave.js):
 - `cursorVisible` - Boolean for cursor visibility in blink cycle
 - `cursorBlinkInterval` - Timer for cursor blink animation (500ms interval)
-- `startCursorBlink()` - Starts cursor blinking animation, only renders if editingNode exists
-- `stopCursorBlink()` - Stops cursor blinking and clears interval
+- `startCursorBlink()` - Starts cursor blinking animation, only renders if editingNode exists (src/autoSave.js)
+- `stopCursorBlink()` - Stops cursor blinking and clears interval (src/autoSave.js)
 
 ### Key Functions
 
-**Canvas Setup** (index.html:464-471):
-- `resizeCanvas()` - Updates canvas dimensions to custom size (canvasWidth x canvasHeight)
+**Canvas Setup** (src/autoSave.js, src/renderer.js):
+- `resizeCanvas()` - Updates canvas dimensions to custom size (canvasWidth x canvasHeight) (src/autoSave.js)
 - Canvas wrapped in scrollable container for navigation
-- `getMousePos(e)` - Helper function to get mouse coordinates accounting for zoom and scroll offset (index.html:1536-1561)
+- `getMousePos(e)` - Helper function to get mouse coordinates accounting for zoom and scroll offset (src/renderer.js)
 
-**Auto-save Functions** (index.html:354-462):
+**Auto-save Functions** (src/autoSave.js):
 - `triggerAutoSave()` - Debounces auto-save with 1 second delay
 - `autoSave()` - Saves to localStorage with error handling
   - Shows "✓ Auto-saved" status for 2 seconds
@@ -187,7 +271,7 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
   - Rebuilds nodeMap after loading
   - Shows "Restored X nodes from auto-save" status
 
-**UI Helper Functions** (index.html:473-613):
+**UI Helper Functions** (src/uiHelpers.js):
 - `setStatus(text)` - Updates status bar text
 - `setNodeType(type)` - Changes current node type and updates UI
 - `updateAlignmentButtons(align)` - Helper to update alignment button states
@@ -208,7 +292,7 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 - `clearConnectionButtons()` - Resets connection button states
 - `clearCanvas()` - Clears all nodes, connections, and auto-save with confirmation
 
-**File Operations** (index.html:615-807):
+**File Operations** (src/615-807):
 - `saveToJSON()` - Saves diagram to JSON file
   - Prompts for filename with timestamp default
   - Sanitizes filename (removes invalid characters: `< > : " / \ | ? *`)
@@ -228,7 +312,7 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
   - Temporarily sets zoom to 1.0 (100%) for export, then restores original zoom
   - Uses canvas.toBlob() for high-quality export
 
-**Node Management** (index.html:809-856):
+**Node Management** (src/809-856):
 - `createNode(x, y, type)` - Creates new node of specified type at position
   - Rectangle: centered at position
   - Circle: center at position
@@ -250,14 +334,14 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
   - Diamond: 4 handles (named 'n', 'e', 's', 'w')
   - Rectangle/Text: 4 handles (named 'nw', 'ne', 'sw', 'se')
 
-**Connection Management** (index.html:976-1022):
+**Connection Management** (src/976-1022):
 - `distanceToLineSegment(px, py, x1, y1, x2, y2)` - Point-to-line distance
 - `getConnectionAtPoint(x, y)` - Hit detection for connections
   - Uses nodeMap for O(1) lookups
   - 8px click threshold
   - Checks actual edge-to-edge line segments
 
-**Rendering** (index.html:1008-1278):
+**Rendering** (src/1008-1278):
 - `render()` - Main render loop, clears and redraws everything
 - `drawNode(node)` - Dispatcher function calling type-specific draw functions
 - `drawRectangleNode(node, isSelected)` - Draws rectangle with fill, border, text, handles
@@ -268,7 +352,7 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
   - Edit mode indication: yellow fill and orange border
 - `drawTextNode(node, isSelected)` - Draws text only (no border, dashed selection outline)
   - Edit mode indication: orange dashed border with 2px width
-- `drawNodeText(node, centerX, centerY, maxWidth)` - Text rendering (index.html:1172-1294)
+- `drawNodeText(node, centerX, centerY, maxWidth)` - Text rendering (src/1172-1294)
   - Respects node's `textAlign` property ('left', 'center', or 'right')
   - Calculates text x-position based on alignment with 8px padding:
     - Left: `centerX - maxWidth / 2 + 8px` (text starts at left edge with padding)
@@ -298,11 +382,11 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 - `getNodeCenter(node)` - Gets center point for any node type
 
 **Event Handlers**:
-- **Double-click** (index.html:1563-1606): Create/edit nodes, enters inline edit mode
+- **Double-click** (src/1563-1606): Create/edit nodes, enters inline edit mode
   - Updates text alignment buttons using `updateAlignmentButtons()` helper
   - For new nodes: shows default alignment (currentTextAlign) and triggers auto-save
   - For existing nodes: shows that node's textAlign property
-- **Mouse down** (index.html:1608-1747): Selection, connection completion, drag/resize start, canvas panning
+- **Mouse down** (src/1608-1747): Selection, connection completion, drag/resize start, canvas panning
   - Updates text alignment buttons when selecting a node
   - Resets to default alignment buttons when deselecting
   - Triggers auto-save when completing connection
@@ -311,16 +395,16 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
   - Connection mode behavior: Clicking different node switches connection start
   - Visual feedback for invalid connections (flash + warning)
   - **Canvas panning**: Clicking empty canvas starts panning (disabled in connection/edit mode)
-- **Mouse move** (index.html:1749-1868): Hover effects, drag, resize, canvas panning
+- **Mouse move** (src/1749-1868): Hover effects, drag, resize, canvas panning
   - **Canvas panning**: Updates scroll position during pan (uses screen-space deltas)
   - Applies bounds checking during node drag
   - Conditional rendering (only when hover changes or in connection mode)
   - Type-specific cursors for resize handles
   - Cursor feedback: grab (default), grabbing (panning), move (over node)
-- **Mouse up** (index.html:1870-1885): Ends drag/resize/panning operations
+- **Mouse up** (src/1870-1885): Ends drag/resize/panning operations
   - Triggers auto-save if was dragging or resizing (not for panning)
   - Resets cursor to 'grab' after operations complete
-- **Keyboard** (index.html:1887-2047): Text editing and shortcuts
+- **Keyboard** (src/1887-2047): Text editing and shortcuts
   - Focus check: Only handles shortcuts when body/canvas has focus
   - Text editing filters: Excludes Alt, Tab, Ctrl, Meta keys
   - Max length enforcement: 1000 character limit with visual feedback
@@ -331,12 +415,12 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 
 ### UI Components
 
-**Node Type Toolbar** (index.html:198-206):
+**Node Type Toolbar** (src/198-206):
 - 4 buttons in 2x2 grid: Rectangle, Circle, Diamond, Text
 - Active button highlighted in blue
 - `setNodeType(type)` function updates state and UI
 
-**Text Alignment Toolbar** (index.html:210-214):
+**Text Alignment Toolbar** (src/210-214):
 - 3 buttons in horizontal layout: L (left), C (center), R (right)
 - Active button highlighted in blue (default: center)
 - `setTextAlign(align)` function updates state and UI
@@ -345,39 +429,39 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 - Buttons automatically update to show selected node's alignment using `updateAlignmentButtons()` helper
 - Revert to default alignment when node is deselected
 
-**Canvas Size Toolbar** (index.html:218-222):
+**Canvas Size Toolbar** (src/218-222):
 - 2 buttons in grid layout: "Larger +" and "Smaller −"
 - Larger: Increases canvas size by 500px (up to 20000x20000)
 - Smaller: Decreases canvas size by 500px (down to 1000x1000)
 - Status bar shows current canvas size when changed
 - Canvas wrapped in scrollable container for navigation
 
-**Zoom Toolbar** (index.html:226-230):
+**Zoom Toolbar** (src/226-230):
 - 2 buttons in grid layout: "Zoom In +" and "Zoom Out −"
 - Zoom In: Increases zoom by 10% (up to 300%)
 - Zoom Out: Decreases zoom by 10% (down to 10%)
 - Status bar shows current zoom percentage when changed
 - Mouse coordinates automatically adjusted for zoom level
 
-**Connection Type Toolbar** (index.html:234-238):
+**Connection Type Toolbar** (src/234-238):
 - 2 buttons: "Directed →" and "Undirected —"
 - Buttons only activate when connection mode starts
 - Can switch between types while in connection mode
 - Automatically deactivate after connection completes or is cancelled
 - No flash when clicking without a node selected
 
-**File Operations Toolbar** (index.html:243-247):
+**File Operations Toolbar** (src/243-247):
 - 3 buttons in grid layout: Save, Load, Export
 - Save: Downloads diagram as JSON file with user-specified name (includes canvas size and zoom)
 - Load: Opens file picker to load JSON diagram (restores canvas size and zoom)
 - Export: Downloads canvas as PNG image with user-specified name (always at 100% zoom)
 - All filenames are sanitized to remove invalid characters
 
-**Clear Canvas Button** (index.html:250):
+**Clear Canvas Button** (src/250):
 - Single button below file operations toolbar
 - Prompts for confirmation before clearing
 
-**Status Bar** (index.html:252):
+**Status Bar** (src/252):
 - Shows current mode and feedback messages
 - Located at bottom of sidebar (sticky footer)
 - Displays warnings with emoji (e.g., ⚠️ for invalid connections)
@@ -596,7 +680,7 @@ Text alignment can be set globally (default for new nodes) or per-node:
 
 ## Inline Text Editing
 
-When `editingNode` is set (index.html:1895-1956):
+When `editingNode` is set (src/1895-1956):
 - **Visual indication**: Node shows yellow fill and orange border
 - **Cursor**: Blinking cursor at end of last line (500ms rate)
   - Position varies based on text alignment (left/center/right)
@@ -623,35 +707,35 @@ When `editingNode` is set (index.html:1895-1956):
 
 ## Performance Optimizations
 
-1. **NodeMap for O(1) lookups** (index.html:319)
+1. **NodeMap for O(1) lookups** (src/319)
    - Map<id, node> replaces O(n) array searches
    - Used in `getConnectionAtPoint()` and `drawConnection()`
    - Synchronized with nodes array (create, delete, clear)
 
-2. **Debounced auto-save** (index.html:354-360)
+2. **Debounced auto-save** (src/354-360)
    - 1 second debounce prevents excessive localStorage writes
    - Only saves after user stops making changes
 
-3. **Conditional rendering** (index.html:1863-1868)
+3. **Conditional rendering** (src/1863-1868)
    - Only renders when hover state changes or in connection mode
    - Reduces unnecessary full canvas redraws
 
-4. **Optimized cursor blink** (index.html:332-343)
+4. **Optimized cursor blink** (src/332-343)
    - Only renders during blink if editingNode still exists
    - Prevents unnecessary renders after edit mode ends
    - Uses CURSOR_BLINK_RATE constant (500ms)
 
-5. **Optimized text editing** (index.html:2003-2047)
+5. **Optimized text editing** (src/2003-2047)
    - Length checks before string operations
    - Early filtering of unwanted key combinations
    - Character counter only shown when <50 remaining
    - Immediate render on input for responsive typing
 
-6. **Text clipping** (index.html:1184-1294)
+6. **Text clipping** (src/1184-1294)
    - Canvas clipping prevents expensive overflow calculations
    - Shape-specific clip regions (circle, diamond, rectangle)
 
-7. **Zoom transform with coordinate adjustment** (index.html:1536-1561)
+7. **Zoom transform with coordinate adjustment** (src/1536-1561)
    - Mouse coordinates adjusted for zoom and scroll in one function
    - Efficient canvas scaling for zoom rendering
 
@@ -688,7 +772,7 @@ When `editingNode` is set (index.html:1895-1956):
 ## Z-Ordering
 
 Nodes are rendered in array order (last = on top). When a node is selected:
-- It's moved to end of `nodes` array (index.html:1670)
+- It's moved to end of `nodes` array (src/1670)
 - Automatically brings it to front
 - All subsequent operations render it on top
 - Order persists until another node is selected
@@ -708,18 +792,18 @@ The canvas is no longer bounded, allowing for unlimited workspace:
 The codebase uses a node-based architecture where nodes have a `type` field. Four types are implemented: 'rectangle', 'circle', 'diamond', and 'text'.
 
 **To add a new node type:**
-1. Add constant for default size (index.html:268-289)
-2. Add button to toolbar HTML (index.html:198-206)
-3. Update `createNode()` to handle new type (index.html:809-856)
+1. Add constant for default size (src/268-289)
+2. Add button to toolbar HTML (src/198-206)
+3. Update `createNode()` to handle new type (src/809-856)
    - Add to nodeMap
    - Return appropriate data structure
-4. Create new `draw[Type]Node()` function (similar to index.html:1045-1170)
-5. Add case to `drawNode()` dispatcher (index.html:1025-1043)
-6. Update `isPointInNode()` for shape-specific hit detection (index.html:867-904)
-7. Update `getNodeEdgePoint()` for shape-specific edge calculations (index.html:1337-1409)
-8. Update `getResizeCorner()` for shape-specific handles (index.html:916-974)
-9. Update resize logic in mousemove handler if needed (index.html:1773-1830)
-10. Update hover effect in `render()` if needed (index.html:1516-1547)
+4. Create new `draw[Type]Node()` function (similar to src/1045-1170)
+5. Add case to `drawNode()` dispatcher (src/1025-1043)
+6. Update `isPointInNode()` for shape-specific hit detection (src/867-904)
+7. Update `getNodeEdgePoint()` for shape-specific edge calculations (src/1337-1409)
+8. Update `getResizeCorner()` for shape-specific handles (src/916-974)
+9. Update resize logic in mousemove handler if needed (src/1773-1830)
+10. Update hover effect in `render()` if needed (src/1516-1547)
 
 ## Known Limitations
 
@@ -795,52 +879,70 @@ The codebase uses a node-based architecture where nodes have a `type` field. Fou
 
 ## File Structure
 
-Everything is in `index.html` (~2059 lines):
+The codebase is organized into modular source files that are merged into a single `index.html` by the build script:
 
-**HTML & CSS** (lines 1-260):
-- Lines 1-190: HTML structure and CSS styles
-  - Lines 22-28: `#app-layout` flexbox container CSS
-  - Lines 30-38: `#sidebar` (left toolbar area) CSS
-  - Lines 40-45: `#canvas-container` (right canvas area) CSS
-  - Lines 56-64: `#controls` (toolbar) CSS
-  - Lines 91-101: `#status` (status bar) CSS
-- Lines 192-259: HTML body structure with flexbox layout
-  - Lines 193-257: `#app-layout` wrapper containing sidebar and canvas
-  - Lines 194-253: `#sidebar` containing controls and status
-  - Lines 195-251: `#controls` (toolbar with all buttons)
-  - Lines 198-206: Node type buttons
-  - Lines 210-214: Text alignment buttons
-  - Lines 218-222: Canvas size buttons (Larger/Smaller)
-  - Lines 226-230: Zoom buttons (Zoom In/Out)
-  - Lines 234-238: Connection type buttons
-  - Lines 243-247: File operations buttons (Save, Load, Export)
-  - Line 250: Clear canvas button
-  - Line 252: Status bar
-  - Lines 254-256: `#canvas-container` with canvas element
-  - Line 259: Hidden file input element
+**Source Files** (src/ directory):
 
-**JavaScript** (lines 261-2059):
-- Lines 262-289: Canvas setup and constants (including canvas size and zoom constants)
-- Lines 291-306: Global state variables (including canvasWidth, canvasHeight, zoom, copiedNode)
-- Lines 308-317: Interaction state (drag, resize, panning)
-- Line 319: Performance optimization (nodeMap)
-- Lines 321-324: Auto-save state
-- Lines 326-352: Cursor blink state and functions
-- Lines 354-462: Auto-save functions (with canvas size and zoom persistence)
-- Lines 464-471: Canvas setup (resizeCanvas)
-- Lines 473-613: UI helper functions (including canvas size and zoom controls)
-- Lines 615-807: File operations (with canvas size and zoom save/restore, PNG export at 100% zoom)
-- Lines 809-856: Node and connection creation
-- Lines 858-1006: Geometric calculations and hit detection
-- Lines 1008-1278: Rendering functions (with zoom transform)
-- Lines 1452-1534: Main render loop with zoom transform
-- Lines 1536-1561: Mouse coordinate helper (getMousePos with zoom and scroll)
-- Lines 1563-1606: Double-click handler (create/edit nodes)
-- Lines 1608-1747: Mouse down handler (with zoom-adjusted coordinates)
-- Lines 1749-1868: Mouse move handler (with zoom-adjusted coordinates)
-- Lines 1870-1885: Mouse up handler
-- Lines 1887-2047: Keyboard handlers (including Ctrl+C/V for copy/paste)
-- Lines 2049-2058: Initialization with auto-load
+**HTML & CSS**:
+- `src/template.html` (~83 lines): HTML skeleton with placeholders for CSS and JS
+  - `#app-layout` flexbox container
+  - `#sidebar` containing controls and status
+  - `#canvas-container` with canvas element
+  - All toolbar buttons (node types, alignment, canvas size, zoom, connections, file operations)
+  - Hidden file input element
+- `src/styles.css` (~183 lines): All CSS styles
+  - Flexbox layout styles
+  - Button and toolbar styles
+  - Canvas and sidebar styling
+
+**JavaScript Modules**:
+- `src/constants.js` (~23 lines): Configuration constants
+  - Canvas size, zoom, node defaults, UI constants
+- `src/state.js` (~44 lines): Global state variables
+  - Canvas state, nodes, connections, selection state
+  - Interaction state (drag, resize, panning)
+  - Performance optimization (nodeMap)
+  - Auto-save and cursor blink state
+- `src/autoSave.js` (~138 lines): Auto-save/load system
+  - `startCursorBlink()`, `stopCursorBlink()` - Cursor animation
+  - `triggerAutoSave()`, `autoSave()`, `autoLoad()` - Persistence
+  - `resizeCanvas()` - Canvas dimension updates
+- `src/uiHelpers.js` (~144 lines): UI controls and helpers
+  - Button handlers (node type, alignment, canvas size, zoom)
+  - Connection mode handlers
+  - `clearCanvas()` - Reset functionality
+- `src/fileOperations.js` (~186 lines): File I/O
+  - `saveToJSON()`, `loadFromJSON()`, `exportToPNG()` - Import/export
+- `src/nodeManager.js` (~186 lines): Node management
+  - `createNode()`, `createConnection()` - Node/connection creation
+  - `isPointInNode()`, `getNodeAtPoint()` - Hit detection
+  - `getResizeCorner()` - Resize handle detection
+- `src/connectionManager.js` (~48 lines): Connection utilities
+  - `distanceToLineSegment()`, `getConnectionAtPoint()` - Connection hit testing
+- `src/renderer.js` (~536 lines): All drawing functions
+  - `render()` - Main render loop with zoom transform
+  - `drawNode()`, `drawRectangleNode()`, `drawCircleNode()`, `drawDiamondNode()`, `drawTextNode()` - Node rendering
+  - `drawNodeText()` - Text rendering with alignment and clipping
+  - `drawConnection()`, `drawArrow()` - Connection rendering
+  - `getNodeEdgePoint()`, `lineIntersection()` - Geometric calculations
+  - `getMousePos()` - Mouse coordinate helper with zoom and scroll
+- `src/eventHandlers.js` (~487 lines): Mouse/keyboard events
+  - Canvas event listeners (dblclick, mousedown, mousemove, mouseup)
+  - Keyboard event listener (text editing, shortcuts, copy/paste)
+- `src/main.js` (~11 lines): Initialization
+  - Initial canvas setup, auto-load, render
+
+**Build Output**:
+- `index.html` (~2,070 lines): Generated single-file application
+  - Built by running `python3 build.py`
+  - Contains all merged HTML, CSS, and JavaScript
+  - Ready for distribution (no build step needed by end users)
+
+**Build Process** (build.py ~80 lines):
+- Reads source files in dependency order
+- Replaces placeholders in template.html
+- Adds build timestamp
+- Outputs single index.html file
 
 ## Code Quality Notes
 

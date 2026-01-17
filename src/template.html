@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inf - Diagram Note-Taking</title>
+    <style>
+<!-- CSS -->
+    </style>
+</head>
+<body>
+    <div id="app-layout">
+        <div id="sidebar">
+            <div id="controls">
+        <h3 id="app-title">Inf</h3>
+
+        <div class="node-types">
+            <h4>Node Types</h4>
+            <div class="node-type-buttons">
+                <button onclick="setNodeType('rectangle')" class="node-btn active" id="btn-rectangle">Rectangle</button>
+                <button onclick="setNodeType('circle')" class="node-btn" id="btn-circle">Circle</button>
+                <button onclick="setNodeType('diamond')" class="node-btn" id="btn-diamond">Diamond</button>
+                <button onclick="setNodeType('text')" class="node-btn" id="btn-text">Text</button>
+            </div>
+        </div>
+
+        <div class="node-types">
+            <h4>Text Alignment</h4>
+            <div class="text-align-buttons">
+                <button onclick="setTextAlign('left')" class="node-btn" id="btn-align-left">L</button>
+                <button onclick="setTextAlign('center')" class="node-btn active" id="btn-align-center">C</button>
+                <button onclick="setTextAlign('right')" class="node-btn" id="btn-align-right">R</button>
+            </div>
+        </div>
+
+        <div class="node-types">
+            <h4>Canvas Size</h4>
+            <div class="node-type-buttons">
+                <button onclick="increaseCanvasSize()" class="node-btn">Larger +</button>
+                <button onclick="decreaseCanvasSize()" class="node-btn">Smaller −</button>
+            </div>
+        </div>
+
+        <div class="node-types">
+            <h4>Zoom</h4>
+            <div class="node-type-buttons">
+                <button onclick="zoomIn()" class="node-btn">Zoom In +</button>
+                <button onclick="zoomOut()" class="node-btn">Zoom Out −</button>
+            </div>
+        </div>
+
+        <div class="node-types">
+            <h4>Connection Type</h4>
+            <div class="node-type-buttons">
+                <button onclick="setConnectionType(true)" class="node-btn" id="btn-directed">Directed →</button>
+                <button onclick="setConnectionType(false)" class="node-btn" id="btn-undirected">Undirected —</button>
+            </div>
+        </div>
+
+        <div class="node-types">
+            <h4>File Operations</h4>
+            <div class="file-ops-buttons">
+                <button onclick="saveToJSON()" class="node-btn">Save</button>
+                <button onclick="document.getElementById('file-input').click()" class="node-btn">Load</button>
+                <button onclick="exportToPNG()" class="node-btn">Export</button>
+            </div>
+        </div>
+
+        <button onclick="clearCanvas()">Clear Canvas</button>
+            </div>
+            <div id="status">Ready</div>
+        </div>
+        <div id="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+    </div>
+
+    <input type="file" id="file-input" accept=".json" style="display: none;" onchange="loadFromJSON(event)">
+
+    <script>
+<!-- JS -->
+    </script>
+</body>
+</html>

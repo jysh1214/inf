@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Build artifacts (generated files should not be committed)
+index.html
+
+# Backup files
+*.backup.html
+
+# OS files
+.DS_Store
+Thumbs.db
