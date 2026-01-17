@@ -459,13 +459,9 @@ document.addEventListener('keydown', (e) => {
             nodes.push(newNode);
             nodeMap.set(newNode.id, newNode);
 
-            // If original node had a file handle, copy it to the new node
-            if (copiedNode.subgraph && typeof copiedNode.subgraph === 'string') {
-                const originalHandle = fileHandleMap.get(copiedNode.id);
-                if (originalHandle) {
-                    fileHandleMap.set(newNode.id, originalHandle);
-                }
-            }
+            // Note: Don't copy FileHandle for file-based subgraphs - each pasted node
+            // should select its own file to prevent accidental data corruption from
+            // multiple nodes sharing the same file reference
 
             // Select the new node
             selectedNode = newNode;

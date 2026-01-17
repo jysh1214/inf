@@ -444,11 +444,22 @@ async function enterSubgraph(node) {
 
         // Determine if it's a file path or embedded subgraph
         if (typeof node.subgraph === 'string') {
-            // File path - load from file
-            setStatus(`Loading subgraph from ${node.subgraph}...`);
-            subgraphData = await loadSubgraphFromFile(node.subgraph, node.id);
+            // File path - check for circular reference
+            const fileName = node.subgraph;
+            const fileAlreadyInStack = subgraphStack.some(entry => entry.fileName === fileName);
+            if (fileAlreadyInStack) {
+                throw new Error(`Circular reference detected: "${fileName}" is already in the navigation stack`);
+            }
+
+            // Load from file
+            setStatus(`Loading subgraph from ${fileName}...`);
+            subgraphData = await loadSubgraphFromFile(fileName, node.id);
         } else if (typeof node.subgraph === 'object') {
-            // Embedded subgraph
+            // Embedded subgraph - check if we're entering a node that's in our path
+            if (currentPath.includes(node.id)) {
+                throw new Error(`Circular reference detected: Node #${node.id} is already in the navigation path`);
+            }
+
             subgraphData = node.subgraph;
         } else {
             throw new Error('Invalid subgraph format');
@@ -457,7 +468,7 @@ async function enterSubgraph(node) {
         // Stop any ongoing editing
         stopCursorBlink();
 
-        // Save current state to stack
+        // Save current state to stack (don't store FileHandle - it's not serializable)
         const currentState = {
             parentState: {
                 nodes: JSON.parse(JSON.stringify(nodes)),
@@ -469,7 +480,8 @@ async function enterSubgraph(node) {
             },
             nodeId: node.id,
             nodePath: [...currentPath, node.id],
-            fileHandle: fileHandleMap.get(node.id) || null
+            isFileBased: typeof node.subgraph === 'string',
+            fileName: typeof node.subgraph === 'string' ? node.subgraph : null
         };
         subgraphStack.push(currentState);
 
@@ -581,7 +593,8 @@ async function exitSubgraph() {
         const stackEntry = subgraphStack.pop();
         const parentNodeId = stackEntry.nodeId;
         const parentState = stackEntry.parentState;
-        const fileHandle = stackEntry.fileHandle;
+        const isFileBased = stackEntry.isFileBased;
+        const fileName = stackEntry.fileName;
 
         // Restore parent state
         nodes = parentState.nodes;
@@ -604,15 +617,44 @@ async function exitSubgraph() {
             if (typeof parentNode.subgraph === 'object') {
                 // Embedded subgraph - update in-place
                 parentNode.subgraph = currentSubgraphData;
-            } else if (typeof parentNode.subgraph === 'string' && fileHandle) {
+            } else if (isFileBased && fileName) {
                 // File-based subgraph - save to file
-                try {
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(JSON.stringify(currentSubgraphData, null, 2));
-                    await writable.close();
-                } catch (error) {
-                    console.error('Failed to save subgraph file:', error);
-                    setStatus(`⚠️ Failed to save changes to ${parentNode.subgraph}: ${error.message}`);
+                let fileHandle = fileHandleMap.get(parentNodeId);
+
+                // If we don't have the file handle (e.g., after page reload), prompt user
+                if (!fileHandle && 'showOpenFilePicker' in window) {
+                    try {
+                        setStatus(`Saving ${fileName} - please select the file...`);
+                        const handles = await window.showOpenFilePicker({
+                            types: [{
+                                description: 'JSON Files',
+                                accept: { 'application/json': ['.json'] }
+                            }],
+                            multiple: false
+                        });
+                        fileHandle = handles[0];
+                        fileHandleMap.set(parentNodeId, fileHandle);
+                    } catch (error) {
+                        if (error.name === 'AbortError') {
+                            setStatus('⚠️ File selection cancelled - subgraph changes not saved to file');
+                        } else {
+                            setStatus(`⚠️ Failed to select file: ${error.message}`);
+                        }
+                        fileHandle = null;
+                    }
+                }
+
+                // Save to file if we have a handle
+                if (fileHandle) {
+                    try {
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(JSON.stringify(currentSubgraphData, null, 2));
+                        await writable.close();
+                        setStatus(`Saved changes to ${fileName}`);
+                    } catch (error) {
+                        console.error('Failed to save subgraph file:', error);
+                        setStatus(`⚠️ Failed to save changes to ${fileName}: ${error.message}`);
+                    }
                 }
             }
         }
