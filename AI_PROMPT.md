@@ -15,10 +15,11 @@ Structure:
 - Use appropriate node types: rectangle (concepts), circle (entry/exit points), diamond (decisions), text (annotations)
 - Create meaningful connections (directed for flow/dependency, undirected for associations)
 
-Output: (in DEST)
+Output:
 - Main JSON file with root-level overview
 - Separate JSON files for each subgraph (named clearly, e.g., "module-authentication.json", "concept-event-loop.json")
 - In parent nodes, use `"subgraph": "filename.json"` to reference the files
+- Save all assets in DEST
 
 Follow the format in inf/INF_NOTE_GUIDE.md.
 ```
