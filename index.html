@@ -249,6 +249,7 @@
         let nextId = 1;
 
         // Constants
+        const VERSION = '0.1';
         const HANDLE_SIZE = 8;
         const CONNECTION_THRESHOLD = 8;
         const MIN_NODE_SIZE = 40;
@@ -340,7 +341,7 @@
         function autoSave() {
             try {
                 const saveData = {
-                    version: '1.0',
+                    version: VERSION,
                     nodes: nodes,
                     connections: connections,
                     nextId: nextId,
@@ -1991,6 +1992,7 @@
         });
 
         // Initial render and auto-load
+        document.title = `Inf - v${VERSION}`;
         const loaded = autoLoad();
         if (!loaded) {
             setStatus('Double-click to create nodes');
