@@ -1,5 +1,5 @@
 // Constants
-const VERSION = '0.2';
+const VERSION = '0.3';
 const HANDLE_SIZE = 8;
 const CONNECTION_THRESHOLD = 8;
 const MIN_NODE_SIZE = 40;
