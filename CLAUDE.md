@@ -117,11 +117,14 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 - `editingNode` - Node currently being edited (inline text editing)
 - `copiedNode` - Node copied to clipboard for paste operation
 
-**Interaction state** (index.html:292-296):
-- `isDragging` - Boolean for drag operation
+**Interaction state** (index.html:292-301):
+- `isDragging` - Boolean for node drag operation
 - `isResizing` - Boolean for resize operation
 - `resizeCorner` - String identifier for which handle is being dragged
 - `dragOffset` - Object {x, y} storing drag offset from node origin
+- `isPanning` - Boolean for canvas panning operation
+- `panStart` - Object {x, y} storing mouse position when panning started
+- `scrollStart` - Object {x, y} storing container scroll position when panning started
 
 **Performance optimizations** (index.html:298):
 - `nodeMap` - Map<id, node> for O(1) node lookups
@@ -272,7 +275,7 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
   - Updates text alignment buttons using `updateAlignmentButtons()` helper
   - For new nodes: shows default alignment (currentTextAlign) and triggers auto-save
   - For existing nodes: shows that node's textAlign property
-- **Mouse down** (index.html:1447-1574): Selection, connection completion, drag/resize start
+- **Mouse down** (index.html:1447-1574): Selection, connection completion, drag/resize start, canvas panning
   - Updates text alignment buttons when selecting a node
   - Resets to default alignment buttons when deselecting
   - Triggers auto-save when completing connection
@@ -280,12 +283,16 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
   - Z-ordering: Selected nodes move to front of render order
   - Connection mode behavior: Clicking different node switches connection start
   - Visual feedback for invalid connections (flash + warning)
-- **Mouse move** (index.html:1576-1688): Hover effects, drag, resize
-  - Applies bounds checking during drag
+  - **Canvas panning**: Clicking empty canvas starts panning (disabled in connection/edit mode)
+- **Mouse move** (index.html:1576-1688): Hover effects, drag, resize, canvas panning
+  - **Canvas panning**: Updates scroll position during pan (uses screen-space deltas)
+  - Applies bounds checking during node drag
   - Conditional rendering (only when hover changes or in connection mode)
   - Type-specific cursors for resize handles
-- **Mouse up** (index.html:1690-1699): Ends drag/resize operations
-  - Triggers auto-save if was dragging or resizing
+  - Cursor feedback: grab (default), grabbing (panning), move (over node)
+- **Mouse up** (index.html:1690-1699): Ends drag/resize/panning operations
+  - Triggers auto-save if was dragging or resizing (not for panning)
+  - Resets cursor to 'grab' after operations complete
 - **Keyboard** (index.html:1701-1820): Text editing and shortcuts
   - Focus check: Only handles shortcuts when body/canvas has focus
   - Text editing filters: Excludes Alt, Tab, Ctrl, Meta keys
@@ -389,14 +396,19 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
    - No bounds checking - infinite canvas
    - Z-ordering: Selected nodes move to front
    - **Auto-save**: Triggers after drag completes
-9. **Resize nodes**: Drag handles (works even while editing)
+9. **Pan canvas**: Click and drag empty canvas background to navigate
+   - Natural "grab and drag" feel with grab/grabbing cursor
+   - Disabled during connection mode or text editing
+   - Works smoothly at all zoom levels
+   - No auto-save triggered (only viewport changes, not data)
+10. **Resize nodes**: Drag handles (works even while editing)
    - Rectangle/Text: 4 corner handles
    - Circle: 8 radial handles around circumference
    - Diamond: 4 cardinal point handles (N, E, S, W)
    - Minimum size enforcement (40px)
    - Type-specific cursors (ns-resize, ew-resize, nwse-resize, nesw-resize)
    - **Auto-save**: Triggers after resize completes
-10. **Create connections**:
+11. **Create connections**:
    - Select a node (click it)
    - Click "Directed →" or "Undirected —" button
    - Click target node to complete connection
@@ -406,34 +418,34 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
    - Press Esc to cancel (cursor resets)
    - Visual feedback for invalid connections (flash + warning)
    - **Auto-save**: Triggers after connection created
-11. **Edge-to-edge connections**: Lines connect at node boundaries, not centers
+12. **Edge-to-edge connections**: Lines connect at node boundaries, not centers
    - Arrowheads pulled back 3px for visibility
    - Works correctly for all node shape combinations
-12. **Select connections**: Click on connection line (highlights in blue)
+13. **Select connections**: Click on connection line (highlights in blue)
    - 8px click tolerance
-13. **Delete items**: Select node or connection, press Delete/Backspace
+14. **Delete items**: Select node or connection, press Delete/Backspace
    - Disabled while editing text
    - Clears editingNode reference if deleting edited node
    - Removes associated connections when deleting nodes
    - **Auto-save**: Triggers after deletion
-14. **Save diagram**: Button to save as JSON file
+15. **Save diagram**: Button to save as JSON file
    - Prompts for filename (sanitized automatically)
    - Downloads with .json extension
    - Saves all nodes, connections, canvas size, zoom level, and state
-15. **Load diagram**: Button to load JSON file
+16. **Load diagram**: Button to load JSON file
    - Opens file picker
    - Validates data structure and node properties
    - Restores canvas size and zoom level
    - Triggers auto-save after loading
-16. **Export diagram**: Button to export as PNG image
+17. **Export diagram**: Button to export as PNG image
    - Prompts for filename (sanitized automatically)
    - Warns if canvas is empty
    - Always exports at 100% zoom for consistency
    - High-quality canvas export
-17. **Clear canvas**: Button at bottom of toolbar with confirmation
+18. **Clear canvas**: Button at bottom of toolbar with confirmation
    - Clears auto-save data as well
-18. **Z-ordering**: Selected nodes automatically move to front
-19. **Copy/Paste nodes**: Ctrl+C to copy, Ctrl+V to paste
+19. **Z-ordering**: Selected nodes automatically move to front
+20. **Copy/Paste nodes**: Ctrl+C to copy, Ctrl+V to paste
    - Pasted nodes offset by 20px to avoid overlapping
 
 ## User Interface
@@ -441,9 +453,11 @@ const MAX_ZOOM = 3.0;                    // Maximum zoom level (300%)
 - **Toolbar** (top-left): Node type selector, text alignment selector, canvas size controls, zoom controls, connection type selector, file operations (Save/Load/Export), clear button
 - **Scrollable canvas container**: Canvas wrapped in scrollable div for navigation of large canvases
 - **Status bar** (bottom-left): Shows current mode, feedback, canvas size, zoom level, and auto-save status ("✓ Auto-saved")
-- **Canvas cursor**: Default cursor, changes contextually
+- **Canvas cursor**: Grab cursor by default, changes contextually
+  - Grab cursor over empty canvas (ready to pan)
+  - Grabbing cursor while panning
   - Move cursor over nodes
-  - Resize cursors over handles (type-specific)
+  - Resize cursors over handles (type-specific: nwse-resize, nesw-resize, ns-resize, ew-resize)
   - Crosshair cursor in connection mode
 - **Visual feedback**:
   - Selected nodes highlighted in blue
@@ -681,7 +695,6 @@ The codebase uses a node-based architecture where nodes have a `type` field. Fou
 - No multi-select
 - Connections are straight lines (no routing or curves)
 - No styling options (colors, fonts, line styles, line width)
-- No panning via drag (use scrollbars or trackpad gestures)
 - Text editing is append-only (no cursor positioning within text, no selection)
 - No alignment guides or snapping
 - No font size controls

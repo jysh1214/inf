@@ -31,7 +31,7 @@
 
         #canvas {
             display: block;
-            cursor: default;
+            cursor: grab;
             background: white;
             -webkit-user-select: none;
             user-select: none;
@@ -294,6 +294,11 @@
         let isResizing = false;
         let resizeCorner = null;
         let dragOffset = { x: 0, y: 0 };
+
+        // Canvas panning state
+        let isPanning = false;
+        let panStart = { x: 0, y: 0 };
+        let scrollStart = { x: 0, y: 0 };
 
         // Node lookup map for performance
         let nodeMap = new Map();
@@ -1701,7 +1706,19 @@
                     setStatus(`Connection selected. Press Delete to remove.`);
                     render();
                 } else {
-                    // Nothing clicked, deselect everything
+                    // Nothing clicked - start panning or deselect
+                    if (!connectionMode && !editingNode) {
+                        isPanning = true;
+                        const container = document.getElementById('canvas-container');
+                        panStart = { x: e.clientX, y: e.clientY };
+                        scrollStart = {
+                            x: container.scrollLeft,
+                            y: container.scrollTop
+                        };
+                        canvas.style.cursor = 'grabbing';
+                    }
+
+                    // Deselect everything
                     selectedNode = null;
                     selectedConnection = null;
 
@@ -1714,6 +1731,17 @@
         });
 
         canvas.addEventListener('mousemove', (e) => {
+            // Handle canvas panning
+            if (isPanning) {
+                const container = document.getElementById('canvas-container');
+                const dx = e.clientX - panStart.x;
+                const dy = e.clientY - panStart.y;
+
+                container.scrollLeft = scrollStart.x - dx;
+                container.scrollTop = scrollStart.y - dy;
+                return;
+            }
+
             const pos = getMousePos(e);
             const x = pos.x;
             const y = pos.y;
@@ -1807,7 +1835,13 @@
                         canvas.style.cursor = 'move';
                     }
                 } else {
-                    canvas.style.cursor = connectionMode ? 'crosshair' : 'default';
+                    if (connectionMode) {
+                        canvas.style.cursor = 'crosshair';
+                    } else if (isPanning) {
+                        canvas.style.cursor = 'grabbing';
+                    } else {
+                        canvas.style.cursor = 'grab';
+                    }
                 }
 
                 // Only render if hovered node changed or in connection mode
@@ -1818,6 +1852,11 @@
         });
 
         canvas.addEventListener('mouseup', (e) => {
+            // End panning
+            if (isPanning) {
+                isPanning = false;
+            }
+
             // Trigger auto-save if we were dragging or resizing
             if (isDragging || isResizing) {
                 triggerAutoSave();
@@ -1826,7 +1865,7 @@
             isDragging = false;
             isResizing = false;
             resizeCorner = null;
-            canvas.style.cursor = 'default';
+            canvas.style.cursor = 'grab';
         });
 
         // Keyboard event handlers
