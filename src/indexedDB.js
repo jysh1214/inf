@@ -1,8 +1,9 @@
 // IndexedDB for persistent FileSystemFileHandle storage
 
 const DB_NAME = 'InfDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;  // Incremented for directory handle store
 const STORE_NAME = 'fileHandles';
+const DIR_STORE_NAME = 'directoryHandle';
 
 let db = null;
 
@@ -23,6 +24,9 @@ async function initDB() {
             const db = event.target.result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 db.createObjectStore(STORE_NAME);
+            }
+            if (!db.objectStoreNames.contains(DIR_STORE_NAME)) {
+                db.createObjectStore(DIR_STORE_NAME);
             }
         };
     });
@@ -100,4 +104,70 @@ async function verifyPermission(fileHandle) {
     }
 
     return false;
+}
+
+/**
+ * Store a directory handle in IndexedDB
+ * @param {FileSystemDirectoryHandle} dirHandle - Directory handle to store
+ */
+async function storeDirectoryHandle(dirHandle) {
+    if (!db) await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([DIR_STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(DIR_STORE_NAME);
+        const request = store.put(dirHandle, 'workspace');
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
+/**
+ * Retrieve the directory handle from IndexedDB
+ * @returns {Promise<FileSystemDirectoryHandle|null>} Directory handle or null
+ */
+async function getDirectoryHandle() {
+    if (!db) await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([DIR_STORE_NAME], 'readonly');
+        const store = transaction.objectStore(DIR_STORE_NAME);
+        const request = store.get('workspace');
+
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+/**
+ * Find a file in the authorized directory by filename
+ * @param {string} filename - Name of file to find
+ * @returns {Promise<FileSystemFileHandle|null>} File handle or null if not found
+ */
+async function findFileInDirectory(filename) {
+    try {
+        const dirHandle = await getDirectoryHandle();
+        if (!dirHandle) return null;
+
+        // Verify directory permission
+        const options = { mode: 'read' };
+        if ((await dirHandle.queryPermission(options)) !== 'granted') {
+            if ((await dirHandle.requestPermission(options)) !== 'granted') {
+                return null;
+            }
+        }
+
+        // Try to get the file directly
+        try {
+            const fileHandle = await dirHandle.getFileHandle(filename);
+            return fileHandle;
+        } catch (e) {
+            // File not found in directory
+            return null;
+        }
+    } catch (error) {
+        console.error('Error finding file in directory:', error);
+        return null;
+    }
 }

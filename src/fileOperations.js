@@ -308,6 +308,32 @@ function validateSubgraph(subgraph, nodeId, nodeIndex) {
     throw new Error(`Node ${nodeIndex} (id: ${nodeId}): 'subgraph' must be a string (file path) or object (embedded subgraph), got ${typeof subgraph}`);
 }
 
+// Workspace folder selection
+async function selectWorkspaceFolder() {
+    try {
+        if (!('showDirectoryPicker' in window)) {
+            setStatus('⚠️ Directory picker not supported in this browser');
+            return;
+        }
+
+        const dirHandle = await window.showDirectoryPicker({
+            mode: 'read'
+        });
+
+        // Store the directory handle
+        await storeDirectoryHandle(dirHandle);
+
+        setStatus(`✓ Workspace folder set: ${dirHandle.name}`);
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            setStatus('Workspace folder selection cancelled');
+        } else {
+            setStatus(`⚠️ Error selecting workspace folder: ${error.message}`);
+            console.error('Workspace folder selection error:', error);
+        }
+    }
+}
+
 // Subgraph management functions
 async function createNewSubgraph(node) {
     try {
@@ -471,6 +497,23 @@ async function loadSubgraphFromFile(filePath, nodeId) {
                     // Store in memory cache for faster access
                     fileHandleMap.set(nodeId, fileHandle);
                 }
+            }
+        }
+
+        // If still no handle, try to find in authorized directory
+        if (!fileHandle && filePath) {
+            // Extract filename from path
+            const filename = filePath.includes('/') || filePath.includes('\\')
+                ? filePath.split(/[/\\]/).pop()
+                : filePath;
+
+            fileHandle = await findFileInDirectory(filename);
+
+            if (fileHandle) {
+                // Found in directory! Store for future use
+                fileHandleMap.set(nodeId, fileHandle);
+                await storeFileHandle(nodeId, fileHandle);
+                setStatus(`Opened ${filename} from workspace`);
             }
         }
 
