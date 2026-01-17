@@ -555,14 +555,20 @@ async function enterSubgraph(node) {
 }
 
 function updateBreadcrumb() {
+    const navSection = document.getElementById('subgraph-navigation');
+
     if (currentDepth === 0) {
         setStatus('Root - Double-click to create nodes');
+        // Hide back button at root level
+        if (navSection) navSection.style.display = 'none';
     } else {
         // Show last 2-3 levels to avoid overflow
         const pathToShow = currentPath.slice(-2);
         const breadcrumb = pathToShow.map(id => `Node #${id}`).join(' > ');
         const prefix = currentPath.length > 2 ? '... > ' : '';
         setStatus(`${prefix}${breadcrumb} - Double-click to create nodes, Esc to go back`);
+        // Show back button when in subgraph
+        if (navSection) navSection.style.display = 'block';
     }
 }
 
