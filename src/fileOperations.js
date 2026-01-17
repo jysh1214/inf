@@ -5,7 +5,7 @@ async function saveToJSON() {
 
     // Create save data object
     const saveData = {
-        version: '1.0',
+        version: VERSION,
         nodes: nodes,
         connections: connections,
         nextId: nextId,
@@ -317,7 +317,7 @@ async function createNewSubgraph(node) {
         if (choice) {
             // Create embedded subgraph
             node.subgraph = {
-                version: '1.0',
+                version: VERSION,
                 nodes: [],
                 connections: [],
                 nextId: 1,
@@ -345,7 +345,7 @@ async function createNewSubgraph(node) {
 
                 // Create initial empty subgraph data
                 const subgraphData = {
-                    version: '1.0',
+                    version: VERSION,
                     nodes: [],
                     connections: [],
                     nextId: 1,
@@ -374,7 +374,7 @@ async function createNewSubgraph(node) {
             } else {
                 setStatus('⚠️ File System Access API not supported. Creating embedded subgraph instead.');
                 node.subgraph = {
-                    version: '1.0',
+                    version: VERSION,
                     nodes: [],
                     connections: [],
                     nextId: 1,
@@ -586,7 +586,7 @@ async function exitSubgraph() {
 
         // Save current subgraph state
         const currentSubgraphData = {
-            version: '1.0',
+            version: VERSION,
             nodes: nodes,
             connections: connections,
             nextId: nextId,
