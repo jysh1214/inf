@@ -673,14 +673,17 @@ async function loadSubgraphFromFile(filePath, nodeId) {
         }
 
         // Try to access the file to verify the handle is still valid
+        // Store the file object to avoid redundant access later
+        let file = null;
         if (fileHandle) {
             try {
-                await fileHandle.getFile();
+                file = await fileHandle.getFile();
                 // File access successful, handle is valid
             } catch (error) {
                 // File handle is stale (file deleted, moved, or permission lost)
                 console.warn(`File handle from ${fileHandleSource} is stale:`, error);
                 fileHandle = null;
+                file = null;
                 fileHandleMap.delete(nodeId);
                 await deleteFileHandle(nodeId);
             }
@@ -732,13 +735,15 @@ async function loadSubgraphFromFile(filePath, nodeId) {
             }
         }
 
-        // Read file contents
-        let file, contents, subgraphData;
+        // Get file object if not already obtained from validation
+        let contents, subgraphData;
 
-        try {
-            file = await fileHandle.getFile();
-        } catch (error) {
-            throw new Error(`Failed to access file: ${error.message}`);
+        if (!file) {
+            try {
+                file = await fileHandle.getFile();
+            } catch (error) {
+                throw new Error(`Failed to access file: ${error.message}`);
+            }
         }
 
         try {
