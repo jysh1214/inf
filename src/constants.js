@@ -29,22 +29,34 @@ const SYNTAX_COLORS = {
     default: '#333'          // Default text color
 };
 
-// JavaScript/TypeScript keywords
+// Multi-language keywords (JavaScript/TypeScript, C/C++, Python)
 const SYNTAX_KEYWORDS = [
-    'function', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'return',
-    'class', 'import', 'export', 'from', 'async', 'await', 'new', 'this',
-    'try', 'catch', 'throw', 'switch', 'case', 'break', 'continue', 'default',
-    'true', 'false', 'null', 'undefined', 'typeof', 'instanceof', 'void',
-    'do', 'in', 'of', 'extends', 'super', 'static', 'get', 'set', 'delete',
-    'yield', 'with', 'debugger', 'finally', 'enum', 'implements', 'interface',
-    'package', 'private', 'protected', 'public'
+    // Shared keywords (common across multiple languages)
+    'if', 'else', 'for', 'while', 'return', 'switch', 'case', 'break', 'continue',
+    'default', 'true', 'false', 'null', 'do', 'void', 'static', 'const',
+    'class', 'new', 'delete', 'this', 'try', 'catch', 'throw', 'enum',
+    'private', 'protected', 'public',
+    // JavaScript/TypeScript specific
+    'function', 'let', 'var', 'import', 'export', 'from', 'async', 'await',
+    'undefined', 'typeof', 'instanceof', 'in', 'of', 'extends', 'super', 'get', 'set',
+    'yield', 'with', 'debugger', 'finally', 'implements', 'interface', 'package',
+    // C/C++ specific
+    'int', 'float', 'double', 'char', 'bool', 'long', 'short', 'unsigned', 'signed',
+    'struct', 'union', 'typedef', 'sizeof', 'extern', 'register', 'volatile',
+    'auto', 'goto', 'inline', 'restrict',
+    'namespace', 'template', 'virtual', 'operator', 'friend', 'explicit',
+    'mutable', 'typename', 'using', 'constexpr', 'nullptr',
+    // Python specific
+    'def', 'lambda', 'pass', 'elif', 'as', 'assert', 'global', 'nonlocal',
+    'is', 'not', 'and', 'or', 'raise', 'except', 'with',
+    'True', 'False', 'None', 'self', '__init__', '__name__', '__main__'
 ];
 
 // Pre-compiled regex patterns for syntax highlighting (performance optimization)
 const SYNTAX_PATTERNS = {
     string: /^["'`]/,
     number: /^[0-9]/,
-    comment: /^\/\//
+    comment: /^(\/\/|#)/  // Support // (JS/C++) and # (Python) comments
 };
 const CANVAS_SIZE_STEP = 500;
 const MIN_CANVAS_SIZE = 1000;
