@@ -318,82 +318,104 @@ function drawArrow(x1, y1, x2, y2, directed, isSelected) {
 }
 
 function getNodeEdgePoint(fromX, fromY, toNode) {
+    const nodeCenter = getNodeCenter(toNode);
+    const dx = nodeCenter.x - fromX;
+    const dy = nodeCenter.y - fromY;
+
+    // Handle the case where from point is at the node center
+    if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+        return nodeCenter;
+    }
+
     switch (toNode.type) {
         case 'circle':
-            // Point on circle circumference at angle from fromX, fromY
-            const angle = Math.atan2(toNode.y - fromY, toNode.x - fromX);
+            // Point on circle circumference along the line from fromX,fromY to center
+            const angle = Math.atan2(dy, dx);
             return {
-                x: toNode.x + Math.cos(angle) * toNode.radius,
-                y: toNode.y + Math.sin(angle) * toNode.radius
+                x: nodeCenter.x - Math.cos(angle) * toNode.radius,
+                y: nodeCenter.y - Math.sin(angle) * toNode.radius
             };
 
         case 'diamond':
             // Intersection with diamond edges
-            const centerX = toNode.x + toNode.width / 2;
-            const centerY = toNode.y + toNode.height / 2;
-            const dx = centerX - fromX;
-            const dy = centerY - fromY;
-            const ang = Math.atan2(dy, dx);
+            const centerX = nodeCenter.x;
+            const centerY = nodeCenter.y;
 
             // Diamond has 4 edges, find which one the line intersects
             const edges = [
-                // Top edge: from (x, y) to (x+w, cy)
+                // Top-right edge
                 { x1: centerX, y1: toNode.y, x2: toNode.x + toNode.width, y2: centerY },
-                // Right edge: from (x+w, cy) to (cx, y+h)
+                // Bottom-right edge
                 { x1: toNode.x + toNode.width, y1: centerY, x2: centerX, y2: toNode.y + toNode.height },
-                // Bottom edge: from (cx, y+h) to (x, cy)
+                // Bottom-left edge
                 { x1: centerX, y1: toNode.y + toNode.height, x2: toNode.x, y2: centerY },
-                // Left edge: from (x, cy) to (cx, y)
+                // Top-left edge
                 { x1: toNode.x, y1: centerY, x2: centerX, y2: toNode.y }
             ];
 
-            // Find intersection with line from (fromX, fromY) through center
+            // Find intersection with line from (fromX, fromY) to center
             for (let edge of edges) {
                 const intersect = lineIntersection(fromX, fromY, centerX, centerY,
                                                   edge.x1, edge.y1, edge.x2, edge.y2);
                 if (intersect) return intersect;
             }
-            return { x: centerX, y: centerY };
+            return nodeCenter;
 
         case 'text':
         case 'rectangle':
         default:
-            // Rectangle edge calculation
-            const nodeCenterX = toNode.x + toNode.width / 2;
-            const nodeCenterY = toNode.y + toNode.height / 2;
+            // Find intersection of line from (fromX, fromY) to center with rectangle edges
+            const left = toNode.x;
+            const right = toNode.x + toNode.width;
+            const top = toNode.y;
+            const bottom = toNode.y + toNode.height;
 
-            const dxx = nodeCenterX - fromX;
-            const dyy = nodeCenterY - fromY;
-            const angle2 = Math.atan2(dyy, dxx);
+            // Calculate intersections with all four edges
+            const intersections = [];
 
-            const cos = Math.cos(angle2);
-            const sin = Math.sin(angle2);
-
-            let x, y;
-
-            if (Math.abs(cos) > Math.abs(sin)) {
-                // Connecting to left or right edge
-                if (cos > 0) {
-                    x = toNode.x;
-                } else {
-                    x = toNode.x + toNode.width;
+            // Left edge
+            if (dx !== 0) {
+                const t = (left - fromX) / dx;
+                const y = fromY + t * dy;
+                if (t > 0 && y >= top && y <= bottom) {
+                    intersections.push({ x: left, y: y, t: t });
                 }
-                y = nodeCenterY - (nodeCenterX - x) * Math.tan(angle2);
-                // Clamp y to rectangle bounds
-                y = Math.max(toNode.y, Math.min(toNode.y + toNode.height, y));
-            } else {
-                // Connecting to top or bottom edge
-                if (sin > 0) {
-                    y = toNode.y;
-                } else {
-                    y = toNode.y + toNode.height;
-                }
-                x = nodeCenterX - (nodeCenterY - y) / Math.tan(angle2);
-                // Clamp x to rectangle bounds
-                x = Math.max(toNode.x, Math.min(toNode.x + toNode.width, x));
             }
 
-            return { x, y };
+            // Right edge
+            if (dx !== 0) {
+                const t = (right - fromX) / dx;
+                const y = fromY + t * dy;
+                if (t > 0 && y >= top && y <= bottom) {
+                    intersections.push({ x: right, y: y, t: t });
+                }
+            }
+
+            // Top edge
+            if (dy !== 0) {
+                const t = (top - fromY) / dy;
+                const x = fromX + t * dx;
+                if (t > 0 && x >= left && x <= right) {
+                    intersections.push({ x: x, y: top, t: t });
+                }
+            }
+
+            // Bottom edge
+            if (dy !== 0) {
+                const t = (bottom - fromY) / dy;
+                const x = fromX + t * dx;
+                if (t > 0 && x >= left && x <= right) {
+                    intersections.push({ x: x, y: bottom, t: t });
+                }
+            }
+
+            // Return the closest intersection to fromX, fromY
+            if (intersections.length > 0) {
+                intersections.sort((a, b) => a.t - b.t);
+                return { x: intersections[0].x, y: intersections[0].y };
+            }
+
+            return nodeCenter;
     }
 }
 
