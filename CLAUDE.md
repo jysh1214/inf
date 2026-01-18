@@ -61,11 +61,15 @@ Global state is managed through variables in `state.js`. Key state includes:
 - `nextId` - Next available ID for nodes/connections
 
 **Interaction State:**
-- `selectedNode`, `editingNode`, `hoveredNode` - Current interaction state
+- `selectedNodeIds` Set - Multi-select support (set of node IDs)
+- `selectedConnection`, `selectedCell` - Selected connection or table cell
+- `editingNode`, `hoveredNode` - Current interaction state
 - `isDragging`, `isResizing`, `isPanning` - Interaction mode flags
 - `connectionMode`, `connectionStart` - Connection creation state
 - `cursorPosition` - Current cursor position in text (0 = start, text.length = end)
 - `cursorVisible`, `cursorBlinkInterval` - Cursor blink animation state
+- `copiedNodes` array - Clipboard for multi-node copy/paste
+- `currentFileName` string - Current file name display (null for unsaved)
 
 **Canvas State:**
 - `canvasWidth`, `canvasHeight`, `zoom` - Canvas dimensions and zoom level
@@ -78,13 +82,23 @@ Global state is managed through variables in `state.js`. Key state includes:
 
 ### Node System
 
-Five node types are supported: `rectangle`, `circle`, `diamond`, `text`, `code`. Each type has different:
+Six node types are supported: `rectangle`, `circle`, `diamond`, `text`, `code`, `table`. Each type has different:
 - Geometry representation (x/y/width/height for rectangles, x/y/radius for circles)
 - Hit detection algorithms (`isPointInNode` in `nodeManager.js`)
 - Rendering functions (`drawRectangleNode`, `drawCircleNode`, etc. in `renderer.js`)
 - Resize handle positions and logic (`getResizeCorner` in `nodeManager.js`)
 
 All nodes share common properties: `id`, `type`, `text`, `textAlign`.
+
+**Table Node Type:**
+- Grid-based structure with configurable rows/columns (1-20 each)
+- Each cell is a mini-text node with independent text and alignment
+- Each cell can have its own embedded or file-based subgraph
+- Individual cell selection and editing
+- Fixed cell dimensions (cellWidth × cellHeight)
+- Double-click to edit cell text, Ctrl+Click to create/enter cell subgraph
+- Default: 3×3 table with 100×40 pixel cells
+- Modal UI for specifying table dimensions on creation
 
 **Code Node Type:**
 - Monospace font (Monaco, Menlo, Courier New) with light gray background (#f5f5f5)
@@ -230,6 +244,20 @@ When adding new global state:
 
 Call `render()` after any state change that affects visual output. Call `triggerAutoSave()` after any state change that should be persisted.
 
+### Common Bug Patterns to Avoid
+
+**Variable naming consistency:**
+- The multi-select clipboard is `copiedNodes` (plural array), NOT `copiedNode`
+- Always use `copiedNodes = []` to reset clipboard
+- Common mistake: `copiedNode = null` creates undefined variable pollution
+
+**State reset in subgraph navigation:**
+- When entering/exiting subgraphs, reset all interaction state including:
+  - `copiedNodes = []` (clipboard)
+  - `selectedNodeIds.clear()` (multi-select)
+  - `editingNode = null`, `connectionMode = false`
+  - All drag/resize/pan state variables
+
 ## Text Editing & Cursor System
 
 **Cursor Position Tracking:**
@@ -355,21 +383,39 @@ Multiple keydown listeners exist on `document`. When adding new global keyboard 
 
 ## Key Interactions
 
-### Ctrl+Click on Node
-1. `eventHandlers.js` detects Ctrl/Cmd+Click
-2. Calls `createNewSubgraph(node)` if node has no subgraph
-3. Modal appears via `showSubgraphModal()` (Promise-based)
-4. User selects: Embedded, New File, or Load Existing
-5. For "Load Existing": File is read and validated immediately before linking
-6. `enterSubgraph(node)` is called automatically after creation
-7. Browser context menu is prevented via `stopPropagation()` and contextmenu handler
+### Ctrl+Click Behavior (Context-Dependent)
 
-### Escape Key Priority
-1. If modal is visible: `ui.js` closes modal and prevents propagation
-2. If editing text: `eventHandlers.js` exits edit mode
-3. If in connection mode: `eventHandlers.js` cancels connection
-4. If in subgraph (depth > 0): `eventHandlers.js` exits to parent
-5. Order matters - use `stopImmediatePropagation()` to prevent cascading
+**On regular nodes (with Shift):**
+1. Creates/enters subgraph (modal appears if no subgraph exists)
+2. Modal via `showSubgraphModal()` offers: Embedded, New File, or Load Existing
+3. File validation happens before linking
+4. `enterSubgraph(node)` called automatically after creation
+
+**On regular nodes (without Shift):**
+1. Multi-select toggle - adds/removes node from `selectedNodeIds` Set
+2. Allows selecting multiple nodes for copy/paste or alignment
+3. Status shows: "Node #X added/removed from selection (N selected)"
+
+**On table cells:**
+1. Similar subgraph behavior but for individual cells
+2. Calls `createCellSubgraph()` or `enterCellSubgraph()`
+3. Cell-level subgraph navigation supported
+
+### Escape Key Priority (Top to Bottom)
+1. **Error modal visible**: `ui.js` closes error modal first
+2. **Other modal visible**: `ui.js` closes subgraph/table modal
+3. **Editing text**: `eventHandlers.js` exits edit mode
+4. **Connection mode**: `eventHandlers.js` cancels connection
+5. **In subgraph** (depth > 0): `eventHandlers.js` exits to parent
+6. Order matters - use `stopImmediatePropagation()` to prevent cascading
+
+### Copy/Paste Multi-Select
+1. Select multiple nodes with Ctrl+Click
+2. Press Ctrl+C to copy all selected nodes
+3. Press Ctrl+V to paste with relative positioning preserved
+4. Pasted nodes maintain spatial relationships
+5. Connections between pasted nodes are preserved
+6. New IDs assigned to pasted nodes and connections
 
 ## Common Issues and Solutions
 
@@ -445,8 +491,36 @@ Syntax highlighting colors and keywords in `constants.js`:
 
 **Performance:** Pre-compiling regex patterns provides ~30% faster syntax highlighting vs creating patterns on each token check.
 
+### UI Design System
+
+**Modern gradient theme** (v1.5):
+- Purple gradient primary color: `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`
+- Applied to: buttons, active states, app title, error modals
+- Sidebar: Subtle white-to-gray gradient with shadow
+- File path display: Purple-tinted background with rounded corners
+- Status bar: Dark gradient with monospace font
+- Error modal: Red gradient theme with animated warning icon
+
+**Modal System:**
+- Three modal types: error, subgraph selection, table size input
+- Shared styling with backdrop blur and slide-in animation
+- Error modal features:
+  - Large animated warning icon (pulse effect)
+  - Red gradient confirm button
+  - Scrollable monospace error message
+  - Escape key and overlay click to dismiss
+
 ## Version History
 
+- **v1.5** (2026-01-19):
+  - Table node type with cell-level subgraph support
+  - Multi-node selection with Ctrl+Click
+  - Multi-node alignment (horizontal/vertical)
+  - Copy/paste for multiple nodes
+  - Beautiful error modal for JSON validation errors
+  - Modern UI redesign with purple gradient theme
+  - File path display in sidebar
+  - Bug fix: copiedNode → copiedNodes variable correction
 - **v1.4** (2026-01-18):
   - Code node type with syntax highlighting (JavaScript/TypeScript, C/C++, Python)
   - Full cursor position tracking with arrow key navigation
