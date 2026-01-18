@@ -40,14 +40,15 @@ The build system concatenates JavaScript files in a specific dependency order (d
 3. `autoSave.js` - Auto-save/load to localStorage, canvas resizing
 4. `uiHelpers.js` - UI helper functions and status updates
 5. `ui.js` - Modal UI components (subgraph type selection)
-6. `fileOperations.js` - JSON save/load with validation, subgraph management
-7. `nodeManager.js` - Node creation, hit detection, resize corner detection
-8. `connectionManager.js` - Connection creation and hit detection
-9. `renderer.js` - Canvas rendering for all node types and connections
-10. `eventHandlers.js` - Mouse and keyboard event listeners
-11. `main.js` - Initialization code
+6. `indexedDB.js` - IndexedDB operations for persistent FileSystemFileHandle storage
+7. `fileOperations.js` - JSON save/load with validation, subgraph management
+8. `nodeManager.js` - Node creation, hit detection, resize corner detection
+9. `connectionManager.js` - Connection creation and hit detection
+10. `renderer.js` - Canvas rendering for all node types and connections
+11. `eventHandlers.js` - Mouse and keyboard event listeners
+12. `main.js` - Initialization code
 
-**Critical**: When adding new JavaScript files or modifying dependencies between files, update both the `js_files` array in `build.py` and the `expected_modules` list in `check.py` to maintain the correct load order.
+**Critical**: When adding new JavaScript files or modifying dependencies between files, update both the `js_files` array in `build.py` and the `expected_modules` list in `check.py` to maintain the correct load order. Currently 12 modules total.
 
 ### State Management
 
@@ -98,6 +99,19 @@ Connections are directional or undirectional edges between nodes. The system:
 - Uses distance-to-line-segment for hit detection (`distanceToLineSegment` in `connectionManager.js`)
 - Renders arrowheads for directed connections
 
+**Connection Rendering (v1.2):**
+The rendering approach ensures perfect alignment and no gaps:
+1. **Edge point calculation**: Uses parametric line intersection to find where the center-to-center line intersects each node's boundary
+   - Rectangle: Checks all 4 edges, returns closest intersection (smallest t parameter)
+   - Circle: Calculates point on circumference along center-to-center direction
+   - Diamond: Uses `lineIntersection()` helper to find exact edge intersections
+2. **Arrow drawing**: Draws full line to border first, then arrowhead on top (no offset)
+3. **Mathematical correctness**: Line equation is `Point = (fromX, fromY) + t * (dx, dy)` where t ∈ [0, 1]
+   - Handles vertical/horizontal lines (checks `dx !== 0`, `dy !== 0` before division)
+   - Handles overlapping nodes (finds exit intersection)
+   - Handles zero-length connections (epsilon check: `|dx| < 0.001`)
+   - Uses floating-point epsilon values (0.0001, 0.001) for comparisons
+
 ### File Operations & Subgraph System
 
 The app supports multiple storage mechanisms:
@@ -137,6 +151,15 @@ The app supports multiple storage mechanisms:
    - Functions: `storeFileHandle()`, `getFileHandle()`, `deleteFileHandle()`, `storeDirectoryHandle()`, `getDirectoryHandle()`, `findFileInDirectory()`
    - Verifies permissions before using stored handles (`verifyPermission()`)
    - File access priority: memory cache → IndexedDB → workspace folder → file picker
+   - **Singleton promise pattern**: Prevents race conditions during initialization
+     - `dbPromise` variable tracks initialization in progress
+     - If `db` exists, returns immediately
+     - If `dbPromise` exists, waits for existing initialization
+     - On failure, resets `dbPromise` to null to allow retry
+   - **Error handling**: All functions wrapped in try/catch with graceful degradation
+     - Returns null on failure to allow fallback to file picker
+     - Detects QuotaExceededError with specific error messages
+     - Non-critical operations (delete) log warnings instead of throwing
 
 ### Validation System
 
@@ -189,16 +212,28 @@ Call `render()` after any state change that affects visual output. Call `trigger
 
 The rendering pipeline (`render()` in `renderer.js`):
 1. Clear canvas
-2. Draw all connections with edge point calculations
-3. Draw all nodes with type-specific rendering
-4. Draw connection preview if in connection mode
-5. Handle text editing cursor and selection
+2. Apply zoom transform (`ctx.scale(zoom, zoom)`)
+3. Draw all connections with edge point calculations
+4. Draw connection preview if in connection mode (dashed green line)
+5. Draw all nodes with type-specific rendering
+6. Draw hover effects (dashed border around hovered node)
+7. Restore transform
 
 Visual states are indicated by colors and borders:
 - Selected: blue border (`#2196f3`)
 - Editing: yellow background (`#fff9c4`) and orange border (`#ffa000`)
-- Hovered: visual feedback via cursor changes
+- Hovered: dashed blue border (`#2196f3`), green in connection mode (`#4caf50`)
 - Has subgraph: 4px thick border (normal, selected, or editing color)
+- Connection selected: blue line and arrowhead (`#2196f3`, width 3)
+- Connection normal: gray line and arrowhead (`#666`, width 2)
+
+**Mouse coordinate transformation:**
+- `getMousePos()` converts viewport coordinates to canvas coordinates
+- Accounts for canvas position: `e.clientX - rect.left`
+- Accounts for zoom: divide by `zoom` factor
+- Does NOT account for scroll (getBoundingClientRect already viewport-relative)
+
+**Performance note:** Rendering is O(n + m) where n = nodes, m = connections. No quadratic loops.
 
 ## Important Architecture Principles
 
@@ -270,7 +305,43 @@ Multiple keydown listeners exist on `document`. When adding new global keyboard 
 4. If in subgraph (depth > 0): `eventHandlers.js` exits to parent
 5. Order matters - use `stopImmediatePropagation()` to prevent cascading
 
+## Common Issues and Solutions
+
+### Connection Rendering Issues
+
+If connections don't touch node borders or have gaps:
+1. Check `getNodeEdgePoint()` calculates intersections correctly
+2. Verify parametric line math: `Point = from + t * (to - from)` where t > 0
+3. Ensure edge bounds checking (x/y within rectangle/circle/diamond boundaries)
+4. For rectangles, verify all 4 edges are checked and closest intersection is returned
+5. Check epsilon values for floating-point comparisons (0.001 for distance, 0.0001 for line intersection)
+
+### IndexedDB Issues
+
+If file handles don't persist or errors occur:
+1. Check DB_VERSION matches the schema (currently 2)
+2. Verify singleton promise pattern prevents race conditions
+3. Ensure all async operations have try/catch blocks
+4. Check QuotaExceededError handling (browser storage limits)
+5. Verify permission checks before using stored handles
+
+### Mouse Position Issues
+
+If clicks don't match visual positions:
+1. Verify `getMousePos()` doesn't double-count scroll offset
+2. Check getBoundingClientRect() is used (viewport-relative coordinates)
+3. Ensure zoom transformation is applied correctly
+4. Do NOT add `container.scrollLeft/Top` (rect is already adjusted for scroll)
+
+## Version History
+
+- **v1.2** (2026-01-18): Connection rendering fixes (arrowhead gaps, 45-degree angles, center-to-center alignment)
+- **v1.1** (2026-01-17): Workspace folder permission, IndexedDB persistence, mouse position fix, race condition fix
+- **v1.0** (2026-01-17): Initial major release with hierarchical subgraph navigation
+
 ## Documentation
 
 - **INF_NOTE_GUIDE.md**: Comprehensive guide to the JSON format for users who want to write diagrams by hand
+- **AI_PROMPT.md**: Concise prompt for AI assistants to create diagrams in Inf format
+- **RELEASE_V*.md**: Detailed release notes for each version
 - **CLAUDE.md**: This file - architectural guidance for Claude Code instances
