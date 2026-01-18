@@ -16,15 +16,16 @@ Structure:
 - Create meaningful connections (directed for flow/dependency, undirected for associations)
 
 Output:
-- Main JSON file with root-level overview
+- **root.json** - Main diagram file with root-level overview (REQUIRED - this name is mandatory)
 - Separate JSON files for each subgraph (named clearly, e.g., "module-authentication.json", "concept-event-loop.json")
 - In parent nodes, use `"subgraph": "filename.json"` to reference files (relative path only)
-- Save all assets in DEST
+- Save all files in DEST
 
 Important:
+- ⚠️ **Main file MUST be named "root.json"** - Inf auto-loads this file when workspace is set
 - ⚠️ **File-based subgraphs require workspace folder** - users MUST click "Set Folder" in Inf first
 - Subgraph references are **relative paths only** (e.g., "module-auth.json") - NO absolute paths
-- All subgraph files must be in the same workspace folder
+- All files must be in the same folder (workspace folder)
 - canvasWidth and canvasHeight must be between 1000-20000 (use 2000 as default)
 - All IDs must be unique, nextId must be greater than any used ID
 
@@ -70,4 +71,5 @@ Structure:
 - AI assistants can read the guide directly to understand all details
 - Keep your prompt focused on what to document and how to organize it
 - Let the guide handle the technical format details
-- **Best practice**: Save all related diagram files in one folder, then use "Set Folder" in Inf to authorize the workspace - all files will open automatically without file picker prompts!
+- **Workflow**: Save all files in one folder with main file named `root.json`, then user clicks "Set Folder" in Inf to select that folder - `root.json` loads automatically!
+- **File naming**: Main file = `root.json` (required), subgraphs = descriptive names like `module-auth.json`, `concept-events.json`

@@ -286,7 +286,8 @@ Reference an external JSON file by storing a filename reference as a string:
 - All subgraph files must be in the authorized workspace folder
 - Files open automatically (no file picker prompts) after workspace is set
 - Folder permission persists across page reloads
-- Best practice: Keep all related diagram files in one workspace folder
+- **Best practice**: Name your main diagram file `root.json` - it will auto-load when you set the workspace folder!
+- **Workflow**: Create all diagram files in one folder → Click "Set Folder" in Inf → Select that folder → `root.json` loads automatically
 - **Relative path example:** `"subgraph": "module-auth.json"` ✓
 - **Absolute path example:** `"subgraph": "/Users/alex/diagrams/module.json"` ✗ NOT SUPPORTED
 

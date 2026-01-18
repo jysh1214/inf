@@ -324,6 +324,57 @@ async function selectWorkspaceFolder() {
         await storeDirectoryHandle(dirHandle);
 
         setStatus(`✓ Workspace folder set: ${dirHandle.name}`);
+
+        // Try to load root.json if it exists
+        try {
+            const rootHandle = await dirHandle.getFileHandle('root.json');
+            const file = await rootHandle.getFile();
+            const contents = await file.text();
+            const data = JSON.parse(contents);
+
+            // Validate the JSON data
+            validateJSON(data);
+
+            // Load the diagram
+            nodes = data.nodes || [];
+            connections = data.connections || [];
+            nextId = data.nextId || 1;
+            canvasWidth = data.canvasWidth || DEFAULT_CANVAS_WIDTH;
+            canvasHeight = data.canvasHeight || DEFAULT_CANVAS_HEIGHT;
+            zoom = data.zoom || 1.0;
+
+            // Rebuild node map
+            nodeMap.clear();
+            nodes.forEach(node => nodeMap.set(node.id, node));
+
+            // Clear selection state
+            selectedNode = null;
+            selectedConnection = null;
+            editingNode = null;
+            connectionMode = false;
+            connectionStart = null;
+
+            // Reset subgraph navigation state
+            subgraphStack = [];
+            currentDepth = 0;
+            currentPath = [];
+
+            // Update UI
+            updateCanvasSize();
+            updateSubgraphNavigation();
+            render();
+            triggerAutoSave();
+
+            setStatus(`✓ Workspace set and loaded root.json`);
+        } catch (rootError) {
+            // root.json doesn't exist or failed to load - that's okay
+            if (rootError.name === 'NotFoundError') {
+                setStatus(`✓ Workspace folder set: ${dirHandle.name} (no root.json found)`);
+            } else {
+                console.warn('Failed to load root.json:', rootError);
+                setStatus(`✓ Workspace folder set: ${dirHandle.name} (root.json invalid)`);
+            }
+        }
     } catch (error) {
         if (error.name === 'AbortError') {
             setStatus('Workspace folder selection cancelled');
