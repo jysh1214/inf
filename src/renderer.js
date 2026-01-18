@@ -682,6 +682,61 @@ function getNodeEdgePoint(fromX, fromY, toNode) {
             }
             return nodeCenter;
 
+        case 'table':
+            // Calculate table dimensions
+            const tableWidth = toNode.cols * toNode.cellWidth;
+            const tableHeight = toNode.rows * toNode.cellHeight;
+            const tableLeft = toNode.x;
+            const tableRight = toNode.x + tableWidth;
+            const tableTop = toNode.y;
+            const tableBottom = toNode.y + tableHeight;
+
+            // Calculate intersections with all four edges
+            const tableIntersections = [];
+
+            // Left edge
+            if (dx !== 0) {
+                const t = (tableLeft - fromX) / dx;
+                const y = fromY + t * dy;
+                if (t > 0 && y >= tableTop && y <= tableBottom) {
+                    tableIntersections.push({ x: tableLeft, y: y, t: t });
+                }
+            }
+
+            // Right edge
+            if (dx !== 0) {
+                const t = (tableRight - fromX) / dx;
+                const y = fromY + t * dy;
+                if (t > 0 && y >= tableTop && y <= tableBottom) {
+                    tableIntersections.push({ x: tableRight, y: y, t: t });
+                }
+            }
+
+            // Top edge
+            if (dy !== 0) {
+                const t = (tableTop - fromY) / dy;
+                const x = fromX + t * dx;
+                if (t > 0 && x >= tableLeft && x <= tableRight) {
+                    tableIntersections.push({ x: x, y: tableTop, t: t });
+                }
+            }
+
+            // Bottom edge
+            if (dy !== 0) {
+                const t = (tableBottom - fromY) / dy;
+                const x = fromX + t * dx;
+                if (t > 0 && x >= tableLeft && x <= tableRight) {
+                    tableIntersections.push({ x: x, y: tableBottom, t: t });
+                }
+            }
+
+            // Return the intersection with the smallest t (closest to fromX,fromY)
+            if (tableIntersections.length > 0) {
+                tableIntersections.sort((a, b) => a.t - b.t);
+                return { x: tableIntersections[0].x, y: tableIntersections[0].y };
+            }
+            return nodeCenter;
+
         case 'text':
         case 'code':
         case 'rectangle':
@@ -760,6 +815,13 @@ function lineIntersection(x1, y1, x2, y2, x3, y3, x4, y4) {
 function getNodeCenter(node) {
     if (node.type === 'circle') {
         return { x: node.x, y: node.y };
+    } else if (node.type === 'table') {
+        const totalWidth = node.cols * node.cellWidth;
+        const totalHeight = node.rows * node.cellHeight;
+        return {
+            x: node.x + totalWidth / 2,
+            y: node.y + totalHeight / 2
+        };
     } else {
         return {
             x: node.x + node.width / 2,
