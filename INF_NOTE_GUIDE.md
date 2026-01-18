@@ -19,7 +19,7 @@ This guide explains the JSON format for Inf diagrams, allowing you to create and
 
 Inf diagrams are stored as JSON files with a well-defined structure. You can create these files manually or use the UI to generate them. The format supports:
 
-- Five node types: rectangle, circle, diamond, text, and code
+- Six node types: rectangle, circle, diamond, text, code, and table
 - Directed and undirected connections
 - Hierarchical subgraphs (embedded or file-based)
 - Customizable canvas size and zoom levels
@@ -76,7 +76,7 @@ All nodes must have:
 | Property | Type | Required | Valid Values | Description |
 |----------|------|----------|--------------|-------------|
 | `id` | number | Yes | Unique positive integer | Node identifier |
-| `type` | string | Yes | "rectangle", "circle", "diamond", "text", "code" | Node shape |
+| `type` | string | Yes | "rectangle", "circle", "diamond", "text", "code", "table" | Node shape |
 | `text` | string | Yes | Any string (max 1000 chars) | Node label/content |
 | `textAlign` | string | Yes | "left", "center", "right" | Text alignment |
 | `subgraph` | object/string | No | Object or filename | Optional subgraph data |
@@ -212,6 +212,155 @@ Code nodes display code with monospace font and syntax highlighting. Features:
 | `y` | number | Y coordinate of top-left corner |
 | `width` | number | Width in pixels (min: 40, default: 200) |
 | `height` | number | Height in pixels (min: 40, default: 100) |
+
+### Table Nodes
+
+```json
+{
+  "id": 6,
+  "type": "table",
+  "text": "",
+  "textAlign": "center",
+  "x": 200,
+  "y": 300,
+  "rows": 3,
+  "cols": 3,
+  "cellWidth": 100,
+  "cellHeight": 40,
+  "cells": [
+    [
+      {"text": "Header 1", "textAlign": "center"},
+      {"text": "Header 2", "textAlign": "center"},
+      {"text": "Header 3", "textAlign": "center"}
+    ],
+    [
+      {"text": "Data A1", "textAlign": "left"},
+      {"text": "Data A2", "textAlign": "left"},
+      {"text": "Data A3", "textAlign": "left"}
+    ],
+    [
+      {"text": "Data B1", "textAlign": "left"},
+      {"text": "Data B2", "textAlign": "left"},
+      {"text": "Data B3", "textAlign": "left"}
+    ]
+  ],
+  "editingCell": null
+}
+```
+
+**Position:** `(x, y)` is the **top-left corner** of the table
+
+Table nodes are grids of cells for presenting structured data and comparisons. Each cell behaves like a Text node with independent text, alignment, and optional subgraphs.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `x` | number | X coordinate of top-left corner |
+| `y` | number | Y coordinate of top-left corner |
+| `rows` | number | Number of rows (1-20) |
+| `cols` | number | Number of columns (1-20) |
+| `cellWidth` | number | Width of each cell in pixels (default: 100) |
+| `cellHeight` | number | Height of each cell in pixels (default: 40) |
+| `cells` | array | 2D array of cell objects |
+| `editingCell` | object/null | Internal: {row, col} when editing a cell |
+
+**Cell Object Structure:**
+
+Each cell in the `cells` array is an object with:
+
+```json
+{
+  "text": "Cell content",
+  "textAlign": "left"
+}
+```
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `text` | string | Yes | Cell content (max 1000 chars) |
+| `textAlign` | string | Yes | "left", "center", or "right" |
+| `subgraph` | object/string | No | Optional subgraph (embedded or file-based) |
+
+**Selection Behavior:**
+
+Tables support two levels of selection:
+
+1. **Border Selection** - Clicking the table's outer border (10px edge area) selects the entire table for moving or resizing
+2. **Cell Selection** - Clicking inside a cell selects that specific cell for editing or alignment changes
+
+Selected cells are highlighted with a blue border. Only one cell or table can be selected at a time.
+
+**Resizing:**
+
+When resizing a table node, all cells resize proportionally:
+- Total table width = `cols × cellWidth`
+- Total table height = `rows × cellHeight`
+- Dragging resize handles adjusts `cellWidth` and `cellHeight` uniformly
+
+Individual cells cannot be resized independently.
+
+**Use Cases:**
+
+Use table nodes for:
+- **Data presentation** - Displaying structured information in rows and columns
+- **Comparisons** - Side-by-side feature comparisons, pros/cons lists, specifications
+- **Reference tables** - Quick lookup tables, parameter lists, configuration options
+- **Hierarchical data** - Cells can have subgraphs for drill-down details
+
+**Cell Subgraph Example:**
+
+```json
+{
+  "id": 7,
+  "type": "table",
+  "text": "",
+  "textAlign": "center",
+  "x": 100,
+  "y": 100,
+  "rows": 2,
+  "cols": 2,
+  "cellWidth": 120,
+  "cellHeight": 50,
+  "cells": [
+    [
+      {"text": "Feature A", "textAlign": "left"},
+      {
+        "text": "Details",
+        "textAlign": "center",
+        "subgraph": {
+          "version": "1.0",
+          "nodes": [
+            {
+              "id": 1,
+              "type": "text",
+              "text": "Feature A is implemented using...",
+              "textAlign": "left",
+              "x": 400,
+              "y": 400,
+              "width": 200,
+              "height": 100
+            }
+          ],
+          "connections": [],
+          "nextId": 2,
+          "canvasWidth": 2000,
+          "canvasHeight": 2000,
+          "zoom": 1.0
+        }
+      }
+    ],
+    [
+      {"text": "Feature B", "textAlign": "left"},
+      {"text": "feature-b-details.json", "textAlign": "center"}
+    ]
+  ],
+  "editingCell": null
+}
+```
+
+In this example:
+- Cell [0][1] has an embedded subgraph with detailed explanation
+- Cell [1][1] references a file-based subgraph for Feature B details
+- Users can Ctrl+Click any cell to enter/create its subgraph
 
 ---
 
@@ -543,11 +692,12 @@ The application validates JSON files when loading. Here are the key rules:
 
 ✅ **Valid:**
 - `id` is a unique positive integer
-- `type` is one of: "rectangle", "circle", "diamond", "text", "code"
+- `type` is one of: "rectangle", "circle", "diamond", "text", "code", "table"
 - `text` is a string (max 1000 characters)
 - `textAlign` is one of: "left", "center", "right"
 - Type-specific properties match the node type
 - All dimension values are numbers ≥ minimum sizes
+- For table nodes: `cells` is a 2D array with valid cell objects, `rows` and `cols` match array dimensions
 
 ❌ **Invalid:**
 - Duplicate node IDs
@@ -555,6 +705,7 @@ The application validates JSON files when loading. Here are the key rules:
 - Unknown node types
 - Negative coordinates or dimensions
 - Text longer than 1000 characters
+- For table nodes: missing `cells`, `rows`, `cols`, or cell objects with invalid structure
 
 ### Connection Validation
 

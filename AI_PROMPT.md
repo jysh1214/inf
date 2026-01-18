@@ -18,6 +18,7 @@ Structure:
   - diamond (decisions)
   - text (details/annotations)
   - code (pseudocode/source code snippets)
+  - table (data/comparisons with subgraph-capable cells)
 - Create meaningful connections (directed for flow/dependency, undirected for associations)
 
 Output:
@@ -76,6 +77,18 @@ Structure:
 - Use code nodes for important source code snippets (login function, JWT verification, middleware)
 - Use rectangle nodes for concepts and text nodes for explanations
 - Put detailed implementation in embedded subgraphs
+```
+
+**For Comparisons and Data:**
+```
+Please follow the INF_NOTE_GUIDE.md format to create a structured note diagram comparing different database solutions.
+
+Structure:
+- Comprehensive overview / full picture at root level (database landscape, selection criteria)
+- Use table nodes for side-by-side comparisons (features, performance, use cases, pros/cons)
+- Each cell can have subgraphs with detailed explanations, examples, or benchmarks
+- Use rectangle nodes for concepts and connections to show relationships
+- Put detailed case studies in embedded subgraphs
 ```
 
 ---
