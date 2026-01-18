@@ -467,9 +467,8 @@ async function selectWorkspaceFolder() {
             currentPath = [];
 
             // Update UI
-            updateCanvasSize();
+            resizeCanvas();
             updateSubgraphNavigation();
-            render();
             triggerAutoSave();
 
             setStatus(`✓ Workspace set and loaded root.json`);
