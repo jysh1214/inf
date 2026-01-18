@@ -290,16 +290,16 @@ function drawArrow(x1, y1, x2, y2, directed, isSelected) {
     ctx.fillStyle = isSelected ? '#2196f3' : '#666';
     ctx.lineWidth = isSelected ? 3 : 2;
 
-    // Draw line
+    // Always draw the full line to the node border
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
 
-    // Draw arrowhead if directed
+    // Draw arrowhead on top if directed
     if (directed) {
         const angle = Math.atan2(y2 - y1, x2 - x1);
-        const headLength = 20;
+        const headLength = 15;
         const headWidth = Math.PI / 6;
 
         ctx.beginPath();
@@ -430,22 +430,8 @@ function drawConnection(conn) {
         const startPoint = getNodeEdgePoint(toCenter.x, toCenter.y, fromNode);
         const endPoint = getNodeEdgePoint(fromCenter.x, fromCenter.y, toNode);
 
-        // For directed connections, pull back the endpoint slightly so arrowhead is visible
-        let adjustedEndPoint = endPoint;
-        if (conn.directed) {
-            const dx = endPoint.x - startPoint.x;
-            const dy = endPoint.y - startPoint.y;
-            const length = Math.sqrt(dx * dx + dy * dy);
-            if (length > 0) {
-                adjustedEndPoint = {
-                    x: endPoint.x - (dx / length) * ARROWHEAD_OFFSET,
-                    y: endPoint.y - (dy / length) * ARROWHEAD_OFFSET
-                };
-            }
-        }
-
         const isSelected = conn === selectedConnection;
-        drawArrow(startPoint.x, startPoint.y, adjustedEndPoint.x, adjustedEndPoint.y, conn.directed, isSelected);
+        drawArrow(startPoint.x, startPoint.y, endPoint.x, endPoint.y, conn.directed, isSelected);
     }
 }
 
@@ -468,26 +454,12 @@ function render() {
         const startPoint = getNodeEdgePoint(endCenter.x, endCenter.y, connectionStart);
         const endPoint = getNodeEdgePoint(startCenter.x, startCenter.y, hoveredNode);
 
-        // For directed connections, pull back the endpoint slightly
-        let adjustedEndPoint = endPoint;
-        if (directedMode) {
-            const dx = endPoint.x - startPoint.x;
-            const dy = endPoint.y - startPoint.y;
-            const length = Math.sqrt(dx * dx + dy * dy);
-            if (length > 0) {
-                adjustedEndPoint = {
-                    x: endPoint.x - (dx / length) * ARROWHEAD_OFFSET,
-                    y: endPoint.y - (dy / length) * ARROWHEAD_OFFSET
-                };
-            }
-        }
-
         ctx.strokeStyle = '#4caf50';
         ctx.lineWidth = 2;
         ctx.setLineDash([5, 5]);
         ctx.beginPath();
         ctx.moveTo(startPoint.x, startPoint.y);
-        ctx.lineTo(adjustedEndPoint.x, adjustedEndPoint.y);
+        ctx.lineTo(endPoint.x, endPoint.y);
         ctx.stroke();
         ctx.setLineDash([]);
     }
