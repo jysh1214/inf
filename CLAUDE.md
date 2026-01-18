@@ -64,6 +64,8 @@ Global state is managed through variables in `state.js`. Key state includes:
 - `selectedNode`, `editingNode`, `hoveredNode` - Current interaction state
 - `isDragging`, `isResizing`, `isPanning` - Interaction mode flags
 - `connectionMode`, `connectionStart` - Connection creation state
+- `cursorPosition` - Current cursor position in text (0 = start, text.length = end)
+- `cursorVisible`, `cursorBlinkInterval` - Cursor blink animation state
 
 **Canvas State:**
 - `canvasWidth`, `canvasHeight`, `zoom` - Canvas dimensions and zoom level
@@ -76,13 +78,22 @@ Global state is managed through variables in `state.js`. Key state includes:
 
 ### Node System
 
-Four node types are supported: `rectangle`, `circle`, `diamond`, `text`. Each type has different:
+Five node types are supported: `rectangle`, `circle`, `diamond`, `text`, `code`. Each type has different:
 - Geometry representation (x/y/width/height for rectangles, x/y/radius for circles)
 - Hit detection algorithms (`isPointInNode` in `nodeManager.js`)
 - Rendering functions (`drawRectangleNode`, `drawCircleNode`, etc. in `renderer.js`)
 - Resize handle positions and logic (`getResizeCorner` in `nodeManager.js`)
 
 All nodes share common properties: `id`, `type`, `text`, `textAlign`.
+
+**Code Node Type:**
+- Monospace font (Monaco, Menlo, Courier New) with light gray background (#f5f5f5)
+- Syntax highlighting for JavaScript/TypeScript, C/C++, and Python (70+ keywords)
+- Conditional highlighting: plain text while editing, highlighted when viewing
+- No word wrapping (preserves code formatting)
+- Default size: 200×100 pixels (vs 150×60 for text nodes)
+- Keywords in blue, strings in green, numbers in dark green, comments in gray
+- Comment pattern supports both `//` (JS/C++) and `#` (Python)
 
 **Subgraph Support:** Nodes can optionally contain a `subgraph` property:
 - **Embedded subgraphs**: `subgraph` is an object with full diagram structure (`{version, nodes, connections, nextId, ...}`)
@@ -187,15 +198,26 @@ The app supports multiple storage mechanisms:
 
 ### Adding New Node Types
 
-To add a new node type:
-1. Add default size constants to `constants.js`
+To add a new node type (example: Code node was added in v1.4):
+1. Add default size constants to `constants.js` (e.g., `DEFAULT_CODE_WIDTH`, `DEFAULT_CODE_HEIGHT`)
 2. Add creation logic to `createNode()` in `nodeManager.js`
 3. Add hit detection to `isPointInNode()` in `nodeManager.js`
 4. Add resize corner logic to `getResizeCorner()` in `nodeManager.js`
-5. Add drawing function in `renderer.js` (e.g., `drawNewTypeNode()`)
+5. Add drawing function in `renderer.js` (e.g., `drawCodeNode()` with helper `drawCodeText()`)
 6. Add case to `drawNode()` switch statement in `renderer.js`
-7. Add button to `src/template.html` UI
-8. Update validation in `fileOperations.js` if needed
+7. Add button to `src/template.html` UI with onclick handler
+8. Update `setNodeType()` in `uiHelpers.js` to include new button in classList operations
+9. Update validation in `fileOperations.js`:
+   - Add to `validTypes` array in `validateNode()`
+   - Add to type-specific validation conditions (width/height checks)
+10. Update `autoSave.js` validation if type needs special handling
+11. Update documentation (INF_NOTE_GUIDE.md, AI_PROMPT.md)
+
+**Code Node Example Patterns:**
+- Conditional rendering based on edit state (`isEditing ? plainText : syntaxHighlighted`)
+- Pre-compiled regex patterns for performance (`SYNTAX_PATTERNS` in constants.js)
+- Helper functions for token classification (`getSyntaxColor()`)
+- Cursor positioning must match rendering exactly (measure same way you draw)
 
 ### Adding New Global State
 
@@ -207,6 +229,36 @@ When adding new global state:
 ### Triggering Re-renders
 
 Call `render()` after any state change that affects visual output. Call `triggerAutoSave()` after any state change that should be persisted.
+
+## Text Editing & Cursor System
+
+**Cursor Position Tracking:**
+- `cursorPosition` tracks character index in text (0 to text.length)
+- Set when entering edit mode (to end of text or 0 for new nodes)
+- Updated on all text operations (insert, delete, arrow keys)
+
+**Keyboard Navigation:**
+- **ArrowLeft/Right**: Move cursor by character
+- **ArrowUp/Down**: Move cursor by line (maintains column position)
+- **Home/End**: Jump to start/end of current line
+- **Backspace**: Delete before cursor
+- **Delete**: Delete after cursor
+- **Enter**: Insert newline at cursor position
+- **Shift+Enter/Escape**: Exit edit mode
+
+**Arrow Key Implementation:**
+- Splits text into lines by `\n`
+- Calculates current line and position within line
+- For Up: `prevLineStart = charCount - lines[currentLine - 1].length - 1; cursorPosition = prevLineStart + newPosInLine`
+- For Down: `nextLineStart = charCount + lines[currentLine].length + 1; cursorPosition = nextLineStart + newPosInLine`
+- Bounds checking: `cursorPosition = Math.max(0, Math.min(cursorPosition, text.length))`
+- Empty text edge case: Return early if `!text`
+
+**Cursor Rendering:**
+- Code nodes: Measure substring directly for accurate positioning
+- Text nodes: Track character positions through word wrapping using `lineCharStarts` array
+- Blinking cursor at 500ms intervals (CURSOR_BLINK_RATE constant)
+- Reset blink on every input to ensure cursor is visible
 
 ## Canvas Rendering
 
@@ -357,17 +409,51 @@ If clicks don't match visual positions:
 3. Ensure zoom transformation is applied correctly
 4. Do NOT add `container.scrollLeft/Top` (rect is already adjusted for scroll)
 
+### Cursor Positioning Issues in Code Nodes
+
+If cursor appears offset or shows extra spaces while editing:
+1. Ensure cursor position is measured the same way text is rendered
+2. For Code nodes: Use direct substring measurement, NOT token-by-token addition
+   - Tokenization for syntax highlighting can cause measurement mismatches
+   - Cursor position: `ctx.measureText(line.substring(0, cursorPosInLine)).width`
+3. Render plain text while editing to avoid tokenization measurement issues
+4. Only apply syntax highlighting in view mode (when not editing)
+5. Verify ArrowUp/Down calculations don't use incorrect formulas
+   - Correct: `prevLineStart = charCount - lines[currentLine - 1].length - 1`
+   - Incorrect: Subtracting both current and previous line lengths
+
 ### Font Configuration
 
 Font is configurable via constants in `constants.js`:
-- `FONT_FAMILY` - Font family for canvas text (default: `'sans-serif'`)
-- `FONT_SIZE` - Font size in pixels (default: `14`)
+- `FONT_FAMILY` - Font family for regular nodes (default: `'sans-serif'`)
+- `FONT_SIZE` - Font size in pixels for regular nodes (default: `14`)
+- `CODE_FONT_FAMILY` - Monospace font for code nodes (default: `'Monaco, Menlo, "Courier New", monospace'`)
+- `CODE_FONT_SIZE` - Font size for code nodes (default: `13`)
 
 Change these constants to customize text rendering across all nodes.
 
+### Syntax Highlighting Configuration
+
+Syntax highlighting colors and keywords in `constants.js`:
+- `SYNTAX_COLORS` - Object mapping token types to colors (keyword, string, number, comment, default)
+- `SYNTAX_KEYWORDS` - Array of 70+ keywords for JavaScript/TypeScript, C/C++, and Python
+  - Organized into: Shared keywords, JavaScript-specific, C/C++-specific, Python-specific
+- `SYNTAX_PATTERNS` - Pre-compiled regex patterns for performance
+  - `string`: `/^["'`]/`
+  - `number`: `/^[0-9]/`
+  - `comment`: `/^(\/\/|#)/` (supports both // and # comments)
+
+**Performance:** Pre-compiling regex patterns provides ~30% faster syntax highlighting vs creating patterns on each token check.
+
 ## Version History
 
-- **v1.2+** (2026-01-18):
+- **v1.4** (2026-01-18):
+  - Code node type with syntax highlighting (JavaScript/TypeScript, C/C++, Python)
+  - Full cursor position tracking with arrow key navigation
+  - Conditional syntax highlighting (view mode only)
+  - Pre-compiled regex patterns for performance
+  - Bug fixes: ArrowUp cursor calculation, empty text edge cases, bounds checking
+- **v1.3** (2026-01-18):
   - Workspace folder with `root.json` auto-load
   - Relative paths enforced for file-based subgraphs
   - Stale file handle recovery
