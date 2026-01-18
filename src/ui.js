@@ -223,7 +223,8 @@ function createTableWithSize() {
 
     nodes.push(node);
     nodeMap.set(node.id, node);
-    selectedNode = node;
+    selectedNodeIds.clear();
+    selectedNodeIds.add(node.id);
 
     // Close modal
     closeTableModal();

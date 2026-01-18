@@ -200,11 +200,12 @@ canvas.addEventListener('mousedown', (e) => {
                 // Connection invalid - provide visual feedback
                 setStatus(`⚠️ Connection already exists between these nodes`);
                 // Flash the invalid target briefly
-                const originalSelection = selectedNode;
-                selectedNode = clickedNode;
+                const originalSelection = new Set(selectedNodeIds);
+                selectedNodeIds.clear();
+                selectedNodeIds.add(clickedNode.id);
                 render();
                 setTimeout(() => {
-                    selectedNode = originalSelection;
+                    selectedNodeIds = originalSelection;
                     render();
                 }, 200);
                 return;
@@ -319,7 +320,7 @@ canvas.addEventListener('mousedown', (e) => {
         const clickedConnection = getConnectionAtPoint(x, y);
         if (clickedConnection) {
             selectedConnection = clickedConnection;
-            selectedNode = null; // Deselect node when selecting connection
+            selectedNodeIds.clear(); // Deselect nodes when selecting connection
             selectedCell = null; // Deselect cell when selecting connection
             setStatus(`Connection selected. Press Delete to remove.`);
             render();

@@ -520,7 +520,7 @@ async function selectWorkspaceFolder() {
             nodes.forEach(node => nodeMap.set(node.id, node));
 
             // Clear selection state
-            selectedNode = null;
+            selectedNodeIds.clear();
             selectedConnection = null;
             editingNode = null;
             connectionMode = false;
@@ -923,7 +923,7 @@ async function enterSubgraph(node) {
         });
 
         // Reset all selection and interaction state
-        selectedNode = null;
+        selectedNodeIds.clear();
         selectedConnection = null;
         hoveredNode = null;
         editingNode = null;
@@ -1130,7 +1130,7 @@ async function exitSubgraph() {
         resizeCanvas();
 
         // Reset all selection and interaction state
-        selectedNode = null;
+        selectedNodeIds.clear();
         selectedConnection = null;
         hoveredNode = null;
         editingNode = null;
@@ -1215,7 +1215,7 @@ function loadFromJSON(event) {
             });
 
             // Reset state
-            selectedNode = null;
+            selectedNodeIds.clear();
             selectedConnection = null;
             hoveredNode = null;
             editingNode = null;
@@ -1512,7 +1512,7 @@ async function enterCellSubgraph(tableNode, row, col) {
         nodes.forEach(node => nodeMap.set(node.id, node));
 
         // Reset selection state
-        selectedNode = null;
+        selectedNodeIds.clear();
         selectedConnection = null;
         editingNode = null;
         connectionMode = false;

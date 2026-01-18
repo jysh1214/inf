@@ -35,11 +35,16 @@ function setTextAlign(align) {
         render();
         setStatus(`Cell alignment: ${align}`);
         triggerAutoSave();
-    } else if (selectedNode) {
-        // If a node is selected, update its alignment
-        selectedNode.textAlign = align;
+    } else if (selectedNodeIds.size > 0) {
+        // If nodes are selected, update their alignment
+        selectedNodeIds.forEach(nodeId => {
+            const node = nodeMap.get(nodeId);
+            if (node) {
+                node.textAlign = align;
+            }
+        });
         render();
-        setStatus(`Text alignment: ${align}`);
+        setStatus(`Text alignment: ${align} (${selectedNodeIds.size} node(s))`);
         triggerAutoSave();
     } else {
         setStatus(`Default text alignment: ${align}`);
@@ -134,7 +139,7 @@ function clearCanvas() {
         nodes = [];
         connections = [];
         nodeMap.clear();
-        selectedNode = null;
+        selectedNodeIds.clear();
         selectedConnection = null;
         selectedCell = null;
         hoveredNode = null;
@@ -193,7 +198,7 @@ function getNodeBounds(node) {
     return { left, right, top, bottom, centerX, centerY };
 }
 
-function setNodePosition(node, bounds, alignType, targetValue) {
+function setNodePosition(node, alignType, targetValue) {
     // Adjusts node position based on alignment type and target value
     switch (node.type) {
         case 'circle':
@@ -256,18 +261,18 @@ function alignNodes(alignType) {
 
     if (alignType === 'center-h') {
         // Align horizontally (same Y) - creates horizontal line
-        targetValue = bounds.reduce((sum, b) => sum + b.centerY, 0) / bounds.length;
+        targetValue = Math.round(bounds.reduce((sum, b) => sum + b.centerY, 0) / bounds.length);
     } else if (alignType === 'center-v') {
         // Align vertically (same X) - creates vertical line
-        targetValue = bounds.reduce((sum, b) => sum + b.centerX, 0) / bounds.length;
+        targetValue = Math.round(bounds.reduce((sum, b) => sum + b.centerX, 0) / bounds.length);
     } else {
         setStatus(`Unknown alignment type: ${alignType}`);
         return;
     }
 
     // Align all selected nodes
-    selectedNodes.forEach((node, index) => {
-        setNodePosition(node, bounds[index], alignType, targetValue);
+    selectedNodes.forEach((node) => {
+        setNodePosition(node, alignType, targetValue);
     });
 
     render();
