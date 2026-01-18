@@ -382,8 +382,18 @@ function drawTableNode(node, isSelected) {
                 const cellAlign = cell.textAlign || node.textAlign || 'center';
                 ctx.textAlign = cellAlign;
 
+                // Calculate text X position based on alignment
+                let textX;
+                if (cellAlign === 'left') {
+                    textX = cellX + 8;  // Left edge with padding
+                } else if (cellAlign === 'right') {
+                    textX = cellX + node.cellWidth - 8;  // Right edge with padding
+                } else {
+                    textX = centerX;  // Center
+                }
+
                 // Simple single-line text for table cells
-                ctx.fillText(cellText, centerX, centerY);
+                ctx.fillText(cellText, textX, centerY);
 
                 // Draw cursor if this cell is being edited
                 if (isEditingCell && cursorVisible) {
