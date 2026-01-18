@@ -372,19 +372,25 @@ function getNodeEdgePoint(fromX, fromY, toNode) {
             let x, y;
 
             if (Math.abs(cos) > Math.abs(sin)) {
+                // Connecting to left or right edge
                 if (cos > 0) {
                     x = toNode.x;
                 } else {
                     x = toNode.x + toNode.width;
                 }
                 y = nodeCenterY - (nodeCenterX - x) * Math.tan(angle2);
+                // Clamp y to rectangle bounds
+                y = Math.max(toNode.y, Math.min(toNode.y + toNode.height, y));
             } else {
+                // Connecting to top or bottom edge
                 if (sin > 0) {
                     y = toNode.y;
                 } else {
                     y = toNode.y + toNode.height;
                 }
                 x = nodeCenterX - (nodeCenterY - y) / Math.tan(angle2);
+                // Clamp x to rectangle bounds
+                x = Math.max(toNode.x, Math.min(toNode.x + toNode.width, x));
             }
 
             return { x, y };
