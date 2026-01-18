@@ -338,9 +338,13 @@ function drawTableNode(node, isSelected) {
             const cellY = node.y + row * node.cellHeight;
             const cell = node.cells[row][col];
 
+            // Check if this cell is selected
+            const isCellSelected = selectedCell && selectedCell.table === node &&
+                                   selectedCell.row === row && selectedCell.col === col;
+
             // Draw cell border
-            ctx.strokeStyle = '#ccc';
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = isCellSelected ? '#2196f3' : '#ccc';
+            ctx.lineWidth = isCellSelected ? 2 : 1;
             ctx.strokeRect(cellX, cellY, node.cellWidth, node.cellHeight);
 
             // Draw dashed border for cells with subgraphs

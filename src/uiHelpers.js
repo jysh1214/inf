@@ -28,8 +28,15 @@ function setTextAlign(align) {
     currentTextAlign = align;
     updateAlignmentButtons(align);
 
-    // If a node is selected, update its alignment
-    if (selectedNode) {
+    // If a cell is selected, update its alignment
+    if (selectedCell) {
+        const cell = selectedCell.table.cells[selectedCell.row][selectedCell.col];
+        cell.textAlign = align;
+        render();
+        setStatus(`Cell alignment: ${align}`);
+        triggerAutoSave();
+    } else if (selectedNode) {
+        // If a node is selected, update its alignment
         selectedNode.textAlign = align;
         render();
         setStatus(`Text alignment: ${align}`);
@@ -126,6 +133,7 @@ function clearCanvas() {
         nodeMap.clear();
         selectedNode = null;
         selectedConnection = null;
+        selectedCell = null;
         hoveredNode = null;
         editingNode = null;
         connectionMode = false;

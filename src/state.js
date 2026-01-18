@@ -11,6 +11,7 @@ let nodes = [];
 let connections = [];
 let selectedNode = null;
 let selectedConnection = null;
+let selectedCell = null;  // {table: node, row: number, col: number}
 let hoveredNode = null;
 let connectionMode = false;
 let connectionStart = null;

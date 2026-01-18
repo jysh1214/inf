@@ -199,8 +199,32 @@ canvas.addEventListener('mousedown', (e) => {
             return;
         }
 
+        // For tables, distinguish between border and cell clicks
+        if (clickedNode.type === 'table') {
+            if (!isPointOnTableBorder(x, y, clickedNode)) {
+                // Clicking inside a cell - select the cell, not the table
+                const cellCol = Math.floor((x - clickedNode.x) / clickedNode.cellWidth);
+                const cellRow = Math.floor((y - clickedNode.y) / clickedNode.cellHeight);
+
+                if (cellRow >= 0 && cellRow < clickedNode.rows && cellCol >= 0 && cellCol < clickedNode.cols) {
+                    selectedCell = { table: clickedNode, row: cellRow, col: cellCol };
+                    selectedNode = null;
+                    selectedConnection = null;
+
+                    // Update text alignment buttons to show cell's alignment
+                    const cell = clickedNode.cells[cellRow][cellCol];
+                    const cellAlign = cell.textAlign || clickedNode.textAlign || 'center';
+                    updateAlignmentButtons(cellAlign);
+
+                    render();
+                }
+                return;
+            }
+        }
+
         selectedNode = clickedNode;
         selectedConnection = null; // Deselect connection when selecting node
+        selectedCell = null; // Deselect cell when selecting node
 
         // Update text alignment buttons to show selected node's alignment
         const nodeAlign = clickedNode.textAlign || 'center';
@@ -258,6 +282,7 @@ canvas.addEventListener('mousedown', (e) => {
         if (clickedConnection) {
             selectedConnection = clickedConnection;
             selectedNode = null; // Deselect node when selecting connection
+            selectedCell = null; // Deselect cell when selecting connection
             setStatus(`Connection selected. Press Delete to remove.`);
             render();
         } else {
@@ -276,6 +301,7 @@ canvas.addEventListener('mousedown', (e) => {
             // Deselect everything
             selectedNode = null;
             selectedConnection = null;
+            selectedCell = null;
 
             // Reset text alignment buttons to default
             updateAlignmentButtons(currentTextAlign);
@@ -693,6 +719,16 @@ document.addEventListener('keydown', (e) => {
         } else if (currentDepth > 0) {
             // Exit subgraph and return to parent
             exitSubgraph();
+        } else if (selectedCell) {
+            // Deselect cell
+            selectedCell = null;
+            setStatus('Cell deselected');
+            render();
+        } else if (selectedNode) {
+            // Deselect node
+            selectedNode = null;
+            setStatus('Node deselected');
+            render();
         }
         e.preventDefault();
     } else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey)) {
@@ -760,6 +796,11 @@ document.addEventListener('keydown', (e) => {
                     editingNode.editingCell = null;
                 }
                 editingNode = null;
+            }
+
+            // Clear selectedCell if we're deleting the table it belongs to
+            if (selectedCell && selectedCell.table.id === id) {
+                selectedCell = null;
             }
 
             selectedNode = null;

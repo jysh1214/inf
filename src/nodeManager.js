@@ -114,6 +114,27 @@ function createConnection(fromId, toId) {
     };
 }
 
+function isPointOnTableBorder(x, y, node, borderWidth = 10) {
+    if (node.type !== 'table') return false;
+
+    const totalWidth = node.cols * node.cellWidth;
+    const totalHeight = node.rows * node.cellHeight;
+
+    // Check if point is within the outer rectangle
+    if (x < node.x || x > node.x + totalWidth ||
+        y < node.y || y > node.y + totalHeight) {
+        return false;
+    }
+
+    // Check if point is in the border area (outer edge)
+    const onLeftBorder = x >= node.x && x <= node.x + borderWidth;
+    const onRightBorder = x >= node.x + totalWidth - borderWidth && x <= node.x + totalWidth;
+    const onTopBorder = y >= node.y && y <= node.y + borderWidth;
+    const onBottomBorder = y >= node.y + totalHeight - borderWidth && y <= node.y + totalHeight;
+
+    return onLeftBorder || onRightBorder || onTopBorder || onBottomBorder;
+}
+
 function isPointInNode(x, y, node) {
     switch (node.type) {
         case 'circle':
