@@ -841,6 +841,13 @@ function render() {
                 ctx.closePath();
                 ctx.stroke();
                 break;
+            case 'table':
+                // Table nodes use cols/rows/cellWidth/cellHeight instead of width/height
+                const totalWidth = hoveredNode.cols * hoveredNode.cellWidth;
+                const totalHeight = hoveredNode.rows * hoveredNode.cellHeight;
+                ctx.strokeRect(hoveredNode.x - 2, hoveredNode.y - 2,
+                              totalWidth + 4, totalHeight + 4);
+                break;
             default:
                 // Rectangle, text, and code
                 ctx.strokeRect(hoveredNode.x - 2, hoveredNode.y - 2,
