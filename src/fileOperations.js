@@ -943,7 +943,7 @@ async function enterSubgraph(node) {
         isPanning = false;
         panStart = { x: 0, y: 0 };
         scrollStart = { x: 0, y: 0 };
-        copiedNode = null;
+        copiedNodes = [];
         clearConnectionButtons();
 
         // Reset alignment buttons
@@ -1162,7 +1162,7 @@ async function exitSubgraph() {
         isPanning = false;
         panStart = { x: 0, y: 0 };
         scrollStart = { x: 0, y: 0 };
-        copiedNode = null;
+        copiedNodes = [];
         clearConnectionButtons();
 
         // Reset alignment buttons
