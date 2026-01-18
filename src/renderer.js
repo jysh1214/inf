@@ -1,5 +1,5 @@
 function drawNode(node) {
-    const isSelected = node === selectedNode;
+    const isSelected = selectedNodeIds.has(node.id);
 
     switch (node.type) {
         case 'circle':
@@ -39,8 +39,8 @@ function drawRectangleNode(node, isSelected) {
     // Text
     drawNodeText(node, node.x + node.width / 2, node.y + node.height / 2, node.width - 10);
 
-    // Draw resize handles if selected
-    if (isSelected) {
+    // Draw resize handles if selected (and only one node is selected)
+    if (isSelected && selectedNodeIds.size === 1) {
         const corners = [
             { x: node.x, y: node.y },
             { x: node.x + node.width, y: node.y },
@@ -173,8 +173,8 @@ function drawCodeNode(node, isSelected) {
     // Text with monospace font
     drawCodeText(node, node.x + node.width / 2, node.y + node.height / 2, node.width - 16);
 
-    // Draw resize handles if selected
-    if (isSelected) {
+    // Draw resize handles if selected (and only one node is selected)
+    if (isSelected && selectedNodeIds.size === 1) {
         const corners = [
             { x: node.x, y: node.y },
             { x: node.x + node.width, y: node.y },
@@ -413,8 +413,8 @@ function drawTableNode(node, isSelected) {
         }
     }
 
-    // Draw resize handles if selected
-    if (isSelected) {
+    // Draw resize handles if selected (and only one node is selected)
+    if (isSelected && selectedNodeIds.size === 1) {
         const corners = [
             { x: node.x, y: node.y },
             { x: node.x + totalWidth, y: node.y },
@@ -808,7 +808,7 @@ function render() {
     nodes.forEach(node => drawNode(node));
 
     // Draw hover effect
-    if (hoveredNode && hoveredNode !== selectedNode && !isDragging) {
+    if (hoveredNode && !selectedNodeIds.has(hoveredNode.id) && !isDragging) {
         ctx.strokeStyle = connectionMode ? '#4caf50' : '#2196f3';
         ctx.lineWidth = 2;
         ctx.setLineDash([5, 5]);

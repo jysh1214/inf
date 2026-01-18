@@ -9,7 +9,7 @@ let canvasHeight = DEFAULT_CANVAS_HEIGHT;
 let zoom = 1.0;
 let nodes = [];
 let connections = [];
-let selectedNode = null;
+let selectedNodeIds = new Set();  // Set of node IDs currently selected (multi-select)
 let selectedConnection = null;
 let selectedCell = null;  // {table: node, row: number, col: number}
 let hoveredNode = null;
@@ -19,7 +19,7 @@ let directedMode = true;
 let currentNodeType = 'rectangle';
 let currentTextAlign = 'center';
 let editingNode = null;
-let copiedNode = null;
+let copiedNodes = [];  // Array of copied nodes for multi-select copy/paste
 
 // Interaction state
 let isDragging = false;

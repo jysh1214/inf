@@ -43,7 +43,9 @@ function autoSave() {
             // Subgraph navigation state
             subgraphStack: subgraphStack,
             currentDepth: currentDepth,
-            currentPath: currentPath
+            currentPath: currentPath,
+            // Multi-select state
+            selectedNodeIds: Array.from(selectedNodeIds)
         };
         localStorage.setItem('inf-autosave', JSON.stringify(saveData));
         console.log('Auto-saved at', saveData.timestamp);
@@ -142,6 +144,11 @@ function autoLoad() {
         }
         if (saveData.currentPath !== undefined) {
             currentPath = saveData.currentPath;
+        }
+
+        // Restore multi-select state
+        if (saveData.selectedNodeIds !== undefined) {
+            selectedNodeIds = new Set(saveData.selectedNodeIds);
         }
 
         render();

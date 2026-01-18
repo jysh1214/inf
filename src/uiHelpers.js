@@ -103,11 +103,14 @@ function setConnectionType(directed) {
         if (hoveredNode) {
             render();
         }
-    } else if (selectedNode) {
-        // Start connection mode if a node is selected
+    } else if (selectedNodeIds.size > 0) {
+        // Start connection mode from first selected node
         directedMode = directed;
         connectionMode = true;
-        connectionStart = selectedNode;
+
+        const firstNodeId = Array.from(selectedNodeIds)[0];
+        connectionStart = nodeMap.get(firstNodeId);
+
         // Update button states
         document.getElementById('btn-directed').classList.remove('active');
         document.getElementById('btn-undirected').classList.remove('active');

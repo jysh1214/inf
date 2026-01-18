@@ -37,8 +37,10 @@ canvas.addEventListener('dblclick', (e) => {
 
     if (clickedNode) {
         // Enter edit mode on double-click
+        // Clear multi-select and select only this node
+        selectedNodeIds.clear();
+        selectedNodeIds.add(clickedNode.id);
         editingNode = clickedNode;
-        selectedNode = clickedNode;
 
         // Update text alignment buttons to show node's alignment
         const nodeAlign = clickedNode.textAlign || 'center';
@@ -76,7 +78,8 @@ canvas.addEventListener('dblclick', (e) => {
 
         const newNode = createNode(x, y, currentNodeType);
         nodes.push(newNode);
-        selectedNode = newNode;
+        selectedNodeIds.clear();
+        selectedNodeIds.add(newNode.id);
 
         // Update text alignment buttons to show new node's alignment
         updateAlignmentButtons(currentTextAlign);
@@ -100,8 +103,8 @@ canvas.addEventListener('mousedown', (e) => {
 
     const clickedNode = getNodeAtPoint(x, y);
 
-    // Ctrl+Click behavior for subgraphs
-    if (clickedNode && (e.ctrlKey || e.metaKey)) {
+    // Ctrl+Shift+Click behavior for subgraphs (moved from Ctrl+Click alone)
+    if (clickedNode && (e.ctrlKey || e.metaKey) && e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -145,6 +148,27 @@ canvas.addEventListener('mousedown', (e) => {
         }
 
         return false; // Don't continue with normal click handling
+    }
+
+    // Ctrl+Click behavior for multi-select (without Shift)
+    if (clickedNode && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        e.preventDefault();
+
+        // Clear other selection types
+        selectedConnection = null;
+        selectedCell = null;
+
+        // Toggle node in selection set
+        if (selectedNodeIds.has(clickedNode.id)) {
+            selectedNodeIds.delete(clickedNode.id);
+            setStatus(`Node #${clickedNode.id} removed from selection (${selectedNodeIds.size} selected)`);
+        } else {
+            selectedNodeIds.add(clickedNode.id);
+            setStatus(`Node #${clickedNode.id} added to selection (${selectedNodeIds.size} selected)`);
+        }
+
+        render();
+        return false;
     }
 
     // Exit edit mode if clicking outside the editing node
@@ -208,7 +232,7 @@ canvas.addEventListener('mousedown', (e) => {
 
                 if (cellRow >= 0 && cellRow < clickedNode.rows && cellCol >= 0 && cellCol < clickedNode.cols) {
                     selectedCell = { table: clickedNode, row: cellRow, col: cellCol };
-                    selectedNode = null;
+                    selectedNodeIds.clear();
                     selectedConnection = null;
 
                     // Update text alignment buttons to show cell's alignment
@@ -222,7 +246,11 @@ canvas.addEventListener('mousedown', (e) => {
             }
         }
 
-        selectedNode = clickedNode;
+        // If not holding Ctrl, clear multi-select and select only this node
+        if (!e.ctrlKey && !e.metaKey) {
+            selectedNodeIds.clear();
+            selectedNodeIds.add(clickedNode.id);
+        }
         selectedConnection = null; // Deselect connection when selecting node
         selectedCell = null; // Deselect cell when selecting node
 
@@ -233,8 +261,14 @@ canvas.addEventListener('mousedown', (e) => {
         // Bring selected node to front (z-ordering)
         nodes = nodes.filter(n => n !== clickedNode).concat([clickedNode]);
 
-        // Check if clicking on resize handle
-        resizeCorner = getResizeCorner(x, y, clickedNode);
+        // Check if clicking on resize handle (only if exactly 1 node selected)
+        if (selectedNodeIds.size === 1) {
+            const nodeId = Array.from(selectedNodeIds)[0];
+            const node = nodeMap.get(nodeId);
+            resizeCorner = getResizeCorner(x, y, node);
+        } else {
+            resizeCorner = null;
+        }
 
         if (resizeCorner) {
             isResizing = true;
@@ -258,22 +292,26 @@ canvas.addEventListener('mousedown', (e) => {
                 return;
             }
 
-            isDragging = true;
-            // Calculate drag offset based on node type
-            if (clickedNode.type === 'circle') {
-                // For circles, x,y is the center
+            // Only allow dragging if node is in selection (should always be true here)
+            if (selectedNodeIds.has(clickedNode.id)) {
+                isDragging = true;
+
+                // Store initial positions for all selected nodes
                 dragOffset = {
-                    x: x - clickedNode.x,
-                    y: y - clickedNode.y
+                    x: x,
+                    y: y,
+                    nodes: {}
                 };
-            } else {
-                // For rectangles, diamonds, and text, x,y is top-left
-                dragOffset = {
-                    x: x - clickedNode.x,
-                    y: y - clickedNode.y
-                };
+
+                selectedNodeIds.forEach(nodeId => {
+                    const node = nodeMap.get(nodeId);
+                    if (node) {
+                        dragOffset.nodes[nodeId] = { x: node.x, y: node.y };
+                    }
+                });
+
+                canvas.style.cursor = 'move';
             }
-            canvas.style.cursor = 'move';
         }
         render();
     } else {
@@ -299,7 +337,7 @@ canvas.addEventListener('mousedown', (e) => {
             }
 
             // Deselect everything
-            selectedNode = null;
+            selectedNodeIds.clear();
             selectedConnection = null;
             selectedCell = null;
 
@@ -331,11 +369,25 @@ canvas.addEventListener('mousemove', (e) => {
     hoveredNode = getNodeAtPoint(x, y);
     const hoveredNodeChanged = previousHoveredNode !== hoveredNode;
 
-    if (isDragging && selectedNode) {
-        selectedNode.x = x - dragOffset.x;
-        selectedNode.y = y - dragOffset.y;
+    if (isDragging && selectedNodeIds.size > 0) {
+        // Calculate delta from drag start
+        const dx = x - dragOffset.x;
+        const dy = y - dragOffset.y;
+
+        // Move all selected nodes by the same offset
+        selectedNodeIds.forEach(nodeId => {
+            const node = nodeMap.get(nodeId);
+            if (node) {
+                node.x = dragOffset.nodes[nodeId].x + dx;
+                node.y = dragOffset.nodes[nodeId].y + dy;
+            }
+        });
+
         render();
-    } else if (isResizing && selectedNode) {
+        triggerAutoSave();
+    } else if (isResizing && selectedNodeIds.size === 1) {
+        const nodeId = Array.from(selectedNodeIds)[0];
+        const selectedNode = nodeMap.get(nodeId);
 
         if (selectedNode.type === 'circle') {
             // Resize circle: adjust radius from center
@@ -724,50 +776,75 @@ document.addEventListener('keydown', (e) => {
             selectedCell = null;
             setStatus('Cell deselected');
             render();
-        } else if (selectedNode) {
-            // Deselect node
-            selectedNode = null;
-            setStatus('Node deselected');
+        } else if (selectedNodeIds.size > 0) {
+            // Deselect all nodes
+            selectedNodeIds.clear();
+            setStatus('Selection cleared');
             render();
         }
         e.preventDefault();
     } else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey)) {
-        // Ctrl+C: Copy selected node
-        if (selectedNode) {
-            // Store a copy of the selected node
-            copiedNode = JSON.parse(JSON.stringify(selectedNode));
-            setStatus(`Copied node #${selectedNode.id}`);
+        // Ctrl+C: Copy selected nodes
+        if (selectedNodeIds.size > 0) {
+            // Deep clone all selected nodes
+            copiedNodes = Array.from(selectedNodeIds).map(nodeId => {
+                const node = nodeMap.get(nodeId);
+                return JSON.parse(JSON.stringify(node));
+            });
+
+            setStatus(`Copied ${copiedNodes.length} node(s)`);
         } else {
             setStatus('No node selected to copy');
         }
         e.preventDefault();
     } else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) {
-        // Ctrl+V: Paste copied node
-        if (copiedNode) {
-            // Create new node with copied properties
-            const newNode = JSON.parse(JSON.stringify(copiedNode));
+        // Ctrl+V: Paste copied nodes
+        if (copiedNodes.length > 0) {
+            // Clear current selection
+            selectedNodeIds.clear();
 
-            // Assign new ID
-            newNode.id = nextId++;
+            // Calculate offset for group (use first node as anchor)
+            const firstNode = copiedNodes[0];
+            const anchorX = firstNode.x;
+            const anchorY = firstNode.y;
 
-            // Offset position so it's not directly on top
+            // Create all nodes maintaining relative positions
+            const idMapping = {};  // Map old IDs to new IDs for connections
             const PASTE_OFFSET = 20;
-            newNode.x += PASTE_OFFSET;
-            newNode.y += PASTE_OFFSET;
 
-            // Add to nodes array and map
-            nodes.push(newNode);
-            nodeMap.set(newNode.id, newNode);
+            copiedNodes.forEach(copiedNode => {
+                const newNode = JSON.parse(JSON.stringify(copiedNode));
+                const oldId = newNode.id;
+                newNode.id = nextId++;
 
-            // Note: Don't copy FileHandle for file-based subgraphs - each pasted node
-            // should select its own file to prevent accidental data corruption from
-            // multiple nodes sharing the same file reference
+                // Offset from anchor point
+                const relativeX = copiedNode.x - anchorX;
+                const relativeY = copiedNode.y - anchorY;
+                newNode.x = anchorX + PASTE_OFFSET + relativeX;
+                newNode.y = anchorY + PASTE_OFFSET + relativeY;
 
-            // Select the new node
-            selectedNode = newNode;
-            selectedConnection = null;
+                nodes.push(newNode);
+                nodeMap.set(newNode.id, newNode);
+                selectedNodeIds.add(newNode.id);
 
-            setStatus(`Pasted node #${newNode.id}`);
+                idMapping[oldId] = newNode.id;
+            });
+
+            // Copy connections between the copied nodes (if any exist)
+            const originalIds = copiedNodes.map(n => n.id);
+            connections.filter(conn =>
+                originalIds.includes(conn.fromId) && originalIds.includes(conn.toId)
+            ).forEach(conn => {
+                const newConn = {
+                    id: nextId++,
+                    fromId: idMapping[conn.fromId],
+                    toId: idMapping[conn.toId],
+                    directed: conn.directed
+                };
+                connections.push(newConn);
+            });
+
+            setStatus(`Pasted ${copiedNodes.length} node(s)`);
             render();
             triggerAutoSave();
         } else {
@@ -775,21 +852,26 @@ document.addEventListener('keydown', (e) => {
         }
         e.preventDefault();
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedNode) {
-            // Remove connections to/from this node
+        if (selectedNodeIds.size > 0) {
+            const idsToDelete = Array.from(selectedNodeIds);
+
+            // Remove all connections to/from any selected node
             connections = connections.filter(conn =>
-                conn.fromId !== selectedNode.id && conn.toId !== selectedNode.id
+                !idsToDelete.includes(conn.fromId) && !idsToDelete.includes(conn.toId)
             );
 
-            // Remove node
-            const id = selectedNode.id;
-            nodes = nodes.filter(n => n.id !== id);
-            nodeMap.delete(id);
-            fileHandleMap.delete(id);  // Clean up file handle from memory
-            deleteFileHandle(id);  // Clean up file handle from IndexedDB (async, no await needed)
+            // Remove all selected nodes
+            nodes = nodes.filter(n => !idsToDelete.includes(n.id));
 
-            // Clear editingNode if we're deleting the node being edited
-            if (editingNode && editingNode.id === id) {
+            // Clean up maps
+            idsToDelete.forEach(id => {
+                nodeMap.delete(id);
+                fileHandleMap.delete(id);  // Clean up file handle from memory
+                deleteFileHandle(id);  // Clean up file handle from IndexedDB (async, no await needed)
+            });
+
+            // Clear editingNode if deleting the node being edited
+            if (editingNode && idsToDelete.includes(editingNode.id)) {
                 stopCursorBlink();
                 // Clear editingCell for table nodes
                 if (editingNode.type === 'table' && editingNode.editingCell) {
@@ -799,13 +881,14 @@ document.addEventListener('keydown', (e) => {
             }
 
             // Clear selectedCell if we're deleting the table it belongs to
-            if (selectedCell && selectedCell.table.id === id) {
+            if (selectedCell && idsToDelete.includes(selectedCell.table.id)) {
                 selectedCell = null;
             }
 
-            selectedNode = null;
+            // Clear selection
+            selectedNodeIds.clear();
 
-            setStatus(`Deleted node #${id}`);
+            setStatus(`Deleted ${idsToDelete.length} node(s)`);
             render();
             triggerAutoSave();
         } else if (selectedConnection) {
