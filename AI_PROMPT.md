@@ -12,7 +12,12 @@ Please follow the inf/INF_NOTE_GUIDE.md format to create a structured note diagr
 Structure:
 - Comprehensive overview / full picture at root level
 - Put detailed explanations in separate JSON files as file-based subgraphs
-- Use appropriate node types: rectangle (concepts), circle (entry/exit points), diamond (decisions), text (annotations)
+- Use appropriate node types:
+  - rectangle (concepts)
+  - circle (entry/exit points)
+  - diamond (decisions)
+  - text (annotations)
+  - code (source code snippets with syntax highlighting)
 - Create meaningful connections (directed for flow/dependency, undirected for associations)
 
 Output:
@@ -62,6 +67,17 @@ Structure:
 - Put detailed explanations in embedded subgraphs (pods, services, deployments, networking)
 ```
 
+**For Code Documentation:**
+```
+Please follow the INF_NOTE_GUIDE.md format to create a structured note diagram for this authentication module.
+
+Structure:
+- Comprehensive overview / full picture at root level (authentication flow, main components)
+- Use code nodes for important source code snippets (login function, JWT verification, middleware)
+- Use rectangle nodes for concepts and text nodes for explanations
+- Put detailed implementation in embedded subgraphs
+```
+
 ---
 
 ## Tips
@@ -72,3 +88,4 @@ Structure:
 - Let the guide handle the technical format details
 - **Workflow**: Save all files in one folder with main file named `root.json`, then user clicks "Set Folder" in Inf to select that folder - `root.json` loads automatically!
 - **File naming**: Main file = `root.json` (required), subgraphs = descriptive names like `module-auth.json`, `concept-events.json`
+- **Code nodes**: Use `"type": "code"` for source code snippets - supports syntax highlighting for JavaScript/TypeScript, C/C++, and Python with monospace font and no word wrapping

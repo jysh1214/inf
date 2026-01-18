@@ -19,7 +19,7 @@ This guide explains the JSON format for Inf diagrams, allowing you to create and
 
 Inf diagrams are stored as JSON files with a well-defined structure. You can create these files manually or use the UI to generate them. The format supports:
 
-- Four node types: rectangle, circle, diamond, and text
+- Five node types: rectangle, circle, diamond, text, and code
 - Directed and undirected connections
 - Hierarchical subgraphs (embedded or file-based)
 - Customizable canvas size and zoom levels
@@ -76,7 +76,7 @@ All nodes must have:
 | Property | Type | Required | Valid Values | Description |
 |----------|------|----------|--------------|-------------|
 | `id` | number | Yes | Unique positive integer | Node identifier |
-| `type` | string | Yes | "rectangle", "circle", "diamond", "text" | Node shape |
+| `type` | string | Yes | "rectangle", "circle", "diamond", "text", "code" | Node shape |
 | `text` | string | Yes | Any string (max 1000 chars) | Node label/content |
 | `textAlign` | string | Yes | "left", "center", "right" | Text alignment |
 | `subgraph` | object/string | No | Object or filename | Optional subgraph data |
@@ -176,6 +176,42 @@ Text nodes have no visible border, only text.
 | `y` | number | Y coordinate of top-left corner |
 | `width` | number | Width in pixels (min: 40) |
 | `height` | number | Height in pixels (min: 40) |
+
+### Code Nodes
+
+```json
+{
+  "id": 5,
+  "type": "code",
+  "text": "function hello() {\n  return true;\n}",
+  "textAlign": "left",
+  "x": 400,
+  "y": 500,
+  "width": 200,
+  "height": 100
+}
+```
+
+**Position:** `(x, y)` is the **top-left corner**
+
+Code nodes display code with monospace font and syntax highlighting. Features:
+- Monospace font (Monaco, Menlo, Courier New)
+- Syntax highlighting for JavaScript/TypeScript, C/C++, and Python keywords
+- No word wrapping (preserves code formatting)
+- Light gray background (#f5f5f5) with visible border
+
+**Syntax Highlighting:**
+- Keywords highlighted in blue (if, for, function, class, def, int, template, etc.)
+- Strings highlighted in green (starting with ", ', or `)
+- Numbers highlighted in dark green
+- Comments highlighted in gray (// for JS/C++, # for Python)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `x` | number | X coordinate of top-left corner |
+| `y` | number | Y coordinate of top-left corner |
+| `width` | number | Width in pixels (min: 40, default: 200) |
+| `height` | number | Height in pixels (min: 40, default: 100) |
 
 ---
 
@@ -507,7 +543,7 @@ The application validates JSON files when loading. Here are the key rules:
 
 ✅ **Valid:**
 - `id` is a unique positive integer
-- `type` is one of: "rectangle", "circle", "diamond", "text"
+- `type` is one of: "rectangle", "circle", "diamond", "text", "code"
 - `text` is a string (max 1000 characters)
 - `textAlign` is one of: "left", "center", "right"
 - Type-specific properties match the node type
