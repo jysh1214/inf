@@ -531,6 +531,10 @@ async function selectWorkspaceFolder() {
             currentDepth = 0;
             currentPath = [];
 
+            // Update current filename
+            currentFileName = 'root.json';
+            updateFilePathDisplay();
+
             // Update UI
             resizeCanvas();
             updateSubgraphNavigation();
@@ -886,7 +890,8 @@ async function enterSubgraph(node) {
             nodeId: node.id,
             nodePath: [...currentPath, node.id],
             isFileBased: typeof node.subgraph === 'string',
-            fileName: typeof node.subgraph === 'string' ? node.subgraph : null
+            fileName: typeof node.subgraph === 'string' ? node.subgraph : null,
+            parentFileName: currentFileName  // Save parent's filename to restore later
         };
         subgraphStack.push(currentState);
 
@@ -940,6 +945,14 @@ async function enterSubgraph(node) {
 
         // Reset alignment buttons
         updateAlignmentButtons(currentTextAlign);
+
+        // Update current filename
+        if (typeof node.subgraph === 'string') {
+            currentFileName = node.subgraph;
+        } else {
+            currentFileName = '(embedded)';
+        }
+        updateFilePathDisplay();
 
         // Update status with breadcrumb
         updateBreadcrumb();
@@ -1006,6 +1019,7 @@ async function exitSubgraph() {
         const parentState = stackEntry.parentState;
         const isFileBased = stackEntry.isFileBased;
         const fileName = stackEntry.fileName;
+        const parentFileName = stackEntry.parentFileName;
 
         // Restore parent state
         nodes = parentState.nodes;
@@ -1148,6 +1162,10 @@ async function exitSubgraph() {
         // Reset alignment buttons
         updateAlignmentButtons(currentTextAlign);
 
+        // Restore parent filename
+        currentFileName = parentFileName || null;
+        updateFilePathDisplay();
+
         // Update status with breadcrumb
         updateBreadcrumb();
 
@@ -1225,6 +1243,15 @@ function loadFromJSON(event) {
 
             // Reset alignment buttons to default
             updateAlignmentButtons(currentTextAlign);
+
+            // Reset subgraph navigation state
+            subgraphStack = [];
+            currentDepth = 0;
+            currentPath = [];
+
+            // Update current filename
+            currentFileName = file.name;
+            updateFilePathDisplay();
 
             render();
             setStatus(`Loaded ${nodes.length} nodes and ${connections.length} connections from ${file.name}`);

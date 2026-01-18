@@ -3,6 +3,18 @@ function setStatus(text) {
     document.getElementById('status').textContent = text;
 }
 
+function updateFilePathDisplay() {
+    const filePathElement = document.getElementById('current-file-path');
+    if (!filePathElement) return;
+
+    if (currentFileName) {
+        filePathElement.textContent = currentFileName;
+    } else {
+        filePathElement.textContent = '(unsaved)';
+    }
+    filePathElement.style.display = 'block';
+}
+
 function setNodeType(type) {
     currentNodeType = type;
     // Update button states for node type buttons only
@@ -146,6 +158,10 @@ function clearCanvas() {
         editingNode = null;
         connectionMode = false;
         connectionStart = null;
+
+        // Clear filename
+        currentFileName = null;
+        updateFilePathDisplay();
 
         // Clear auto-save
         localStorage.removeItem('inf-autosave');
