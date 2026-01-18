@@ -438,3 +438,77 @@ button:active {
 .modal-confirm:active {
     background: #1565c0;
 }
+
+/* Error Modal Styles */
+.error-modal-content {
+    max-width: 500px;
+    text-align: center;
+}
+
+.error-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    animation: errorPulse 0.5s ease-out;
+}
+
+@keyframes errorPulse {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.error-title {
+    color: #dc3545;
+    margin-bottom: 20px;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.error-message {
+    background: #fff5f5;
+    border: 2px solid #fecaca;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    color: #991b1b;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: left;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    word-break: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.error-confirm {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    border: none;
+    padding: 12px 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    width: auto;
+    min-width: 120px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.error-confirm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+}
+
+.error-confirm:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}

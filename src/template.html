@@ -127,6 +127,17 @@
         </div>
     </div>
 
+    <!-- Error Modal -->
+    <div id="error-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" onclick="closeErrorModal()"></div>
+        <div class="modal-content error-modal-content">
+            <div class="error-icon">⚠️</div>
+            <h2 class="modal-title error-title">Error</h2>
+            <div class="error-message" id="error-message-text"></div>
+            <button class="modal-confirm error-confirm" onclick="closeErrorModal()">OK</button>
+        </div>
+    </div>
+
     <!-- Subgraph Type Selection Modal -->
     <div id="subgraph-modal" class="modal" style="display: none;">
         <div class="modal-overlay"></div>

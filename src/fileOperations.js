@@ -550,7 +550,7 @@ async function selectWorkspaceFolder() {
                 const errorMsg = `root.json is invalid: ${rootError.message}`;
                 setStatus(`✓ Workspace folder set: ${dirHandle.name} (${errorMsg})`);
                 // Show explicit error for invalid root.json
-                alert(`Workspace folder set, but ${errorMsg}`);
+                showErrorModal(`Workspace folder set, but ${errorMsg}`);
             }
         }
     } catch (error) {
@@ -973,7 +973,7 @@ async function enterSubgraph(node) {
             setStatus(`⚠️ ${errorMsg}`);
             console.error('Subgraph load error:', error);
             // Show explicit error dialog
-            alert(errorMsg);
+            showErrorModal(errorMsg);
         }
     }
 }
@@ -1269,7 +1269,7 @@ function loadFromJSON(event) {
             setStatus(`⚠️ ${errorMsg}`);
             console.error('Load error:', error);
             // Show explicit error dialog
-            alert(errorMsg);
+            showErrorModal(errorMsg);
         }
     };
 

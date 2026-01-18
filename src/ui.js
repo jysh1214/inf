@@ -1,5 +1,34 @@
 // UI Components and Interactions
 
+// Error modal functions
+/**
+ * Show a beautiful error modal with the given message
+ * @param {string} message - The error message to display
+ */
+function showErrorModal(message) {
+    const modal = document.getElementById('error-modal');
+    const messageElement = document.getElementById('error-message-text');
+
+    if (!modal || !messageElement) {
+        console.error('Error modal not found');
+        alert(message); // Fallback to alert
+        return;
+    }
+
+    messageElement.textContent = message;
+    modal.style.display = 'flex';
+}
+
+/**
+ * Close the error modal
+ */
+function closeErrorModal() {
+    const modal = document.getElementById('error-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 // Subgraph modal state
 let subgraphModalResolve = null;
 
@@ -109,11 +138,20 @@ document.addEventListener('DOMContentLoaded', () => {
 // Close modal with Escape key
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+        const errorModal = document.getElementById('error-modal');
+        if (errorModal && errorModal.style.display === 'flex') {
+            closeErrorModal();
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
+        }
+
         const modal = document.getElementById('subgraph-modal');
         if (modal && modal.style.display === 'flex') {
             closeSubgraphModal();
             e.preventDefault();
             e.stopImmediatePropagation();
+            return;
         }
 
         const tableModal = document.getElementById('table-modal');
