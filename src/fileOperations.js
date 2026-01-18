@@ -84,6 +84,91 @@ function isValidId(value) {
     return isValidNumber(value) && Number.isInteger(value) && value > 0;
 }
 
+/**
+ * Validate complete diagram data structure
+ * @param {object} data - The diagram data to validate
+ * @throws {Error} If validation fails
+ */
+function validateDiagramData(data) {
+    // Validate top-level structure
+    if (data === null || data === undefined || typeof data !== 'object') {
+        throw new Error('Invalid file format: root must be an object');
+    }
+    if (!data.nodes || !Array.isArray(data.nodes)) {
+        throw new Error('Invalid file format: missing or invalid "nodes" array');
+    }
+    if (!data.connections || !Array.isArray(data.connections)) {
+        throw new Error('Invalid file format: missing or invalid "connections" array');
+    }
+
+    // Check for null/undefined elements in arrays
+    if (data.nodes.some((node, i) => node === null || node === undefined)) {
+        throw new Error('Invalid file format: nodes array contains null or undefined elements');
+    }
+    if (data.connections.some((conn, i) => conn === null || conn === undefined)) {
+        throw new Error('Invalid file format: connections array contains null or undefined elements');
+    }
+
+    // Validate each node
+    const nodeIds = new Set();
+    data.nodes.forEach((node, index) => {
+        validateNode(node, index);
+        nodeIds.add(node.id);
+    });
+
+    // Check for duplicate node IDs
+    if (nodeIds.size !== data.nodes.length) {
+        throw new Error('Invalid file format: duplicate node IDs found');
+    }
+
+    // Validate each connection
+    const connectionIds = new Set();
+    data.connections.forEach((conn, index) => {
+        validateConnection(conn, index, nodeIds);
+        connectionIds.add(conn.id);
+    });
+
+    // Check for duplicate connection IDs
+    if (connectionIds.size !== data.connections.length) {
+        throw new Error('Invalid file format: duplicate connection IDs found');
+    }
+
+    // Validate optional canvas size
+    if (data.canvasWidth !== undefined && data.canvasWidth !== null) {
+        if (!isValidNumber(data.canvasWidth)) {
+            throw new Error(`Invalid canvasWidth: must be a valid number (got ${data.canvasWidth})`);
+        }
+        if (data.canvasWidth < MIN_CANVAS_SIZE || data.canvasWidth > MAX_CANVAS_SIZE) {
+            throw new Error(`Invalid canvasWidth: must be between ${MIN_CANVAS_SIZE} and ${MAX_CANVAS_SIZE} (got ${data.canvasWidth})`);
+        }
+    }
+    if (data.canvasHeight !== undefined && data.canvasHeight !== null) {
+        if (!isValidNumber(data.canvasHeight)) {
+            throw new Error(`Invalid canvasHeight: must be a valid number (got ${data.canvasHeight})`);
+        }
+        if (data.canvasHeight < MIN_CANVAS_SIZE || data.canvasHeight > MAX_CANVAS_SIZE) {
+            throw new Error(`Invalid canvasHeight: must be between ${MIN_CANVAS_SIZE} and ${MAX_CANVAS_SIZE} (got ${data.canvasHeight})`);
+        }
+    }
+
+    // Validate optional zoom
+    if (data.zoom !== undefined && data.zoom !== null) {
+        if (!isValidNumber(data.zoom)) {
+            throw new Error(`Invalid zoom: must be a valid number (got ${data.zoom})`);
+        }
+        if (data.zoom < MIN_ZOOM || data.zoom > MAX_ZOOM) {
+            throw new Error(`Invalid zoom: must be between ${MIN_ZOOM} and ${MAX_ZOOM} (got ${data.zoom})`);
+        }
+    }
+
+    // Validate optional nextId
+    if (data.nextId !== undefined && data.nextId !== null) {
+        if (!isValidId(data.nextId)) {
+            throw new Error(`Invalid nextId: must be a positive integer (got ${data.nextId})`);
+        }
+    }
+}
+
 function validateNode(node, index) {
     // Constants for validation
     const MAX_NODE_SIZE = 10000;
@@ -332,16 +417,38 @@ async function selectWorkspaceFolder() {
             const contents = await file.text();
             const data = JSON.parse(contents);
 
-            // Validate the JSON data
-            validateJSON(data);
+            // Validate the diagram data
+            validateDiagramData(data);
+
+            // Stop any ongoing editing
+            stopCursorBlink();
 
             // Load the diagram
-            nodes = data.nodes || [];
-            connections = data.connections || [];
-            nextId = data.nextId || 1;
-            canvasWidth = data.canvasWidth || DEFAULT_CANVAS_WIDTH;
-            canvasHeight = data.canvasHeight || DEFAULT_CANVAS_HEIGHT;
-            zoom = data.zoom || 1.0;
+            nodes = data.nodes;
+            connections = data.connections;
+
+            // Calculate nextId safely
+            if (data.nextId !== undefined && data.nextId !== null) {
+                nextId = data.nextId;
+            } else {
+                const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id)];
+                nextId = allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
+            }
+
+            // Restore canvas size and zoom if saved
+            if (data.canvasWidth && data.canvasHeight) {
+                canvasWidth = data.canvasWidth;
+                canvasHeight = data.canvasHeight;
+            } else {
+                canvasWidth = DEFAULT_CANVAS_WIDTH;
+                canvasHeight = DEFAULT_CANVAS_HEIGHT;
+            }
+
+            if (data.zoom !== undefined) {
+                zoom = data.zoom;
+            } else {
+                zoom = 1.0;
+            }
 
             // Rebuild node map
             nodeMap.clear();
@@ -372,7 +479,7 @@ async function selectWorkspaceFolder() {
                 setStatus(`✓ Workspace folder set: ${dirHandle.name} (no root.json found)`);
             } else {
                 console.warn('Failed to load root.json:', rootError);
-                setStatus(`✓ Workspace folder set: ${dirHandle.name} (root.json invalid)`);
+                setStatus(`✓ Workspace folder set: ${dirHandle.name} (root.json invalid: ${rootError.message})`);
             }
         }
     } catch (error) {
@@ -933,76 +1040,8 @@ function loadFromJSON(event) {
                 throw new Error('Invalid JSON format: ' + parseError.message);
             }
 
-            // Validate top-level structure
-            if (saveData === null || saveData === undefined || typeof saveData !== 'object') {
-                throw new Error('Invalid file format: root must be an object');
-            }
-            if (!saveData.nodes || !Array.isArray(saveData.nodes)) {
-                throw new Error('Invalid file format: missing or invalid "nodes" array');
-            }
-            if (!saveData.connections || !Array.isArray(saveData.connections)) {
-                throw new Error('Invalid file format: missing or invalid "connections" array');
-            }
-
-            // Check for null/undefined elements in arrays
-            if (saveData.nodes.some((node, i) => node === null || node === undefined)) {
-                throw new Error('Invalid file format: nodes array contains null or undefined elements');
-            }
-            if (saveData.connections.some((conn, i) => conn === null || conn === undefined)) {
-                throw new Error('Invalid file format: connections array contains null or undefined elements');
-            }
-
-            // Validate each node
-            const nodeIds = new Set();
-            saveData.nodes.forEach((node, index) => {
-                validateNode(node, index);
-                nodeIds.add(node.id);
-            });
-
-            // Check for duplicate node IDs
-            if (nodeIds.size !== saveData.nodes.length) {
-                throw new Error('Invalid file format: duplicate node IDs found');
-            }
-
-            // Validate each connection
-            const connectionIds = new Set();
-            saveData.connections.forEach((conn, index) => {
-                validateConnection(conn, index, nodeIds);
-                connectionIds.add(conn.id);
-            });
-
-            // Check for duplicate connection IDs
-            if (connectionIds.size !== saveData.connections.length) {
-                throw new Error('Invalid file format: duplicate connection IDs found');
-            }
-
-            // Validate optional canvas size
-            if (saveData.canvasWidth !== undefined && saveData.canvasWidth !== null) {
-                if (!isValidNumber(saveData.canvasWidth)) {
-                    throw new Error(`Invalid canvasWidth: must be a valid number (got ${saveData.canvasWidth})`);
-                }
-                if (saveData.canvasWidth < MIN_CANVAS_SIZE || saveData.canvasWidth > MAX_CANVAS_SIZE) {
-                    throw new Error(`Invalid canvasWidth: must be between ${MIN_CANVAS_SIZE} and ${MAX_CANVAS_SIZE} (got ${saveData.canvasWidth})`);
-                }
-            }
-            if (saveData.canvasHeight !== undefined && saveData.canvasHeight !== null) {
-                if (!isValidNumber(saveData.canvasHeight)) {
-                    throw new Error(`Invalid canvasHeight: must be a valid number (got ${saveData.canvasHeight})`);
-                }
-                if (saveData.canvasHeight < MIN_CANVAS_SIZE || saveData.canvasHeight > MAX_CANVAS_SIZE) {
-                    throw new Error(`Invalid canvasHeight: must be between ${MIN_CANVAS_SIZE} and ${MAX_CANVAS_SIZE} (got ${saveData.canvasHeight})`);
-                }
-            }
-
-            // Validate optional zoom
-            if (saveData.zoom !== undefined && saveData.zoom !== null) {
-                if (!isValidNumber(saveData.zoom)) {
-                    throw new Error(`Invalid zoom: must be a valid number (got ${saveData.zoom})`);
-                }
-                if (saveData.zoom < MIN_ZOOM || saveData.zoom > MAX_ZOOM) {
-                    throw new Error(`Invalid zoom: must be between ${MIN_ZOOM} and ${MAX_ZOOM} (got ${saveData.zoom})`);
-                }
-            }
+            // Validate the diagram data
+            validateDiagramData(saveData);
 
             // All validation passed - stop any ongoing editing
             stopCursorBlink();
