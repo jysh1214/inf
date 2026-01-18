@@ -886,6 +886,11 @@ document.addEventListener('keydown', (e) => {
                 selectedCell = null;
             }
 
+            // Clear hoveredNode if deleting the node being hovered
+            if (hoveredNode && idsToDelete.includes(hoveredNode.id)) {
+                hoveredNode = null;
+            }
+
             // Clear selection
             selectedNodeIds.clear();
 
