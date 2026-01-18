@@ -158,7 +158,7 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
     const textAlign = node.textAlign || 'center';
 
     ctx.fillStyle = '#333';
-    ctx.font = '14px sans-serif';
+    ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
     ctx.textAlign = textAlign;
     ctx.textBaseline = 'middle';
 
