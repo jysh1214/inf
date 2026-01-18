@@ -197,36 +197,24 @@ function setNodePosition(node, bounds, alignType, targetValue) {
     // Adjusts node position based on alignment type and target value
     switch (node.type) {
         case 'circle':
-            if (alignType === 'left') {
-                node.x = targetValue + node.radius;
-            } else if (alignType === 'right') {
-                node.x = targetValue - node.radius;
-            } else if (alignType === 'center-h') {
-                node.x = targetValue;
-            } else if (alignType === 'top') {
-                node.y = targetValue + node.radius;
-            } else if (alignType === 'bottom') {
-                node.y = targetValue - node.radius;
-            } else if (alignType === 'center-v') {
+            if (alignType === 'center-h') {
+                // Align horizontally (same Y) - horizontal line
                 node.y = targetValue;
+            } else if (alignType === 'center-v') {
+                // Align vertically (same X) - vertical line
+                node.x = targetValue;
             }
             break;
 
         case 'table':
             const tableWidth = node.cols * node.cellWidth;
             const tableHeight = node.rows * node.cellHeight;
-            if (alignType === 'left') {
-                node.x = targetValue;
-            } else if (alignType === 'right') {
-                node.x = targetValue - tableWidth;
-            } else if (alignType === 'center-h') {
-                node.x = targetValue - tableWidth / 2;
-            } else if (alignType === 'top') {
-                node.y = targetValue;
-            } else if (alignType === 'bottom') {
-                node.y = targetValue - tableHeight;
-            } else if (alignType === 'center-v') {
+            if (alignType === 'center-h') {
+                // Align horizontally (same Y)
                 node.y = targetValue - tableHeight / 2;
+            } else if (alignType === 'center-v') {
+                // Align vertically (same X)
+                node.x = targetValue - tableWidth / 2;
             }
             break;
 
@@ -235,18 +223,12 @@ function setNodePosition(node, bounds, alignType, targetValue) {
         case 'text':
         case 'code':
         default:
-            if (alignType === 'left') {
-                node.x = targetValue;
-            } else if (alignType === 'right') {
-                node.x = targetValue - node.width;
-            } else if (alignType === 'center-h') {
-                node.x = targetValue - node.width / 2;
-            } else if (alignType === 'top') {
-                node.y = targetValue;
-            } else if (alignType === 'bottom') {
-                node.y = targetValue - node.height;
-            } else if (alignType === 'center-v') {
+            if (alignType === 'center-h') {
+                // Align horizontally (same Y)
                 node.y = targetValue - node.height / 2;
+            } else if (alignType === 'center-v') {
+                // Align vertically (same X)
+                node.x = targetValue - node.width / 2;
             }
             break;
     }
@@ -273,11 +255,11 @@ function alignNodes(alignType) {
     let targetValue;
 
     if (alignType === 'center-h') {
-        // Average of all centerX positions
-        targetValue = bounds.reduce((sum, b) => sum + b.centerX, 0) / bounds.length;
-    } else if (alignType === 'center-v') {
-        // Average of all centerY positions
+        // Align horizontally (same Y) - creates horizontal line
         targetValue = bounds.reduce((sum, b) => sum + b.centerY, 0) / bounds.length;
+    } else if (alignType === 'center-v') {
+        // Align vertically (same X) - creates vertical line
+        targetValue = bounds.reduce((sum, b) => sum + b.centerX, 0) / bounds.length;
     } else {
         setStatus(`Unknown alignment type: ${alignType}`);
         return;
