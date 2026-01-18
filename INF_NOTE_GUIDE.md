@@ -273,19 +273,22 @@ Reference an external JSON file by storing a filename reference as a string:
 ```
 
 **File-based subgraphs:**
-- Store the file path (string) in the `subgraph` property as a reference
-- Path can be absolute (e.g., `/home/user/diagrams/module.json`) or just a filename
+- Store the **filename only** (relative path) in the `subgraph` property
+- ⚠️ **IMPORTANT:** Only relative paths (filenames) are supported - no absolute paths
+- ⚠️ **REQUIRED:** Workspace folder MUST be set before creating file-based subgraphs
 - Must be a valid `.json` file
 - File must contain a valid Inf diagram structure
 - Useful for reusing diagrams across multiple projects
 - Changes require manually saving the external file
 
-**Workspace Folder (Recommended):**
-- Click "Set Folder" in the Workspace section to authorize a folder
-- All subgraph files in that folder open automatically (no file picker prompts)
+**Workspace Folder (Required for File-Based Subgraphs):**
+- ⚠️ **YOU MUST** click "Set Folder" in the Workspace section before creating file-based subgraphs
+- All subgraph files must be in the authorized workspace folder
+- Files open automatically (no file picker prompts) after workspace is set
 - Folder permission persists across page reloads
 - Best practice: Keep all related diagram files in one workspace folder
-- Files outside the workspace still require manual file picker selection
+- **Relative path example:** `"subgraph": "module-auth.json"` ✓
+- **Absolute path example:** `"subgraph": "/Users/alex/diagrams/module.json"` ✗ NOT SUPPORTED
 
 **File Access Priority:**
 1. **Memory cache** - Files already opened this session (instant)

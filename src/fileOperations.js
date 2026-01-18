@@ -337,8 +337,11 @@ async function selectWorkspaceFolder() {
 // Subgraph management functions
 async function createNewSubgraph(node) {
     try {
+        // Check if workspace folder is set for file-based subgraphs
+        const hasWorkspace = await getDirectoryHandle();
+
         // Prompt user to choose subgraph type using modal
-        const choice = await showSubgraphModal();
+        const choice = await showSubgraphModal(hasWorkspace);
 
         // User cancelled
         if (!choice) {

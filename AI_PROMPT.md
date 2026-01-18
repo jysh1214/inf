@@ -18,11 +18,13 @@ Structure:
 Output:
 - Main JSON file with root-level overview
 - Separate JSON files for each subgraph (named clearly, e.g., "module-authentication.json", "concept-event-loop.json")
-- In parent nodes, use `"subgraph": "filename.json"` to reference the files (user will select via file picker when loading)
+- In parent nodes, use `"subgraph": "filename.json"` to reference files (relative path only)
 - Save all assets in DEST
 
 Important:
-- Subgraph references are filenames (e.g., "module-auth.json") - users select actual files via browser file picker
+- ⚠️ **File-based subgraphs require workspace folder** - users MUST click "Set Folder" in Inf first
+- Subgraph references are **relative paths only** (e.g., "module-auth.json") - NO absolute paths
+- All subgraph files must be in the same workspace folder
 - canvasWidth and canvasHeight must be between 1000-20000 (use 2000 as default)
 - All IDs must be unique, nextId must be greater than any used ID
 

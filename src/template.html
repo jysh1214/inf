@@ -98,6 +98,10 @@
             <h2 class="modal-title">Create Subgraph</h2>
             <p class="modal-description">Choose how to store the subgraph data:</p>
 
+            <div id="workspace-warning" class="workspace-warning" style="display: none;">
+                ⚠️ <strong>Workspace folder not set!</strong> File-based subgraphs require a workspace folder. Click "Set Folder" in the sidebar first, or choose "Embedded" option.
+            </div>
+
             <div class="modal-options">
                 <div class="modal-option" onclick="selectSubgraphType('embedded')">
                     <div class="option-icon">📦</div>
@@ -105,16 +109,16 @@
                     <p>Store subgraph data within this diagram file. Changes are automatically saved with the parent.</p>
                 </div>
 
-                <div class="modal-option" onclick="selectSubgraphType('new-file')">
+                <div class="modal-option" id="new-file-option" onclick="selectSubgraphType('new-file')">
                     <div class="option-icon">📄</div>
                     <h3>New File</h3>
-                    <p>Create a new JSON file for the subgraph. Useful for organizing complex diagrams.</p>
+                    <p>Create a new JSON file in workspace folder (relative path). Useful for organizing complex diagrams.</p>
                 </div>
 
-                <div class="modal-option" onclick="selectSubgraphType('existing-file')">
+                <div class="modal-option" id="existing-file-option" onclick="selectSubgraphType('existing-file')">
                     <div class="option-icon">🔗</div>
                     <h3>Load Existing</h3>
-                    <p>Link to an existing JSON file. Perfect for reusing diagrams across multiple projects.</p>
+                    <p>Link to an existing JSON file in workspace folder (relative path). Perfect for reusing diagrams.</p>
                 </div>
             </div>
 
