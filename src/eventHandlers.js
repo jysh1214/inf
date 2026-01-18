@@ -1,3 +1,27 @@
+// Helper functions for table cell text editing
+function getEditingText(node) {
+    if (!node) return '';
+    if (node.type === 'table' && node.editingCell) {
+        const cell = node.cells[node.editingCell.row][node.editingCell.col];
+        return cell.text || '';
+    }
+    return node.text || '';
+}
+
+function setEditingText(node, text) {
+    if (!node) return;
+    if (node.type === 'table' && node.editingCell) {
+        node.cells[node.editingCell.row][node.editingCell.col].text = text;
+    } else {
+        node.text = text;
+    }
+}
+
+function getEditingCell(node) {
+    if (!node || node.type !== 'table' || !node.editingCell) return null;
+    return node.cells[node.editingCell.row][node.editingCell.col];
+}
+
 // Mouse event handlers
 canvas.addEventListener('dblclick', (e) => {
     e.preventDefault();
@@ -20,14 +44,36 @@ canvas.addEventListener('dblclick', (e) => {
         const nodeAlign = clickedNode.textAlign || 'center';
         updateAlignmentButtons(nodeAlign);
 
-        // Set cursor position to end of text
-        cursorPosition = (clickedNode.text || '').length;
+        // Special handling for table nodes - determine which cell was clicked
+        if (clickedNode.type === 'table') {
+            const cellCol = Math.floor((x - clickedNode.x) / clickedNode.cellWidth);
+            const cellRow = Math.floor((y - clickedNode.y) / clickedNode.cellHeight);
+
+            // Validate cell coordinates
+            if (cellRow >= 0 && cellRow < clickedNode.rows && cellCol >= 0 && cellCol < clickedNode.cols) {
+                clickedNode.editingCell = { row: cellRow, col: cellCol };
+                const cellText = clickedNode.cells[cellRow][cellCol].text || '';
+                cursorPosition = cellText.length;
+                setStatus(`Editing table #${clickedNode.id} cell (${cellRow + 1}, ${cellCol + 1}) - Click outside, press Esc, or Tab to finish`);
+            } else {
+                cursorPosition = 0;
+            }
+        } else {
+            // Set cursor position to end of text for non-table nodes
+            cursorPosition = (clickedNode.text || '').length;
+            setStatus(`Editing node #${clickedNode.id} - Click outside, press Esc, or Shift+Enter to finish`);
+        }
 
         startCursorBlink();
-        setStatus(`Editing node #${clickedNode.id} - Click outside, press Esc, or Shift+Enter to finish`);
         render();
     } else {
         // Create new node on empty space
+        // Special handling for table nodes - show size selection modal
+        if (currentNodeType === 'table') {
+            showTableModal(x, y);
+            return;
+        }
+
         const newNode = createNode(x, y, currentNodeType);
         nodes.push(newNode);
         selectedNode = newNode;
@@ -63,15 +109,39 @@ canvas.addEventListener('mousedown', (e) => {
         // Exit edit mode if active
         if (editingNode) {
             stopCursorBlink();
+            // Clear editingCell for table nodes
+            if (editingNode.type === 'table' && editingNode.editingCell) {
+                editingNode.editingCell = null;
+            }
             editingNode = null;
         }
 
-        if (clickedNode.subgraph) {
-            // Node has subgraph - enter it
-            enterSubgraph(clickedNode);
+        // Special handling for table nodes - detect which cell was clicked
+        if (clickedNode.type === 'table') {
+            const cellCol = Math.floor((x - clickedNode.x) / clickedNode.cellWidth);
+            const cellRow = Math.floor((y - clickedNode.y) / clickedNode.cellHeight);
+
+            // Validate cell coordinates
+            if (cellRow >= 0 && cellRow < clickedNode.rows && cellCol >= 0 && cellCol < clickedNode.cols) {
+                const cell = clickedNode.cells[cellRow][cellCol];
+
+                if (cell.subgraph) {
+                    // Cell has subgraph - enter it
+                    enterCellSubgraph(clickedNode, cellRow, cellCol);
+                } else {
+                    // Cell has no subgraph - create new one
+                    createCellSubgraph(clickedNode, cellRow, cellCol);
+                }
+            }
         } else {
-            // Node has no subgraph - create new one
-            createNewSubgraph(clickedNode);
+            // Regular node subgraph handling
+            if (clickedNode.subgraph) {
+                // Node has subgraph - enter it
+                enterSubgraph(clickedNode);
+            } else {
+                // Node has no subgraph - create new one
+                createNewSubgraph(clickedNode);
+            }
         }
 
         return false; // Don't continue with normal click handling
@@ -80,6 +150,10 @@ canvas.addEventListener('mousedown', (e) => {
     // Exit edit mode if clicking outside the editing node
     if (editingNode && clickedNode !== editingNode) {
         stopCursorBlink();
+        // Clear editingCell for table nodes
+        if (editingNode.type === 'table' && editingNode.editingCell) {
+            editingNode.editingCell = null;
+        }
         editingNode = null;
         setStatus('Finished editing');
         triggerAutoSave();
@@ -269,8 +343,38 @@ canvas.addEventListener('mousemove', (e) => {
                 selectedNode.x = centerX - newWidth / 2;
                 selectedNode.width = newWidth;
             }
+        } else if (selectedNode.type === 'table') {
+            // Table: resize cells proportionally
+            const currentWidth = selectedNode.cols * selectedNode.cellWidth;
+            const currentHeight = selectedNode.rows * selectedNode.cellHeight;
+
+            if (resizeCorner === 'se') {
+                const newWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, x - selectedNode.x);
+                const newHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, y - selectedNode.y);
+                selectedNode.cellWidth = newWidth / selectedNode.cols;
+                selectedNode.cellHeight = newHeight / selectedNode.rows;
+            } else if (resizeCorner === 'sw') {
+                const newWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, selectedNode.x + currentWidth - x);
+                const newHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, y - selectedNode.y);
+                selectedNode.x = selectedNode.x + currentWidth - newWidth;
+                selectedNode.cellWidth = newWidth / selectedNode.cols;
+                selectedNode.cellHeight = newHeight / selectedNode.rows;
+            } else if (resizeCorner === 'ne') {
+                const newWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, x - selectedNode.x);
+                const newHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, selectedNode.y + currentHeight - y);
+                selectedNode.y = selectedNode.y + currentHeight - newHeight;
+                selectedNode.cellWidth = newWidth / selectedNode.cols;
+                selectedNode.cellHeight = newHeight / selectedNode.rows;
+            } else if (resizeCorner === 'nw') {
+                const newWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, selectedNode.x + currentWidth - x);
+                const newHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, selectedNode.y + currentHeight - y);
+                selectedNode.x = selectedNode.x + currentWidth - newWidth;
+                selectedNode.y = selectedNode.y + currentHeight - newHeight;
+                selectedNode.cellWidth = newWidth / selectedNode.cols;
+                selectedNode.cellHeight = newHeight / selectedNode.rows;
+            }
         } else {
-            // Rectangle and text: existing corner-drag logic
+            // Rectangle, text, and code: existing corner-drag logic
             if (resizeCorner === 'se') {
                 selectedNode.width = Math.max(MIN_NODE_SIZE, x - selectedNode.x);
                 selectedNode.height = Math.max(MIN_NODE_SIZE, y - selectedNode.y);
@@ -362,16 +466,34 @@ document.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && e.shiftKey) {
             // Shift+Enter: Finish editing
             stopCursorBlink();
+            // Clear editingCell for table nodes
+            if (editingNode.type === 'table' && editingNode.editingCell) {
+                editingNode.editingCell = null;
+            }
             editingNode = null;
             setStatus('Finished editing');
             render();
             triggerAutoSave();
             e.preventDefault();
         } else if (e.key === 'Enter') {
-            // Enter: Add new line at cursor position
-            if (editingNode.text.length < MAX_TEXT_LENGTH) {
-                const text = editingNode.text || '';
-                editingNode.text = text.slice(0, cursorPosition) + '\n' + text.slice(cursorPosition);
+            // Enter: Add new line at cursor position (not for table cells)
+            if (editingNode.type === 'table') {
+                // For table cells, Enter just finishes editing
+                stopCursorBlink();
+                if (editingNode.editingCell) {
+                    editingNode.editingCell = null;
+                }
+                editingNode = null;
+                setStatus('Finished editing table cell');
+                render();
+                triggerAutoSave();
+                e.preventDefault();
+                return;
+            }
+
+            if (getEditingText(editingNode).length < MAX_TEXT_LENGTH) {
+                const text = getEditingText(editingNode);
+                setEditingText(editingNode, text.slice(0, cursorPosition) + '\n' + text.slice(cursorPosition));
                 cursorPosition++; // Move cursor past the newline
                 // Reset cursor blink on input
                 startCursorBlink();
@@ -384,14 +506,18 @@ document.addEventListener('keydown', (e) => {
         } else if (e.key === 'Backspace') {
             // Delete character before cursor
             if (cursorPosition > 0) {
-                const text = editingNode.text || '';
-                editingNode.text = text.slice(0, cursorPosition - 1) + text.slice(cursorPosition);
+                const text = getEditingText(editingNode);
+                setEditingText(editingNode, text.slice(0, cursorPosition - 1) + text.slice(cursorPosition));
                 cursorPosition--; // Move cursor back
                 // Reset cursor blink on input
                 startCursorBlink();
                 // Update status to show current length
-                const remaining = MAX_TEXT_LENGTH - editingNode.text.length;
-                setStatus(`Editing node #${editingNode.id} - ${remaining} characters remaining`);
+                const remaining = MAX_TEXT_LENGTH - getEditingText(editingNode).length;
+                if (editingNode.type === 'table') {
+                    setStatus(`Editing table #${editingNode.id} cell - ${remaining} characters remaining`);
+                } else {
+                    setStatus(`Editing node #${editingNode.id} - ${remaining} characters remaining`);
+                }
                 render(); // Immediate render so user sees the change
                 triggerAutoSave();
             }
@@ -399,6 +525,9 @@ document.addEventListener('keydown', (e) => {
         } else if (e.key === 'Escape') {
             // Cancel editing
             stopCursorBlink();
+            if (editingNode && editingNode.type === 'table' && editingNode.editingCell) {
+                editingNode.editingCell = null;
+            }
             editingNode = null;
             setStatus('Cancelled editing');
             render();
@@ -414,7 +543,7 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
         } else if (e.key === 'ArrowRight') {
             // Move cursor right
-            const textLength = (editingNode.text || '').length;
+            const textLength = getEditingText(editingNode).length;
             if (cursorPosition < textLength) {
                 cursorPosition++;
                 startCursorBlink(); // Reset blink
@@ -423,7 +552,7 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
         } else if (e.key === 'ArrowUp') {
             // Move cursor up one line (for multiline text)
-            const text = editingNode.text || '';
+            const text = getEditingText(editingNode);
             if (!text) {
                 e.preventDefault();
                 return;
@@ -459,7 +588,7 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
         } else if (e.key === 'ArrowDown') {
             // Move cursor down one line (for multiline text)
-            const text = editingNode.text || '';
+            const text = getEditingText(editingNode);
             if (!text) {
                 e.preventDefault();
                 return;
@@ -495,7 +624,7 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
         } else if (e.key === 'Home') {
             // Move cursor to start of line
-            const text = editingNode.text || '';
+            const text = getEditingText(editingNode);
             const beforeCursor = text.slice(0, cursorPosition);
             const lastNewline = beforeCursor.lastIndexOf('\n');
             cursorPosition = lastNewline + 1;
@@ -504,7 +633,7 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
         } else if (e.key === 'End') {
             // Move cursor to end of line
-            const text = editingNode.text || '';
+            const text = getEditingText(editingNode);
             const afterCursor = text.slice(cursorPosition);
             const nextNewline = afterCursor.indexOf('\n');
             if (nextNewline === -1) {
@@ -517,9 +646,9 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
         } else if (e.key === 'Delete') {
             // Delete character after cursor
-            const text = editingNode.text || '';
+            const text = getEditingText(editingNode);
             if (cursorPosition < text.length) {
-                editingNode.text = text.slice(0, cursorPosition) + text.slice(cursorPosition + 1);
+                setEditingText(editingNode, text.slice(0, cursorPosition) + text.slice(cursorPosition + 1));
                 startCursorBlink();
                 render();
                 triggerAutoSave();
@@ -527,16 +656,20 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
         } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== '\t') {
             // Add character at cursor position (with max length check)
-            if (editingNode.text.length < MAX_TEXT_LENGTH) {
-                const text = editingNode.text || '';
-                editingNode.text = text.slice(0, cursorPosition) + e.key + text.slice(cursorPosition);
+            if (getEditingText(editingNode).length < MAX_TEXT_LENGTH) {
+                const text = getEditingText(editingNode);
+                setEditingText(editingNode, text.slice(0, cursorPosition) + e.key + text.slice(cursorPosition));
                 cursorPosition++; // Move cursor forward
                 // Reset cursor blink on input
                 startCursorBlink();
                 // Show remaining characters when getting close to limit
-                const remaining = MAX_TEXT_LENGTH - editingNode.text.length;
+                const remaining = MAX_TEXT_LENGTH - getEditingText(editingNode).length;
                 if (remaining <= 50) {
-                    setStatus(`Editing node #${editingNode.id} - ${remaining} characters remaining`);
+                    if (editingNode.type === 'table') {
+                        setStatus(`Editing table #${editingNode.id} cell - ${remaining} characters remaining`);
+                    } else {
+                        setStatus(`Editing node #${editingNode.id} - ${remaining} characters remaining`);
+                    }
                 }
                 render(); // Immediate render so user sees the character
                 triggerAutoSave();
@@ -622,6 +755,10 @@ document.addEventListener('keydown', (e) => {
             // Clear editingNode if we're deleting the node being edited
             if (editingNode && editingNode.id === id) {
                 stopCursorBlink();
+                // Clear editingCell for table nodes
+                if (editingNode.type === 'table' && editingNode.editingCell) {
+                    editingNode.editingCell = null;
+                }
                 editingNode = null;
             }
 

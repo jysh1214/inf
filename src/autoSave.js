@@ -103,6 +103,13 @@ function autoLoad() {
                 console.warn('Invalid auto-save data: node missing dimensions', node);
                 return false;
             }
+            if (node.type === 'table' &&
+                (node.rows === undefined || node.cols === undefined ||
+                 node.cellWidth === undefined || node.cellHeight === undefined ||
+                 node.cells === undefined)) {
+                console.warn('Invalid auto-save data: table node missing required properties', node);
+                return false;
+            }
         }
 
         // Load the data

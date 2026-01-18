@@ -14,6 +14,9 @@ function drawNode(node) {
         case 'code':
             drawCodeNode(node, isSelected);
             break;
+        case 'table':
+            drawTableNode(node, isSelected);
+            break;
         case 'rectangle':
         default:
             drawRectangleNode(node, isSelected);
@@ -310,6 +313,112 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
     }
 
     ctx.restore();
+}
+
+function drawTableNode(node, isSelected) {
+    const totalWidth = node.cols * node.cellWidth;
+    const totalHeight = node.rows * node.cellHeight;
+
+    // Background
+    ctx.fillStyle = isSelected ? '#e3f2fd' : '#fff';
+    ctx.fillRect(node.x, node.y, totalWidth, totalHeight);
+
+    // Outer border - thicker for nodes with subgraphs
+    ctx.strokeStyle = isSelected ? '#2196f3' : '#999';
+    ctx.lineWidth = node.subgraph ? 4 : (isSelected ? 2 : 1);
+    ctx.strokeRect(node.x, node.y, totalWidth, totalHeight);
+
+    // Draw grid lines and cell content
+    ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
+    ctx.textBaseline = 'middle';
+
+    for (let row = 0; row < node.rows; row++) {
+        for (let col = 0; col < node.cols; col++) {
+            const cellX = node.x + col * node.cellWidth;
+            const cellY = node.y + row * node.cellHeight;
+            const cell = node.cells[row][col];
+
+            // Draw cell border
+            ctx.strokeStyle = '#ccc';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(cellX, cellY, node.cellWidth, node.cellHeight);
+
+            // Draw dashed border for cells with subgraphs
+            if (cell.subgraph) {
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(cellX + 1, cellY + 1, node.cellWidth - 2, node.cellHeight - 2);
+                ctx.setLineDash([]); // Reset to solid
+            }
+
+            // Highlight editing cell
+            const isEditingCell = node.editingCell && node.editingCell.row === row && node.editingCell.col === col;
+            if (isEditingCell) {
+                ctx.fillStyle = '#fff9c4';
+                ctx.fillRect(cellX, cellY, node.cellWidth, node.cellHeight);
+                ctx.strokeStyle = '#ffa000';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(cellX, cellY, node.cellWidth, node.cellHeight);
+            }
+
+            // Draw cell text
+            const cellText = cell.text || '';
+            if (cellText || isEditingCell) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(cellX + 2, cellY + 2, node.cellWidth - 4, node.cellHeight - 4);
+                ctx.clip();
+
+                ctx.fillStyle = '#333';
+                const centerX = cellX + node.cellWidth / 2;
+                const centerY = cellY + node.cellHeight / 2;
+
+                // Use cell's textAlign or fallback to table's default
+                const cellAlign = cell.textAlign || node.textAlign || 'center';
+                ctx.textAlign = cellAlign;
+
+                // Simple single-line text for table cells
+                ctx.fillText(cellText, centerX, centerY);
+
+                // Draw cursor if this cell is being edited
+                if (isEditingCell && cursorVisible) {
+                    const textWidth = ctx.measureText(cellText.substring(0, cursorPosition)).width;
+
+                    let cursorX;
+                    if (cellAlign === 'left') {
+                        cursorX = cellX + 8 + textWidth;
+                    } else if (cellAlign === 'right') {
+                        const fullTextWidth = ctx.measureText(cellText).width;
+                        cursorX = cellX + node.cellWidth - 8 - fullTextWidth + textWidth;
+                    } else {
+                        const fullTextWidth = ctx.measureText(cellText).width;
+                        cursorX = centerX - fullTextWidth / 2 + textWidth;
+                    }
+
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(cursorX + 1, centerY - 8);
+                    ctx.lineTo(cursorX + 1, centerY + 8);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        }
+    }
+
+    // Draw resize handles if selected
+    if (isSelected) {
+        const corners = [
+            { x: node.x, y: node.y },
+            { x: node.x + totalWidth, y: node.y },
+            { x: node.x, y: node.y + totalHeight },
+            { x: node.x + totalWidth, y: node.y + totalHeight }
+        ];
+        drawResizeHandles(corners);
+    }
 }
 
 function drawNodeText(node, centerX, centerY, maxWidth) {

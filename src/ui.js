@@ -115,5 +115,146 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
             e.stopImmediatePropagation();
         }
+
+        const tableModal = document.getElementById('table-modal');
+        if (tableModal && tableModal.style.display === 'flex') {
+            closeTableModal();
+            e.preventDefault();
+            e.stopImmediatePropagation();
+        }
+    }
+});
+
+// Table modal state
+let pendingTablePosition = null;
+
+/**
+ * Show the table size input modal
+ * @param {number} x - X position for the table
+ * @param {number} y - Y position for the table
+ */
+function showTableModal(x, y) {
+    const modal = document.getElementById('table-modal');
+    if (!modal) {
+        console.error('Table modal not found');
+        setStatus('⚠️ Error: Modal UI not loaded');
+        return;
+    }
+
+    // Store the position where the table will be created
+    pendingTablePosition = { x, y };
+
+    // Reset input values to defaults
+    const rowsInput = document.getElementById('table-rows');
+    const colsInput = document.getElementById('table-cols');
+    if (rowsInput) rowsInput.value = DEFAULT_TABLE_ROWS;
+    if (colsInput) colsInput.value = DEFAULT_TABLE_COLS;
+
+    // Show the modal
+    modal.style.display = 'flex';
+
+    // Focus the rows input
+    if (rowsInput) {
+        setTimeout(() => rowsInput.focus(), 100);
+    }
+}
+
+/**
+ * Close the table modal
+ */
+function closeTableModal() {
+    const modal = document.getElementById('table-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    pendingTablePosition = null;
+}
+
+/**
+ * Create table with the specified size from modal inputs
+ */
+function createTableWithSize() {
+    if (!pendingTablePosition) {
+        console.error('No pending table position');
+        closeTableModal();
+        return;
+    }
+
+    const rowsInput = document.getElementById('table-rows');
+    const colsInput = document.getElementById('table-cols');
+
+    const rows = parseInt(rowsInput.value, 10);
+    const cols = parseInt(colsInput.value, 10);
+
+    // Validate inputs
+    if (isNaN(rows) || isNaN(cols) || rows < 1 || cols < 1 || rows > 20 || cols > 20) {
+        setStatus('⚠️ Invalid table size. Rows and columns must be between 1 and 20.');
+        return;
+    }
+
+    // Create the table node
+    const cellWidth = DEFAULT_TABLE_CELL_WIDTH;
+    const cellHeight = DEFAULT_TABLE_CELL_HEIGHT;
+    const totalWidth = cols * cellWidth;
+    const totalHeight = rows * cellHeight;
+
+    // Create cell objects (similar to Text nodes but cannot be resized)
+    const cells = Array(rows).fill(null).map(() =>
+        Array(cols).fill(null).map(() => ({
+            text: '',
+            textAlign: currentTextAlign
+            // subgraph can be added later via Ctrl+Click
+        }))
+    );
+
+    const node = {
+        id: nextId++,
+        type: 'table',
+        x: pendingTablePosition.x - totalWidth / 2,
+        y: pendingTablePosition.y - totalHeight / 2,
+        rows: rows,
+        cols: cols,
+        cellWidth: cellWidth,
+        cellHeight: cellHeight,
+        cells: cells,  // Array of cell objects, not just text
+        editingCell: null,
+        textAlign: currentTextAlign  // Default for new cells
+    };
+
+    nodes.push(node);
+    nodeMap.set(node.id, node);
+    selectedNode = node;
+
+    // Close modal
+    closeTableModal();
+
+    // Render and trigger auto-save
+    render();
+    triggerAutoSave();
+    setStatus(`Created ${rows}×${cols} table`);
+}
+
+// Setup table modal overlay click handler
+document.addEventListener('DOMContentLoaded', () => {
+    const tableModal = document.getElementById('table-modal');
+    if (tableModal) {
+        const overlay = tableModal.querySelector('.modal-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', closeTableModal);
+        }
+    }
+
+    // Allow Enter key to confirm table creation
+    const rowsInput = document.getElementById('table-rows');
+    const colsInput = document.getElementById('table-cols');
+    if (rowsInput && colsInput) {
+        const handleEnter = (e) => {
+            if (e.key === 'Enter') {
+                createTableWithSize();
+                e.preventDefault();
+            }
+        };
+        rowsInput.addEventListener('keydown', handleEnter);
+        colsInput.addEventListener('keydown', handleEnter);
     }
 });

@@ -330,3 +330,71 @@ button:active {
 .modal-cancel:active {
     background: #e9ecef;
 }
+
+/* Table modal specific styles */
+.table-size-inputs {
+    margin: 20px 0;
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.input-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.input-group input[type="number"] {
+    width: 100px;
+    padding: 8px 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 16px;
+    text-align: center;
+    transition: border-color 0.2s;
+}
+
+.input-group input[type="number"]:focus {
+    outline: none;
+    border-color: #2196f3;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.modal-buttons .modal-cancel {
+    width: auto;
+    flex: 1;
+}
+
+.modal-confirm {
+    background: #2196f3;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    flex: 1;
+    transition: background 0.2s;
+}
+
+.modal-confirm:hover {
+    background: #1976d2;
+}
+
+.modal-confirm:active {
+    background: #1565c0;
+}

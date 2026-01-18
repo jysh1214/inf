@@ -199,13 +199,78 @@ function validateNode(node, index) {
     }
 
     // Validate node type
-    const validTypes = ['rectangle', 'circle', 'diamond', 'text', 'code'];
+    const validTypes = ['rectangle', 'circle', 'diamond', 'text', 'code', 'table'];
     if (!validTypes.includes(node.type)) {
         throw new Error(`Node ${index} (id: ${node.id}): invalid type '${node.type}'. Must be one of: ${validTypes.join(', ')}`);
     }
 
     // Type-specific validation
-    if (node.type === 'circle') {
+    if (node.type === 'table') {
+        // Validate table-specific fields
+        if (!isValidNumber(node.rows) || node.rows < 1 || node.rows > 20 || node.rows !== Math.floor(node.rows)) {
+            throw new Error(`Node ${index} (id: ${node.id}): table 'rows' must be an integer between 1 and 20 (got ${node.rows})`);
+        }
+        if (!isValidNumber(node.cols) || node.cols < 1 || node.cols > 20 || node.cols !== Math.floor(node.cols)) {
+            throw new Error(`Node ${index} (id: ${node.id}): table 'cols' must be an integer between 1 and 20 (got ${node.cols})`);
+        }
+        if (!isValidNumber(node.cellWidth) || node.cellWidth <= MIN_NODE_SIZE || node.cellWidth > MAX_NODE_SIZE) {
+            throw new Error(`Node ${index} (id: ${node.id}): table 'cellWidth' must be a valid number between ${MIN_NODE_SIZE} and ${MAX_NODE_SIZE} (got ${node.cellWidth})`);
+        }
+        if (!isValidNumber(node.cellHeight) || node.cellHeight <= MIN_NODE_SIZE || node.cellHeight > MAX_NODE_SIZE) {
+            throw new Error(`Node ${index} (id: ${node.id}): table 'cellHeight' must be a valid number between ${MIN_NODE_SIZE} and ${MAX_NODE_SIZE} (got ${node.cellHeight})`);
+        }
+
+        // Validate cells array
+        if (!Array.isArray(node.cells)) {
+            throw new Error(`Node ${index} (id: ${node.id}): table 'cells' must be an array (got ${typeof node.cells})`);
+        }
+        if (node.cells.length !== node.rows) {
+            throw new Error(`Node ${index} (id: ${node.id}): table 'cells' array length (${node.cells.length}) must match rows (${node.rows})`);
+        }
+        node.cells.forEach((row, rowIndex) => {
+            if (!Array.isArray(row)) {
+                throw new Error(`Node ${index} (id: ${node.id}): table 'cells[${rowIndex}]' must be an array (got ${typeof row})`);
+            }
+            if (row.length !== node.cols) {
+                throw new Error(`Node ${index} (id: ${node.id}): table 'cells[${rowIndex}]' length (${row.length}) must match cols (${node.cols})`);
+            }
+            row.forEach((cell, colIndex) => {
+                if (cell === null || cell === undefined || typeof cell !== 'object') {
+                    throw new Error(`Node ${index} (id: ${node.id}): table 'cells[${rowIndex}][${colIndex}]' must be an object (got ${typeof cell})`);
+                }
+
+                // Validate cell properties (similar to Text nodes)
+                if (cell.text !== undefined && cell.text !== null && typeof cell.text !== 'string') {
+                    throw new Error(`Node ${index} (id: ${node.id}): table 'cells[${rowIndex}][${colIndex}].text' must be a string (got ${typeof cell.text})`);
+                }
+
+                if (cell.textAlign !== undefined && cell.textAlign !== null) {
+                    const validAlignments = ['left', 'center', 'right'];
+                    if (!validAlignments.includes(cell.textAlign)) {
+                        throw new Error(`Node ${index} (id: ${node.id}): table 'cells[${rowIndex}][${colIndex}].textAlign' must be one of: ${validAlignments.join(', ')} (got '${cell.textAlign}')`);
+                    }
+                }
+
+                // Validate cell subgraph (optional)
+                if (cell.subgraph !== undefined && cell.subgraph !== null) {
+                    validateSubgraph(cell.subgraph, `${node.id}-cell-${rowIndex}-${colIndex}`, `${index}.cells[${rowIndex}][${colIndex}]`);
+                }
+            });
+        });
+
+        // Validate editingCell (optional)
+        if (node.editingCell !== null && node.editingCell !== undefined) {
+            if (typeof node.editingCell !== 'object') {
+                throw new Error(`Node ${index} (id: ${node.id}): table 'editingCell' must be an object or null (got ${typeof node.editingCell})`);
+            }
+            if (!isValidNumber(node.editingCell.row) || node.editingCell.row < 0 || node.editingCell.row >= node.rows) {
+                throw new Error(`Node ${index} (id: ${node.id}): table 'editingCell.row' must be between 0 and ${node.rows - 1} (got ${node.editingCell.row})`);
+            }
+            if (!isValidNumber(node.editingCell.col) || node.editingCell.col < 0 || node.editingCell.col >= node.cols) {
+                throw new Error(`Node ${index} (id: ${node.id}): table 'editingCell.col' must be between 0 and ${node.cols - 1} (got ${node.editingCell.col})`);
+            }
+        }
+    } else if (node.type === 'circle') {
         if (!isValidNumber(node.radius)) {
             throw new Error(`Node ${index} (id: ${node.id}): circle 'radius' must be a valid number (got ${node.radius})`);
         }
@@ -959,13 +1024,64 @@ async function exitSubgraph() {
         // Find the parent node we came from
         const parentNode = nodeMap.get(parentNodeId);
         if (parentNode) {
-            // Update parent node's subgraph with current changes
-            if (typeof parentNode.subgraph === 'object') {
-                // Embedded subgraph - update in-place
-                parentNode.subgraph = currentSubgraphData;
-            } else if (isFileBased && fileName) {
-                // File-based subgraph - save to file
-                let fileHandle = fileHandleMap.get(parentNodeId);
+            // Check if this was a cell subgraph
+            if (stackEntry.cellPosition) {
+                const { row, col } = stackEntry.cellPosition;
+                const cell = parentNode.cells[row][col];
+
+                // Update cell's subgraph with current changes
+                if (typeof cell.subgraph === 'object') {
+                    // Embedded subgraph - update in-place
+                    cell.subgraph = currentSubgraphData;
+                } else if (isFileBased && fileName) {
+                    // File-based subgraph - save to file
+                    let fileHandle = fileHandleMap.get(`${parentNodeId}-cell-${row}-${col}`);
+
+                    // If we don't have the file handle (e.g., after page reload), prompt user
+                    if (!fileHandle && 'showOpenFilePicker' in window) {
+                        try {
+                            setStatus(`Saving ${fileName} - please select the file...`);
+                            const handles = await window.showOpenFilePicker({
+                                types: [{
+                                    description: 'JSON Files',
+                                    accept: { 'application/json': ['.json'] }
+                                }],
+                                multiple: false
+                            });
+                            fileHandle = handles[0];
+                            fileHandleMap.set(`${parentNodeId}-cell-${row}-${col}`, fileHandle);
+                        } catch (error) {
+                            if (error.name === 'AbortError') {
+                                setStatus('⚠️ File selection cancelled - cell subgraph changes not saved to file');
+                            } else {
+                                setStatus(`⚠️ Failed to select file: ${error.message}`);
+                            }
+                            fileHandle = null;
+                        }
+                    }
+
+                    // Save to file if we have a handle
+                    if (fileHandle) {
+                        try {
+                            const writable = await fileHandle.createWritable();
+                            await writable.write(JSON.stringify(currentSubgraphData, null, 2));
+                            await writable.close();
+                            setStatus(`Saved changes to ${fileName}`);
+                        } catch (error) {
+                            console.error('Failed to save cell subgraph file:', error);
+                            setStatus(`⚠️ Failed to save changes to ${fileName}: ${error.message}`);
+                        }
+                    }
+                }
+            } else {
+                // Regular node subgraph
+                // Update parent node's subgraph with current changes
+                if (typeof parentNode.subgraph === 'object') {
+                    // Embedded subgraph - update in-place
+                    parentNode.subgraph = currentSubgraphData;
+                } else if (isFileBased && fileName) {
+                    // File-based subgraph - save to file
+                    let fileHandle = fileHandleMap.get(parentNodeId);
 
                 // If we don't have the file handle (e.g., after page reload), prompt user
                 if (!fileHandle && 'showOpenFilePicker' in window) {
@@ -990,16 +1106,17 @@ async function exitSubgraph() {
                     }
                 }
 
-                // Save to file if we have a handle
-                if (fileHandle) {
-                    try {
-                        const writable = await fileHandle.createWritable();
-                        await writable.write(JSON.stringify(currentSubgraphData, null, 2));
-                        await writable.close();
-                        setStatus(`Saved changes to ${fileName}`);
-                    } catch (error) {
-                        console.error('Failed to save subgraph file:', error);
-                        setStatus(`⚠️ Failed to save changes to ${fileName}: ${error.message}`);
+                    // Save to file if we have a handle
+                    if (fileHandle) {
+                        try {
+                            const writable = await fileHandle.createWritable();
+                            await writable.write(JSON.stringify(currentSubgraphData, null, 2));
+                            await writable.close();
+                            setStatus(`Saved changes to ${fileName}`);
+                        } catch (error) {
+                            console.error('Failed to save subgraph file:', error);
+                            setStatus(`⚠️ Failed to save changes to ${fileName}: ${error.message}`);
+                        }
                     }
                 }
             }
@@ -1215,4 +1332,206 @@ async function exportToPNG() {
             setStatus(`Image exported to ${a.download}`);
         }
     }, 'image/png');
+}
+
+// Table cell subgraph functions
+async function createCellSubgraph(tableNode, row, col) {
+    try {
+        const cell = tableNode.cells[row][col];
+
+        // Check if workspace folder is set for file-based subgraphs
+        const hasWorkspace = await getDirectoryHandle();
+
+        // Prompt user to choose subgraph type using modal
+        const choice = await showSubgraphModal(hasWorkspace);
+
+        // User cancelled
+        if (!choice) {
+            setStatus('Cell subgraph creation cancelled');
+            return;
+        }
+
+        if (choice === 'embedded') {
+            // Create embedded subgraph
+            cell.subgraph = {
+                version: VERSION,
+                nodes: [],
+                connections: [],
+                nextId: 1,
+                canvasWidth: DEFAULT_CANVAS_WIDTH,
+                canvasHeight: DEFAULT_CANVAS_HEIGHT,
+                zoom: 1.0
+            };
+            setStatus(`Created embedded subgraph for table #${tableNode.id} cell (${row + 1}, ${col + 1}) - Entering...`);
+            render();
+            triggerAutoSave();
+
+            // Enter the cell subgraph immediately
+            await enterCellSubgraph(tableNode, row, col);
+        } else if (choice === 'new-file') {
+            // Create new file-based subgraph
+            if ('showSaveFilePicker' in window) {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                const fileHandle = await window.showSaveFilePicker({
+                    suggestedName: `subgraph-table-${tableNode.id}-cell-${row}-${col}-${timestamp}.json`,
+                    types: [{
+                        description: 'JSON Files',
+                        accept: { 'application/json': ['.json'] }
+                    }]
+                });
+
+                // Create initial empty subgraph data
+                const subgraphData = {
+                    version: VERSION,
+                    nodes: [],
+                    connections: [],
+                    nextId: 1,
+                    canvasWidth: DEFAULT_CANVAS_WIDTH,
+                    canvasHeight: DEFAULT_CANVAS_HEIGHT,
+                    zoom: 1.0
+                };
+
+                // Write to file
+                const writable = await fileHandle.createWritable();
+                await writable.write(JSON.stringify(subgraphData, null, 2));
+                await writable.close();
+
+                // Get relative path
+                const fileName = fileHandle.name;
+                cell.subgraph = fileName;
+
+                setStatus(`Created file-based subgraph: ${fileName} - Entering...`);
+                render();
+                triggerAutoSave();
+
+                // Enter the subgraph
+                await enterCellSubgraph(tableNode, row, col);
+            } else {
+                setStatus('⚠️ File System Access API not supported in this browser');
+            }
+        } else if (choice === 'existing-file') {
+            // Link to existing file
+            if ('showOpenFilePicker' in window) {
+                const [fileHandle] = await window.showOpenFilePicker({
+                    types: [{
+                        description: 'JSON Files',
+                        accept: { 'application/json': ['.json'] }
+                    }],
+                    multiple: false
+                });
+
+                // Validate the file
+                const file = await fileHandle.getFile();
+                const content = await file.text();
+                const data = JSON.parse(content);
+                validateSubgraph(data, `table-${tableNode.id}-cell-${row}-${col}`, 0);
+
+                const fileName = fileHandle.name;
+                cell.subgraph = fileName;
+
+                setStatus(`Linked cell to existing file: ${fileName}`);
+                render();
+                triggerAutoSave();
+            } else {
+                setStatus('⚠️ File System Access API not supported in this browser');
+            }
+        }
+    } catch (error) {
+        console.error('Error creating cell subgraph:', error);
+        setStatus(`⚠️ Error creating cell subgraph: ${error.message}`);
+    }
+}
+
+async function enterCellSubgraph(tableNode, row, col) {
+    try {
+        const cell = tableNode.cells[row][col];
+        let subgraphData = null;
+
+        // Determine if it's a file path or embedded subgraph
+        if (typeof cell.subgraph === 'string') {
+            // File path - check for circular reference
+            const fileName = cell.subgraph;
+            const fileAlreadyInStack = subgraphStack.some(entry => entry.fileName === fileName);
+            if (fileAlreadyInStack) {
+                throw new Error(`Circular reference detected: "${fileName}" is already in the navigation stack`);
+            }
+
+            // Load from file
+            setStatus(`Loading cell subgraph from ${fileName}...`);
+            subgraphData = await loadSubgraphFromFile(fileName, `${tableNode.id}-cell-${row}-${col}`);
+        } else if (typeof cell.subgraph === 'object') {
+            // Embedded subgraph - create a unique identifier for the cell
+            const cellId = `${tableNode.id}-cell-${row}-${col}`;
+            if (currentPath.includes(cellId)) {
+                throw new Error(`Circular reference detected: Cell (${row + 1}, ${col + 1}) is already in the navigation path`);
+            }
+
+            subgraphData = cell.subgraph;
+        } else {
+            throw new Error('Invalid cell subgraph format');
+        }
+
+        // Stop any ongoing editing
+        stopCursorBlink();
+
+        // Create a unique identifier for the cell
+        const cellId = `${tableNode.id}-cell-${row}-${col}`;
+
+        // Save current state to stack
+        const currentState = {
+            parentState: {
+                nodes: JSON.parse(JSON.stringify(nodes)),
+                connections: JSON.parse(JSON.stringify(connections)),
+                nextId: nextId,
+                canvasWidth: canvasWidth,
+                canvasHeight: canvasHeight,
+                zoom: zoom
+            },
+            nodeId: tableNode.id,
+            cellPosition: { row, col },  // Mark this as a cell subgraph
+            nodePath: [...currentPath, cellId],
+            isFileBased: typeof cell.subgraph === 'string',
+            fileName: typeof cell.subgraph === 'string' ? cell.subgraph : null
+        };
+        subgraphStack.push(currentState);
+
+        // Update path
+        currentPath.push(cellId);
+        currentDepth++;
+
+        // Load subgraph data
+        nodes = subgraphData.nodes || [];
+        connections = subgraphData.connections || [];
+        nextId = subgraphData.nextId || 1;
+        canvasWidth = subgraphData.canvasWidth || DEFAULT_CANVAS_WIDTH;
+        canvasHeight = subgraphData.canvasHeight || DEFAULT_CANVAS_HEIGHT;
+        zoom = subgraphData.zoom || 1.0;
+
+        // Rebuild nodeMap
+        nodeMap.clear();
+        nodes.forEach(node => nodeMap.set(node.id, node));
+
+        // Reset selection state
+        selectedNode = null;
+        selectedConnection = null;
+        editingNode = null;
+        connectionMode = false;
+        connectionStart = null;
+
+        // Update UI and render
+        updateBreadcrumb();
+        resizeCanvas();
+        render();
+        triggerAutoSave();
+        setStatus(`Entered subgraph of table #${tableNode.id} cell (${row + 1}, ${col + 1})`);
+
+        // Show navigation controls
+        const navSection = document.getElementById('subgraph-navigation');
+        if (navSection) {
+            navSection.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error entering cell subgraph:', error);
+        setStatus(`⚠️ Error entering cell subgraph: ${error.message}`);
+    }
 }

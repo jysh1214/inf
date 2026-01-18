@@ -43,6 +43,37 @@ function createNode(x, y, type = 'rectangle') {
                 height: DEFAULT_CODE_HEIGHT
             };
             break;
+        case 'table':
+            // For tables, rows and cols will be set by createTableWithSize()
+            // This creates a default 3x3 table if called directly
+            const rows = DEFAULT_TABLE_ROWS;
+            const cols = DEFAULT_TABLE_COLS;
+            const cellWidth = DEFAULT_TABLE_CELL_WIDTH;
+            const cellHeight = DEFAULT_TABLE_CELL_HEIGHT;
+            const totalWidth = cols * cellWidth;
+            const totalHeight = rows * cellHeight;
+
+            // Create cell objects (similar to Text nodes but cannot be resized)
+            const cells = Array(rows).fill(null).map(() =>
+                Array(cols).fill(null).map(() => ({
+                    text: '',
+                    textAlign: currentTextAlign
+                    // subgraph can be added later via Ctrl+Click
+                }))
+            );
+
+            node = {
+                ...baseNode,
+                x: x - totalWidth / 2,
+                y: y - totalHeight / 2,
+                rows: rows,
+                cols: cols,
+                cellWidth: cellWidth,
+                cellHeight: cellHeight,
+                cells: cells,  // Array of cell objects, not just text
+                editingCell: null  // {row: number, col: number} when editing a cell
+            };
+            break;
         case 'rectangle':
         default:
             node = {
@@ -116,8 +147,16 @@ function isPointInNode(x, y, node) {
 
         case 'text':
         case 'code':
+        case 'table':
         case 'rectangle':
         default:
+            // For table nodes, calculate total dimensions
+            if (node.type === 'table') {
+                const totalWidth = node.cols * node.cellWidth;
+                const totalHeight = node.rows * node.cellHeight;
+                return x >= node.x && x <= node.x + totalWidth &&
+                       y >= node.y && y <= node.y + totalHeight;
+            }
             return x >= node.x && x <= node.x + node.width &&
                    y >= node.y && y <= node.y + node.height;
     }
@@ -173,14 +212,24 @@ function getResizeCorner(x, y, node) {
 
         case 'text':
         case 'code':
+        case 'table':
         case 'rectangle':
         default:
             // 4 corner handles
+            let width, height;
+            if (node.type === 'table') {
+                width = node.cols * node.cellWidth;
+                height = node.rows * node.cellHeight;
+            } else {
+                width = node.width;
+                height = node.height;
+            }
+
             const rectCorners = [
                 { name: 'nw', x: node.x, y: node.y },
-                { name: 'ne', x: node.x + node.width, y: node.y },
-                { name: 'sw', x: node.x, y: node.y + node.height },
-                { name: 'se', x: node.x + node.width, y: node.y + node.height }
+                { name: 'ne', x: node.x + width, y: node.y },
+                { name: 'sw', x: node.x, y: node.y + height },
+                { name: 'se', x: node.x + width, y: node.y + height }
             ];
 
             for (let corner of rectCorners) {
