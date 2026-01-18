@@ -512,15 +512,22 @@ Syntax highlighting colors and keywords in `constants.js`:
 
 ## Version History
 
+- **v2.0** (2026-01-19):
+  - **UI/UX overhaul**: Modern purple gradient design system
+  - **Beautiful error modal**: Replaces browser alert() with animated custom modal
+  - **File path display**: Shows current file in sidebar
+  - **Critical bug fixes**: 6 bugs fixed including all table rendering issues
+    - Fixed text alignment in table cells
+    - Fixed hover effect size for table nodes
+    - Fixed connection rendering for table nodes (center point and edge points)
+    - Fixed hover effect persisting after node deletion
+    - Fixed undefined variable bug (copiedNode → copiedNodes)
+  - **Documentation**: Comprehensive CLAUDE.md updates with bug patterns
 - **v1.5** (2026-01-19):
   - Table node type with cell-level subgraph support
   - Multi-node selection with Ctrl+Click
   - Multi-node alignment (horizontal/vertical)
   - Copy/paste for multiple nodes
-  - Beautiful error modal for JSON validation errors
-  - Modern UI redesign with purple gradient theme
-  - File path display in sidebar
-  - Bug fix: copiedNode → copiedNodes variable correction
 - **v1.4** (2026-01-18):
   - Code node type with syntax highlighting (JavaScript/TypeScript, C/C++, Python)
   - Full cursor position tracking with arrow key navigation
