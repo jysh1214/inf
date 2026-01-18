@@ -23,9 +23,8 @@ Output:
 
 Important:
 - ⚠️ **Main file MUST be named "root.json"** - Inf auto-loads this file when workspace is set
-- ⚠️ **File-based subgraphs require workspace folder** - users MUST click "Set Folder" in Inf first
 - Subgraph references are **relative paths only** (e.g., "module-auth.json") - NO absolute paths
-- All files must be in the same folder (workspace folder)
+- All files must be in the same folder
 - canvasWidth and canvasHeight must be between 1000-20000 (use 2000 as default)
 - All IDs must be unique, nextId must be greater than any used ID
 
