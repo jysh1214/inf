@@ -652,6 +652,7 @@ async function loadSubgraphFromFile(filePath, nodeId) {
     try {
         // Check if we already have a file handle for this node (memory cache)
         let fileHandle = fileHandleMap.get(nodeId);
+        let fileHandleSource = fileHandle ? 'memory' : null;
 
         // If not in memory, try IndexedDB (persistent storage)
         if (!fileHandle) {
@@ -666,11 +667,26 @@ async function loadSubgraphFromFile(filePath, nodeId) {
                 } else {
                     // Store in memory cache for faster access
                     fileHandleMap.set(nodeId, fileHandle);
+                    fileHandleSource = 'indexeddb';
                 }
             }
         }
 
-        // If still no handle, try to find in authorized directory
+        // Try to access the file to verify the handle is still valid
+        if (fileHandle) {
+            try {
+                await fileHandle.getFile();
+                // File access successful, handle is valid
+            } catch (error) {
+                // File handle is stale (file deleted, moved, or permission lost)
+                console.warn(`File handle from ${fileHandleSource} is stale:`, error);
+                fileHandle = null;
+                fileHandleMap.delete(nodeId);
+                await deleteFileHandle(nodeId);
+            }
+        }
+
+        // If still no valid handle, try to find in authorized directory
         if (!fileHandle && filePath) {
             // Extract filename from path (handles Unix, Windows, UNC, and mixed paths)
             const pathParts = filePath.split(/[\\/]/).filter(Boolean);
