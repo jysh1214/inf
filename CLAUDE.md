@@ -269,16 +269,30 @@ For file operations:
 
 **Recommended workflow** for file-based subgraphs:
 1. User clicks "Set Folder" to authorize a workspace directory
-2. All diagram files for a project live in that folder
-3. Files in workspace open automatically (no picker prompts)
-4. Directory permission persists across sessions (stored in IndexedDB)
+2. **Auto-loads `root.json`** if it exists in the workspace folder
+3. All diagram files for a project live in that folder
+4. Files in workspace open automatically (no picker prompts)
+5. Directory permission persists across sessions (stored in IndexedDB)
 
 **Implementation:**
 - Use Directory Picker API (`showDirectoryPicker()`)
 - Store `FileSystemDirectoryHandle` in IndexedDB
+- **`root.json` convention**: Main diagram file named `root.json` auto-loads when workspace is set
 - Search workspace by filename using `dirHandle.getFileHandle(filename)`
 - Falls back to individual file picker for files outside workspace
+- **Relative paths only**: File-based subgraphs use filenames only (e.g., `"module-auth.json"`)
+- **Workspace required**: UI enforces workspace folder setup before allowing file-based subgraphs
 - Best UX: Minimal permission prompts, maximum automation
+
+**File Access Flow (`loadSubgraphFromFile`):**
+1. Check memory cache for file handle
+2. Check IndexedDB for persisted handle → verify permission → validate handle is not stale
+3. If handle stale (file deleted/moved), clear from cache and IndexedDB
+4. Try workspace folder by filename
+5. Fallback to file picker prompt
+6. Store new handle in memory + IndexedDB for future use
+
+**Performance optimization:** File handle validation reuses the file object instead of calling `getFile()` twice
 
 ### Event Handler Priority
 
@@ -324,6 +338,16 @@ If file handles don't persist or errors occur:
 3. Ensure all async operations have try/catch blocks
 4. Check QuotaExceededError handling (browser storage limits)
 5. Verify permission checks before using stored handles
+6. Validate file handles are not stale before use (file may have been deleted/moved)
+
+### Stale File Handle Errors
+
+If "Failed to access file" errors occur:
+1. File handles can become stale when files are deleted, moved, or permissions change
+2. `loadSubgraphFromFile` validates handles by calling `getFile()` early
+3. Stale handles are automatically cleared from memory and IndexedDB
+4. System falls back to workspace folder search, then file picker
+5. No user action needed - automatic recovery handles this gracefully
 
 ### Mouse Position Issues
 
@@ -333,8 +357,22 @@ If clicks don't match visual positions:
 3. Ensure zoom transformation is applied correctly
 4. Do NOT add `container.scrollLeft/Top` (rect is already adjusted for scroll)
 
+### Font Configuration
+
+Font is configurable via constants in `constants.js`:
+- `FONT_FAMILY` - Font family for canvas text (default: `'sans-serif'`)
+- `FONT_SIZE` - Font size in pixels (default: `14`)
+
+Change these constants to customize text rendering across all nodes.
+
 ## Version History
 
+- **v1.2+** (2026-01-18):
+  - Workspace folder with `root.json` auto-load
+  - Relative paths enforced for file-based subgraphs
+  - Stale file handle recovery
+  - Performance optimization (eliminated duplicate file access)
+  - Font constants
 - **v1.2** (2026-01-18): Connection rendering fixes (arrowhead gaps, 45-degree angles, center-to-center alignment)
 - **v1.1** (2026-01-17): Workspace folder permission, IndexedDB persistence, mouse position fix, race condition fix
 - **v1.0** (2026-01-17): Initial major release with hierarchical subgraph navigation
