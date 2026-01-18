@@ -16,15 +16,15 @@ Structure:
   - rectangle (concepts)
   - circle (entry/exit points)
   - diamond (decisions)
-  - text (annotations)
-  - code (source code snippets with syntax highlighting)
+  - text (details/annotations)
+  - code (pseudocode/source code snippets)
 - Create meaningful connections (directed for flow/dependency, undirected for associations)
 
 Output:
 - **root.json** - Main diagram file with root-level overview (REQUIRED - this name is mandatory)
 - Separate JSON files for each subgraph (named clearly, e.g., "module-authentication.json", "concept-event-loop.json")
 - In parent nodes, use `"subgraph": "filename.json"` to reference files (relative path only)
-- Save all files in DEST
+- Save all files in [DEST]
 
 Important:
 - ⚠️ **Main file MUST be named "root.json"** - Inf auto-loads this file when workspace is set
