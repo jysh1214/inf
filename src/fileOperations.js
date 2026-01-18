@@ -547,7 +547,10 @@ async function selectWorkspaceFolder() {
                 setStatus(`✓ Workspace folder set: ${dirHandle.name} (no root.json found)`);
             } else {
                 console.warn('Failed to load root.json:', rootError);
-                setStatus(`✓ Workspace folder set: ${dirHandle.name} (root.json invalid: ${rootError.message})`);
+                const errorMsg = `root.json is invalid: ${rootError.message}`;
+                setStatus(`✓ Workspace folder set: ${dirHandle.name} (${errorMsg})`);
+                // Show explicit error for invalid root.json
+                alert(`Workspace folder set, but ${errorMsg}`);
             }
         }
     } catch (error) {
@@ -966,8 +969,11 @@ async function enterSubgraph(node) {
         if (error.name === 'AbortError') {
             setStatus('Subgraph navigation cancelled');
         } else {
-            setStatus(`⚠️ Error loading subgraph: ${error.message}`);
+            const errorMsg = `Error loading subgraph: ${error.message}`;
+            setStatus(`⚠️ ${errorMsg}`);
             console.error('Subgraph load error:', error);
+            // Show explicit error dialog
+            alert(errorMsg);
         }
     }
 }
@@ -1259,8 +1265,11 @@ function loadFromJSON(event) {
             // Trigger auto-save after loading
             triggerAutoSave();
         } catch (error) {
-            setStatus(`⚠️ Error loading file: ${error.message}`);
+            const errorMsg = `Error loading file: ${error.message}`;
+            setStatus(`⚠️ ${errorMsg}`);
             console.error('Load error:', error);
+            // Show explicit error dialog
+            alert(errorMsg);
         }
     };
 
