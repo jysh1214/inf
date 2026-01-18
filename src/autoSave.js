@@ -98,7 +98,7 @@ function autoLoad() {
                 console.warn('Invalid auto-save data: circle node missing radius', node);
                 return false;
             }
-            if ((node.type === 'rectangle' || node.type === 'diamond' || node.type === 'text') &&
+            if ((node.type === 'rectangle' || node.type === 'diamond' || node.type === 'text' || node.type === 'code') &&
                 (node.width === undefined || node.height === undefined)) {
                 console.warn('Invalid auto-save data: node missing dimensions', node);
                 return false;

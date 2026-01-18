@@ -20,6 +20,9 @@ canvas.addEventListener('dblclick', (e) => {
         const nodeAlign = clickedNode.textAlign || 'center';
         updateAlignmentButtons(nodeAlign);
 
+        // Set cursor position to end of text
+        cursorPosition = (clickedNode.text || '').length;
+
         startCursorBlink();
         setStatus(`Editing node #${clickedNode.id} - Click outside, press Esc, or Shift+Enter to finish`);
         render();
@@ -34,6 +37,7 @@ canvas.addEventListener('dblclick', (e) => {
 
         // Automatically enter edit mode for new node
         editingNode = newNode;
+        cursorPosition = 0; // New node starts with empty text
         startCursorBlink();
         render();
         setStatus(`Created ${currentNodeType} node #${newNode.id} - Click outside, press Esc, or Shift+Enter to finish`);
@@ -364,9 +368,11 @@ document.addEventListener('keydown', (e) => {
             triggerAutoSave();
             e.preventDefault();
         } else if (e.key === 'Enter') {
-            // Enter: Add new line
+            // Enter: Add new line at cursor position
             if (editingNode.text.length < MAX_TEXT_LENGTH) {
-                editingNode.text = (editingNode.text || '') + '\n';
+                const text = editingNode.text || '';
+                editingNode.text = text.slice(0, cursorPosition) + '\n' + text.slice(cursorPosition);
+                cursorPosition++; // Move cursor past the newline
                 // Reset cursor blink on input
                 startCursorBlink();
                 render(); // Immediate render so user sees the change
@@ -376,9 +382,11 @@ document.addEventListener('keydown', (e) => {
             }
             e.preventDefault();
         } else if (e.key === 'Backspace') {
-            // Delete last character
-            if (editingNode.text.length > 0) {
-                editingNode.text = editingNode.text.slice(0, -1);
+            // Delete character before cursor
+            if (cursorPosition > 0) {
+                const text = editingNode.text || '';
+                editingNode.text = text.slice(0, cursorPosition - 1) + text.slice(cursorPosition);
+                cursorPosition--; // Move cursor back
                 // Reset cursor blink on input
                 startCursorBlink();
                 // Update status to show current length
@@ -396,10 +404,133 @@ document.addEventListener('keydown', (e) => {
             render();
             triggerAutoSave();
             e.preventDefault();
+        } else if (e.key === 'ArrowLeft') {
+            // Move cursor left
+            if (cursorPosition > 0) {
+                cursorPosition--;
+                startCursorBlink(); // Reset blink
+                render();
+            }
+            e.preventDefault();
+        } else if (e.key === 'ArrowRight') {
+            // Move cursor right
+            const textLength = (editingNode.text || '').length;
+            if (cursorPosition < textLength) {
+                cursorPosition++;
+                startCursorBlink(); // Reset blink
+                render();
+            }
+            e.preventDefault();
+        } else if (e.key === 'ArrowUp') {
+            // Move cursor up one line (for multiline text)
+            const text = editingNode.text || '';
+            if (!text) {
+                e.preventDefault();
+                return;
+            }
+
+            const lines = text.split('\n');
+            let charCount = 0;
+            let currentLine = 0;
+            let posInLine = 0;
+
+            // Find which line and position in line the cursor is at
+            for (let i = 0; i < lines.length; i++) {
+                if (charCount + lines[i].length >= cursorPosition) {
+                    currentLine = i;
+                    posInLine = cursorPosition - charCount;
+                    break;
+                }
+                charCount += lines[i].length + 1; // +1 for newline
+            }
+
+            // Move to previous line if possible
+            if (currentLine > 0) {
+                const prevLineLength = lines[currentLine - 1].length;
+                const newPosInLine = Math.min(posInLine, prevLineLength);
+                // Calculate start of previous line and add position
+                const prevLineStart = charCount - lines[currentLine - 1].length - 1;
+                cursorPosition = prevLineStart + newPosInLine;
+                // Bounds check
+                cursorPosition = Math.max(0, Math.min(cursorPosition, text.length));
+                startCursorBlink();
+                render();
+            }
+            e.preventDefault();
+        } else if (e.key === 'ArrowDown') {
+            // Move cursor down one line (for multiline text)
+            const text = editingNode.text || '';
+            if (!text) {
+                e.preventDefault();
+                return;
+            }
+
+            const lines = text.split('\n');
+            let charCount = 0;
+            let currentLine = 0;
+            let posInLine = 0;
+
+            // Find which line and position in line the cursor is at
+            for (let i = 0; i < lines.length; i++) {
+                if (charCount + lines[i].length >= cursorPosition) {
+                    currentLine = i;
+                    posInLine = cursorPosition - charCount;
+                    break;
+                }
+                charCount += lines[i].length + 1; // +1 for newline
+            }
+
+            // Move to next line if possible
+            if (currentLine < lines.length - 1) {
+                const nextLineLength = lines[currentLine + 1].length;
+                const newPosInLine = Math.min(posInLine, nextLineLength);
+                // Calculate start of next line and add position
+                const nextLineStart = charCount + lines[currentLine].length + 1;
+                cursorPosition = nextLineStart + newPosInLine;
+                // Bounds check
+                cursorPosition = Math.max(0, Math.min(cursorPosition, text.length));
+                startCursorBlink();
+                render();
+            }
+            e.preventDefault();
+        } else if (e.key === 'Home') {
+            // Move cursor to start of line
+            const text = editingNode.text || '';
+            const beforeCursor = text.slice(0, cursorPosition);
+            const lastNewline = beforeCursor.lastIndexOf('\n');
+            cursorPosition = lastNewline + 1;
+            startCursorBlink();
+            render();
+            e.preventDefault();
+        } else if (e.key === 'End') {
+            // Move cursor to end of line
+            const text = editingNode.text || '';
+            const afterCursor = text.slice(cursorPosition);
+            const nextNewline = afterCursor.indexOf('\n');
+            if (nextNewline === -1) {
+                cursorPosition = text.length;
+            } else {
+                cursorPosition += nextNewline;
+            }
+            startCursorBlink();
+            render();
+            e.preventDefault();
+        } else if (e.key === 'Delete') {
+            // Delete character after cursor
+            const text = editingNode.text || '';
+            if (cursorPosition < text.length) {
+                editingNode.text = text.slice(0, cursorPosition) + text.slice(cursorPosition + 1);
+                startCursorBlink();
+                render();
+                triggerAutoSave();
+            }
+            e.preventDefault();
         } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== '\t') {
-            // Add character to text (with max length check)
+            // Add character at cursor position (with max length check)
             if (editingNode.text.length < MAX_TEXT_LENGTH) {
-                editingNode.text = (editingNode.text || '') + e.key;
+                const text = editingNode.text || '';
+                editingNode.text = text.slice(0, cursorPosition) + e.key + text.slice(cursorPosition);
+                cursorPosition++; // Move cursor forward
                 // Reset cursor blink on input
                 startCursorBlink();
                 // Show remaining characters when getting close to limit

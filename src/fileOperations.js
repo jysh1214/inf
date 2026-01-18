@@ -199,7 +199,7 @@ function validateNode(node, index) {
     }
 
     // Validate node type
-    const validTypes = ['rectangle', 'circle', 'diamond', 'text'];
+    const validTypes = ['rectangle', 'circle', 'diamond', 'text', 'code'];
     if (!validTypes.includes(node.type)) {
         throw new Error(`Node ${index} (id: ${node.id}): invalid type '${node.type}'. Must be one of: ${validTypes.join(', ')}`);
     }
@@ -215,7 +215,7 @@ function validateNode(node, index) {
         if (node.radius > MAX_NODE_SIZE) {
             throw new Error(`Node ${index} (id: ${node.id}): circle 'radius' too large (max: ${MAX_NODE_SIZE})`);
         }
-    } else if (node.type === 'rectangle' || node.type === 'diamond' || node.type === 'text') {
+    } else if (node.type === 'rectangle' || node.type === 'diamond' || node.type === 'text' || node.type === 'code') {
         if (!isValidNumber(node.width)) {
             throw new Error(`Node ${index} (id: ${node.id}): '${node.type}' 'width' must be a valid number (got ${node.width})`);
         }

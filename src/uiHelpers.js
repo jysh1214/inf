@@ -10,6 +10,7 @@ function setNodeType(type) {
     document.getElementById('btn-circle').classList.remove('active');
     document.getElementById('btn-diamond').classList.remove('active');
     document.getElementById('btn-text').classList.remove('active');
+    document.getElementById('btn-code').classList.remove('active');
     document.getElementById(`btn-${type}`).classList.add('active');
     setStatus(`Node type: ${type}`);
 }

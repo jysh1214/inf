@@ -42,6 +42,7 @@ let autoSaveStatusTimer = null;
 // Cursor blink state for text editing
 let cursorVisible = true;
 let cursorBlinkInterval = null;
+let cursorPosition = 0; // Current cursor position in text (0 = start, text.length = end)
 
 // Subgraph navigation state
 let subgraphStack = [];  // Array of {parentState, nodeId, nodePath, fileHandle?} objects

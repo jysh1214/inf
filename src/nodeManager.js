@@ -34,6 +34,15 @@ function createNode(x, y, type = 'rectangle') {
                 height: DEFAULT_TEXT_HEIGHT
             };
             break;
+        case 'code':
+            node = {
+                ...baseNode,
+                x: x - DEFAULT_CODE_WIDTH / 2,
+                y: y - DEFAULT_CODE_HEIGHT / 2,
+                width: DEFAULT_CODE_WIDTH,
+                height: DEFAULT_CODE_HEIGHT
+            };
+            break;
         case 'rectangle':
         default:
             node = {
@@ -106,6 +115,7 @@ function isPointInNode(x, y, node) {
             return inside;
 
         case 'text':
+        case 'code':
         case 'rectangle':
         default:
             return x >= node.x && x <= node.x + node.width &&
@@ -162,6 +172,7 @@ function getResizeCorner(x, y, node) {
             return null;
 
         case 'text':
+        case 'code':
         case 'rectangle':
         default:
             // 4 corner handles

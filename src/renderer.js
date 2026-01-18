@@ -11,6 +11,9 @@ function drawNode(node) {
         case 'text':
             drawTextNode(node, isSelected);
             break;
+        case 'code':
+            drawCodeNode(node, isSelected);
+            break;
         case 'rectangle':
         default:
             drawRectangleNode(node, isSelected);
@@ -152,6 +155,163 @@ function drawTextNode(node, isSelected) {
     }
 }
 
+function drawCodeNode(node, isSelected) {
+    const isEditing = node === editingNode;
+
+    // Background - light gray like code editor
+    ctx.fillStyle = isEditing ? '#fff9c4' : (isSelected ? '#e3f2fd' : '#f5f5f5');
+    ctx.fillRect(node.x, node.y, node.width, node.height);
+
+    // Border
+    ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
+    ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
+    ctx.strokeRect(node.x, node.y, node.width, node.height);
+
+    // Text with monospace font
+    drawCodeText(node, node.x + node.width / 2, node.y + node.height / 2, node.width - 16);
+
+    // Draw resize handles if selected
+    if (isSelected) {
+        const corners = [
+            { x: node.x, y: node.y },
+            { x: node.x + node.width, y: node.y },
+            { x: node.x, y: node.y + node.height },
+            { x: node.x + node.width, y: node.y + node.height }
+        ];
+        drawResizeHandles(corners);
+    }
+}
+
+function drawCodeText(node, centerX, centerY, maxWidth) {
+    const isEditing = node === editingNode;
+    const displayText = node.text || (isEditing ? '' : '');
+    const textAlign = node.textAlign || 'left';
+
+    ctx.font = `${CODE_FONT_SIZE}px ${CODE_FONT_FAMILY}`;
+    ctx.textAlign = textAlign;
+    ctx.textBaseline = 'middle';
+
+    if (!displayText && !isEditing) return;
+
+    // Save context and set up clipping region
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(node.x, node.y, node.width, node.height);
+    ctx.clip();
+
+    // Calculate text x position based on alignment (with padding)
+    const TEXT_PADDING = 8;
+    let textX;
+    if (textAlign === 'left') {
+        textX = centerX - maxWidth / 2 + TEXT_PADDING;
+    } else if (textAlign === 'right') {
+        textX = centerX + maxWidth / 2 - TEXT_PADDING;
+    } else {
+        textX = centerX;
+    }
+
+    // Split by newlines - no word wrapping for code
+    const lines = displayText.split('\n');
+
+    // Use slightly smaller line height for code
+    const codeLineHeight = CODE_FONT_SIZE + 4;
+    const startY = centerY - (lines.length - 1) * codeLineHeight / 2;
+
+    // Helper function to get syntax color for a token
+    function getSyntaxColor(token) {
+        if (SYNTAX_KEYWORDS.includes(token)) {
+            return SYNTAX_COLORS.keyword;
+        } else if (SYNTAX_PATTERNS.string.test(token)) {
+            return SYNTAX_COLORS.string;
+        } else if (SYNTAX_PATTERNS.number.test(token)) {
+            return SYNTAX_COLORS.number;
+        } else if (SYNTAX_PATTERNS.comment.test(token)) {
+            return SYNTAX_COLORS.comment;
+        }
+        return SYNTAX_COLORS.default;
+    }
+
+    // Draw each line - use syntax highlighting only when NOT editing
+    if (isEditing) {
+        // Plain text while editing for accurate cursor positioning
+        ctx.fillStyle = SYNTAX_COLORS.default;
+        lines.forEach((line, i) => {
+            const lineY = startY + i * codeLineHeight;
+            ctx.fillText(line, textX, lineY);
+        });
+    } else {
+        // Syntax highlighting when viewing
+        lines.forEach((line, i) => {
+            const lineY = startY + i * codeLineHeight;
+
+            if (line) {
+                // Split line into tokens for syntax highlighting
+                const tokens = line.split(/(\s+|[(){}\[\];,.])/);
+                let currentX = textAlign === 'left' ? textX :
+                              (textAlign === 'right' ? textX - ctx.measureText(line).width :
+                               textX - ctx.measureText(line).width / 2);
+
+                tokens.forEach(token => {
+                    if (!token) return;
+
+                    ctx.fillStyle = getSyntaxColor(token);
+                    ctx.fillText(token, currentX, lineY);
+                    currentX += ctx.measureText(token).width;
+                });
+            }
+        });
+    }
+
+    // Draw cursor if editing
+    if (isEditing && cursorVisible) {
+        // Find which line and position in line the cursor is at
+        let charCount = 0;
+        let cursorLine = 0;
+        let cursorPosInLine = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            if (charCount + lines[i].length >= cursorPosition) {
+                cursorLine = i;
+                cursorPosInLine = cursorPosition - charCount;
+                break;
+            }
+            charCount += lines[i].length + 1; // +1 for newline character
+        }
+
+        // Handle cursor at very end of text
+        if (cursorPosition >= displayText.length && lines.length > 0) {
+            cursorLine = lines.length - 1;
+            cursorPosInLine = lines[cursorLine].length;
+        }
+
+        const cursorLineY = startY + cursorLine * codeLineHeight;
+        const line = lines[cursorLine] || '';
+        const lineUpToCursor = line.substring(0, cursorPosInLine);
+
+        let cursorX;
+        if (textAlign === 'left') {
+            cursorX = textX + ctx.measureText(lineUpToCursor).width;
+        } else if (textAlign === 'right') {
+            const fullLineWidth = ctx.measureText(line).width;
+            const partialWidth = ctx.measureText(lineUpToCursor).width;
+            cursorX = textX - fullLineWidth + partialWidth;
+        } else {
+            const fullLineWidth = ctx.measureText(line).width;
+            const partialWidth = ctx.measureText(lineUpToCursor).width;
+            cursorX = textX - fullLineWidth / 2 + partialWidth;
+        }
+
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cursorX + 2, cursorLineY - 8);
+        ctx.lineTo(cursorX + 2, cursorLineY + 8);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
 function drawNodeText(node, centerX, centerY, maxWidth) {
     const isEditing = node === editingNode;
     const displayText = node.text || (isEditing ? '' : '');
@@ -181,7 +341,7 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
         ctx.closePath();
         ctx.clip();
     } else {
-        // Rectangle and text nodes
+        // Rectangle, text, and code nodes
         ctx.beginPath();
         ctx.rect(node.x, node.y, node.width, node.height);
         ctx.clip();
@@ -199,19 +359,26 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
     }
 
     // Split by newlines first, then wrap each line
+    // Track character positions for cursor placement
     const paragraphs = displayText.split('\n');
     const lines = [];
+    const lineCharStarts = []; // Start character index for each wrapped line
+
+    let charIndex = 0; // Current character index in original text
 
     for (let paragraph of paragraphs) {
         if (paragraph === '') {
             // Empty line (newline)
+            lineCharStarts.push(charIndex);
             lines.push('');
+            charIndex++; // Account for the newline character
             continue;
         }
 
         // Word wrapping for this paragraph
         const words = paragraph.split(' ');
         let currentLine = '';
+        let currentLineStartChar = charIndex;
 
         for (let word of words) {
             const testLine = currentLine + (currentLine ? ' ' : '') + word;
@@ -219,7 +386,9 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
 
             if (metrics.width > maxWidth && currentLine) {
                 // Current line is full, push it
+                lineCharStarts.push(currentLineStartChar);
                 lines.push(currentLine);
+                currentLineStartChar = charIndex + currentLine.length + 1; // +1 for space
                 currentLine = word;
 
                 // Check if the single word itself is too long
@@ -229,7 +398,9 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
                     for (let char of word) {
                         const testWord = tempWord + char;
                         if (ctx.measureText(testWord).width > maxWidth && tempWord) {
+                            lineCharStarts.push(currentLineStartChar);
                             lines.push(tempWord);
+                            currentLineStartChar += tempWord.length;
                             tempWord = char;
                         } else {
                             tempWord = testWord;
@@ -241,7 +412,11 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
                 currentLine = testLine;
             }
         }
-        if (currentLine) lines.push(currentLine);
+        if (currentLine) {
+            lineCharStarts.push(currentLineStartChar);
+            lines.push(currentLine);
+        }
+        charIndex += paragraph.length + 1; // +1 for newline
     }
 
     const startY = centerY - (lines.length - 1) * LINE_HEIGHT / 2;
@@ -250,26 +425,49 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
         ctx.fillText(line, textX, startY + i * LINE_HEIGHT);
     });
 
-    // Draw cursor if editing - place at end of last line (with blinking)
+    // Draw cursor if editing - place at cursor position (with blinking)
     if (isEditing && cursorVisible) {
-        const lastLine = lines[lines.length - 1] || '';
-        const lastLineY = startY + (lines.length - 1) * LINE_HEIGHT;
+        // Find which wrapped line contains the cursor
+        let cursorLine = 0;
+        let cursorPosInLine = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const lineStart = lineCharStarts[i];
+            const lineEnd = lineStart + lines[i].length;
+
+            if (cursorPosition >= lineStart && cursorPosition <= lineEnd) {
+                cursorLine = i;
+                cursorPosInLine = cursorPosition - lineStart;
+                break;
+            }
+        }
+
+        // Handle cursor at very end of text
+        if (cursorPosition >= displayText.length && lines.length > 0) {
+            cursorLine = lines.length - 1;
+            cursorPosInLine = lines[cursorLine].length;
+        }
+
+        const cursorLineY = startY + cursorLine * LINE_HEIGHT;
+        const lineUpToCursor = lines[cursorLine] ? lines[cursorLine].substring(0, cursorPosInLine) : '';
 
         // Calculate cursor position based on alignment
         let cursorX;
         if (textAlign === 'left') {
-            cursorX = textX + ctx.measureText(lastLine).width;
+            cursorX = textX + ctx.measureText(lineUpToCursor).width;
         } else if (textAlign === 'right') {
-            cursorX = textX; // Text ends at textX for right alignment
+            const fullLineWidth = ctx.measureText(lines[cursorLine] || '').width;
+            cursorX = textX - fullLineWidth + ctx.measureText(lineUpToCursor).width;
         } else {
-            cursorX = textX + ctx.measureText(lastLine).width / 2;
+            const fullLineWidth = ctx.measureText(lines[cursorLine] || '').width;
+            cursorX = textX - fullLineWidth / 2 + ctx.measureText(lineUpToCursor).width;
         }
 
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(cursorX + 2, lastLineY - 8);
-        ctx.lineTo(cursorX + 2, lastLineY + 8);
+        ctx.moveTo(cursorX + 2, cursorLineY - 8);
+        ctx.lineTo(cursorX + 2, cursorLineY + 8);
         ctx.stroke();
     }
 
@@ -362,6 +560,7 @@ function getNodeEdgePoint(fromX, fromY, toNode) {
             return nodeCenter;
 
         case 'text':
+        case 'code':
         case 'rectangle':
         default:
             // Find intersection of line from (fromX, fromY) to center with rectangle edges
@@ -520,7 +719,7 @@ function render() {
                 ctx.stroke();
                 break;
             default:
-                // Rectangle and text
+                // Rectangle, text, and code
                 ctx.strokeRect(hoveredNode.x - 2, hoveredNode.y - 2,
                               hoveredNode.width + 4, hoveredNode.height + 4);
                 break;
