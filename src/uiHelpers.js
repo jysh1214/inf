@@ -224,6 +224,14 @@ function setNodePosition(node, alignType, targetValue) {
             } else if (alignType === 'center-v') {
                 // Align vertically (same X) - vertical line
                 node.x = targetValue;
+            } else if (alignType === 'top') {
+                node.y = targetValue + node.radius;
+            } else if (alignType === 'bottom') {
+                node.y = targetValue - node.radius;
+            } else if (alignType === 'left') {
+                node.x = targetValue + node.radius;
+            } else if (alignType === 'right') {
+                node.x = targetValue - node.radius;
             }
             break;
 
@@ -236,6 +244,14 @@ function setNodePosition(node, alignType, targetValue) {
             } else if (alignType === 'center-v') {
                 // Align vertically (same X)
                 node.x = targetValue - tableWidth / 2;
+            } else if (alignType === 'top') {
+                node.y = targetValue;
+            } else if (alignType === 'bottom') {
+                node.y = targetValue - tableHeight;
+            } else if (alignType === 'left') {
+                node.x = targetValue;
+            } else if (alignType === 'right') {
+                node.x = targetValue - tableWidth;
             }
             break;
 
@@ -250,6 +266,14 @@ function setNodePosition(node, alignType, targetValue) {
             } else if (alignType === 'center-v') {
                 // Align vertically (same X)
                 node.x = targetValue - node.width / 2;
+            } else if (alignType === 'top') {
+                node.y = targetValue;
+            } else if (alignType === 'bottom') {
+                node.y = targetValue - node.height;
+            } else if (alignType === 'left') {
+                node.x = targetValue;
+            } else if (alignType === 'right') {
+                node.x = targetValue - node.width;
             }
             break;
     }
@@ -281,6 +305,18 @@ function alignNodes(alignType) {
     } else if (alignType === 'center-v') {
         // Align vertically (same X) - creates vertical line
         targetValue = Math.round(bounds.reduce((sum, b) => sum + b.centerX, 0) / bounds.length);
+    } else if (alignType === 'top') {
+        // Align to topmost edge
+        targetValue = Math.min(...bounds.map(b => b.top));
+    } else if (alignType === 'bottom') {
+        // Align to bottommost edge
+        targetValue = Math.max(...bounds.map(b => b.bottom));
+    } else if (alignType === 'left') {
+        // Align to leftmost edge
+        targetValue = Math.min(...bounds.map(b => b.left));
+    } else if (alignType === 'right') {
+        // Align to rightmost edge
+        targetValue = Math.max(...bounds.map(b => b.right));
     } else {
         setStatus(`Unknown alignment type: ${alignType}`);
         return;
@@ -294,6 +330,14 @@ function alignNodes(alignType) {
     render();
     triggerAutoSave();
 
-    const alignName = alignType === 'center-h' ? 'Horizontal' : 'Vertical';
+    const alignNames = {
+        'center-h': 'Horizontal Center',
+        'center-v': 'Vertical Center',
+        'top': 'Top',
+        'bottom': 'Bottom',
+        'left': 'Left',
+        'right': 'Right'
+    };
+    const alignName = alignNames[alignType] || alignType;
     setStatus(`Aligned ${selectedNodes.length} nodes: ${alignName}`);
 }
