@@ -45,7 +45,9 @@ function autoSave() {
             currentDepth: currentDepth,
             currentPath: currentPath,
             // Multi-select state
-            selectedNodeIds: Array.from(selectedNodeIds)
+            selectedNodeIds: Array.from(selectedNodeIds),
+            // Current file name
+            currentFileName: currentFileName
         };
         localStorage.setItem('inf-autosave', JSON.stringify(saveData));
         console.log('Auto-saved at', saveData.timestamp);
@@ -151,8 +153,16 @@ function autoLoad() {
             selectedNodeIds = new Set(saveData.selectedNodeIds);
         }
 
+        // Restore current file name
+        if (saveData.currentFileName !== undefined) {
+            currentFileName = saveData.currentFileName;
+        }
+
         render();
         console.log('Auto-loaded from', saveData.timestamp);
+
+        // Update file path display
+        updateFilePathDisplay();
 
         // Update status with breadcrumb if we're in a subgraph
         if (currentDepth > 0) {
