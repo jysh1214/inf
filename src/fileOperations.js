@@ -907,7 +907,8 @@ async function enterSubgraph(node) {
             nodePath: [...currentPath, node.id],
             isFileBased: typeof node.subgraph === 'string',
             fileName: typeof node.subgraph === 'string' ? node.subgraph : null,
-            parentFileName: currentFileName  // Save parent's filename to restore later
+            parentFileName: currentFileName,  // Save parent's filename to restore later
+            parentWorkspaceFolderName: workspaceFolderName  // Save workspace folder name to restore later
         };
         subgraphStack.push(currentState);
 
@@ -1039,6 +1040,7 @@ async function exitSubgraph() {
         const isFileBased = stackEntry.isFileBased;
         const fileName = stackEntry.fileName;
         const parentFileName = stackEntry.parentFileName;
+        const parentWorkspaceFolderName = stackEntry.parentWorkspaceFolderName;
 
         // Restore parent state
         nodes = parentState.nodes;
@@ -1068,28 +1070,53 @@ async function exitSubgraph() {
                     cell.subgraph = currentSubgraphData;
                 } else if (isFileBased && fileName) {
                     // File-based subgraph - save to file
-                    let fileHandle = fileHandleMap.get(`${parentNodeId}-cell-${row}-${col}`);
+                    const cellKey = `${parentNodeId}-cell-${row}-${col}`;
+                    let fileHandle = fileHandleMap.get(cellKey);
 
-                    // If we don't have the file handle (e.g., after page reload), prompt user
-                    if (!fileHandle && 'showOpenFilePicker' in window) {
-                        try {
-                            setStatus(`Saving ${fileName} - please select the file...`);
-                            const handles = await window.showOpenFilePicker({
-                                types: [{
-                                    description: 'JSON Files',
-                                    accept: { 'application/json': ['.json'] }
-                                }],
-                                multiple: false
-                            });
-                            fileHandle = handles[0];
-                            fileHandleMap.set(`${parentNodeId}-cell-${row}-${col}`, fileHandle);
-                        } catch (error) {
-                            if (error.name === 'AbortError') {
-                                setStatus('⚠️ File selection cancelled - cell subgraph changes not saved to file');
+                    // If not in memory, try IndexedDB and workspace folder before prompting
+                    if (!fileHandle) {
+                        // Try IndexedDB
+                        fileHandle = await getFileHandle(cellKey);
+                        if (fileHandle) {
+                            const hasPermission = await verifyPermission(fileHandle);
+                            if (hasPermission) {
+                                fileHandleMap.set(cellKey, fileHandle);
                             } else {
-                                setStatus(`⚠️ Failed to select file: ${error.message}`);
+                                fileHandle = null;
                             }
-                            fileHandle = null;
+                        }
+
+                        // If still no handle, try workspace folder
+                        if (!fileHandle && fileName) {
+                            fileHandle = await findFileInDirectory(fileName);
+                            if (fileHandle) {
+                                fileHandleMap.set(cellKey, fileHandle);
+                                await storeFileHandle(cellKey, fileHandle);
+                            }
+                        }
+
+                        // Last resort: prompt user
+                        if (!fileHandle && 'showOpenFilePicker' in window) {
+                            try {
+                                setStatus(`Saving ${fileName} - please select the file...`);
+                                const handles = await window.showOpenFilePicker({
+                                    types: [{
+                                        description: 'JSON Files',
+                                        accept: { 'application/json': ['.json'] }
+                                    }],
+                                    multiple: false
+                                });
+                                fileHandle = handles[0];
+                                fileHandleMap.set(cellKey, fileHandle);
+                                await storeFileHandle(cellKey, fileHandle);
+                            } catch (error) {
+                                if (error.name === 'AbortError') {
+                                    setStatus('⚠️ File selection cancelled - cell subgraph changes not saved to file');
+                                } else {
+                                    setStatus(`⚠️ Failed to select file: ${error.message}`);
+                                }
+                                fileHandle = null;
+                            }
                         }
                     }
 
@@ -1116,26 +1143,50 @@ async function exitSubgraph() {
                     // File-based subgraph - save to file
                     let fileHandle = fileHandleMap.get(parentNodeId);
 
-                    // If we don't have the file handle (e.g., after page reload), prompt user
-                    if (!fileHandle && 'showOpenFilePicker' in window) {
-                        try {
-                            setStatus(`Saving ${fileName} - please select the file...`);
-                            const handles = await window.showOpenFilePicker({
-                                types: [{
-                                    description: 'JSON Files',
-                                    accept: { 'application/json': ['.json'] }
-                                }],
-                                multiple: false
-                            });
-                            fileHandle = handles[0];
-                            fileHandleMap.set(parentNodeId, fileHandle);
-                        } catch (error) {
-                            if (error.name === 'AbortError') {
-                                setStatus('⚠️ File selection cancelled - subgraph changes not saved to file');
+                    // If not in memory, try IndexedDB and workspace folder before prompting
+                    if (!fileHandle) {
+                        // Try IndexedDB
+                        fileHandle = await getFileHandle(parentNodeId);
+                        if (fileHandle) {
+                            const hasPermission = await verifyPermission(fileHandle);
+                            if (hasPermission) {
+                                fileHandleMap.set(parentNodeId, fileHandle);
                             } else {
-                                setStatus(`⚠️ Failed to select file: ${error.message}`);
+                                fileHandle = null;
                             }
-                            fileHandle = null;
+                        }
+
+                        // If still no handle, try workspace folder
+                        if (!fileHandle && fileName) {
+                            fileHandle = await findFileInDirectory(fileName);
+                            if (fileHandle) {
+                                fileHandleMap.set(parentNodeId, fileHandle);
+                                await storeFileHandle(parentNodeId, fileHandle);
+                            }
+                        }
+
+                        // Last resort: prompt user
+                        if (!fileHandle && 'showOpenFilePicker' in window) {
+                            try {
+                                setStatus(`Saving ${fileName} - please select the file...`);
+                                const handles = await window.showOpenFilePicker({
+                                    types: [{
+                                        description: 'JSON Files',
+                                        accept: { 'application/json': ['.json'] }
+                                    }],
+                                    multiple: false
+                                });
+                                fileHandle = handles[0];
+                                fileHandleMap.set(parentNodeId, fileHandle);
+                                await storeFileHandle(parentNodeId, fileHandle);
+                            } catch (error) {
+                                if (error.name === 'AbortError') {
+                                    setStatus('⚠️ File selection cancelled - subgraph changes not saved to file');
+                                } else {
+                                    setStatus(`⚠️ Failed to select file: ${error.message}`);
+                                }
+                                fileHandle = null;
+                            }
                         }
                     }
 
@@ -1181,8 +1232,13 @@ async function exitSubgraph() {
         // Reset alignment buttons
         updateAlignmentButtons(currentTextAlign);
 
-        // Restore parent filename
+        // Restore parent filename and workspace folder name
         currentFileName = parentFileName || null;
+        // Use parentWorkspaceFolderName if available, otherwise preserve current workspaceFolderName
+        // (fallback for old stack entries created before this field was added)
+        if (parentWorkspaceFolderName !== undefined) {
+            workspaceFolderName = parentWorkspaceFolderName;
+        }
         updateFilePathDisplay();
 
         // Update status with breadcrumb
@@ -1500,7 +1556,16 @@ async function enterCellSubgraph(tableNode, row, col) {
         if (typeof cell.subgraph === 'string') {
             // File path - check for circular reference
             const fileName = cell.subgraph;
-            const fileAlreadyInStack = subgraphStack.some(entry => entry.fileName === fileName);
+
+            // Normalize filename for comparison (trim, lowercase)
+            const normalizedFileName = fileName.trim().toLowerCase();
+            const fileAlreadyInStack = subgraphStack.some(entry => {
+                if (entry.fileName) {
+                    return entry.fileName.trim().toLowerCase() === normalizedFileName;
+                }
+                return false;
+            });
+
             if (fileAlreadyInStack) {
                 throw new Error(`Circular reference detected: "${fileName}" is already in the navigation stack`);
             }
@@ -1540,7 +1605,9 @@ async function enterCellSubgraph(tableNode, row, col) {
             cellPosition: { row, col },  // Mark this as a cell subgraph
             nodePath: [...currentPath, cellId],
             isFileBased: typeof cell.subgraph === 'string',
-            fileName: typeof cell.subgraph === 'string' ? cell.subgraph : null
+            fileName: typeof cell.subgraph === 'string' ? cell.subgraph : null,
+            parentFileName: currentFileName,  // Save parent's filename to restore later
+            parentWorkspaceFolderName: workspaceFolderName  // Save workspace folder name to restore later
         };
         subgraphStack.push(currentState);
 
