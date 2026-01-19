@@ -62,11 +62,11 @@ const SYNTAX_PATTERNS = {
     number: /^[0-9]/,
     comment: /^(\/\/|#)/  // Support // (JS/C++) and # (Python) comments
 };
-const CANVAS_SIZE_STEP = 500;
-const MIN_CANVAS_SIZE = 1000;
+const CANVAS_SIZE_STEP = 100;
+const MIN_CANVAS_SIZE = 500;
 const MAX_CANVAS_SIZE = 20000;
-const DEFAULT_CANVAS_WIDTH = 2000;
-const DEFAULT_CANVAS_HEIGHT = 2000;
+const DEFAULT_CANVAS_WIDTH = 1000;
+const DEFAULT_CANVAS_HEIGHT = 1000;
 const ZOOM_STEP = 0.1;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3.0;
