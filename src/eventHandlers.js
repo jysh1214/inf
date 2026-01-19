@@ -248,9 +248,14 @@ canvas.addEventListener('mousedown', (e) => {
         }
 
         // If not holding Ctrl, clear multi-select and select only this node
+        // UNLESS the clicked node is already in the selection (for dragging multiple nodes)
         if (!e.ctrlKey && !e.metaKey) {
-            selectedNodeIds.clear();
-            selectedNodeIds.add(clickedNode.id);
+            if (!selectedNodeIds.has(clickedNode.id)) {
+                // Clicking on a different node - clear selection and select only this one
+                selectedNodeIds.clear();
+                selectedNodeIds.add(clickedNode.id);
+            }
+            // If already selected, keep all selections to allow dragging multiple nodes
         }
         selectedConnection = null; // Deselect connection when selecting node
         selectedCell = null; // Deselect cell when selecting node
