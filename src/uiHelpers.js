@@ -4,15 +4,25 @@ function setStatus(text) {
 }
 
 function updateFilePathDisplay() {
+    const workspaceFolderElement = document.getElementById('workspace-folder');
     const filePathElement = document.getElementById('current-file-path');
     if (!filePathElement) return;
 
+    // Update workspace folder display
+    if (workspaceFolderElement) {
+        if (workspaceFolderName) {
+            workspaceFolderElement.textContent = `📁 ${workspaceFolderName}`;
+        } else {
+            workspaceFolderElement.textContent = '';
+        }
+    }
+
+    // Update file path display
     if (currentFileName) {
         filePathElement.textContent = currentFileName;
     } else {
         filePathElement.textContent = '(unsaved)';
     }
-    filePathElement.style.display = 'block';
 }
 
 function setNodeType(type) {

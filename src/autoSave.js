@@ -46,8 +46,9 @@ function autoSave() {
             currentPath: currentPath,
             // Multi-select state
             selectedNodeIds: Array.from(selectedNodeIds),
-            // Current file name
-            currentFileName: currentFileName
+            // Current file name and workspace
+            currentFileName: currentFileName,
+            workspaceFolderName: workspaceFolderName
         };
         localStorage.setItem('inf-autosave', JSON.stringify(saveData));
         console.log('Auto-saved at', saveData.timestamp);
@@ -153,9 +154,12 @@ function autoLoad() {
             selectedNodeIds = new Set(saveData.selectedNodeIds);
         }
 
-        // Restore current file name
+        // Restore current file name and workspace
         if (saveData.currentFileName !== undefined) {
             currentFileName = saveData.currentFileName;
+        }
+        if (saveData.workspaceFolderName !== undefined) {
+            workspaceFolderName = saveData.workspaceFolderName;
         }
 
         render();

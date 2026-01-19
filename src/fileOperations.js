@@ -473,6 +473,10 @@ async function selectWorkspaceFolder() {
         // Store the directory handle
         await storeDirectoryHandle(dirHandle);
 
+        // Store the workspace folder name
+        workspaceFolderName = dirHandle.name;
+        updateFilePathDisplay();
+
         setStatus(`✓ Workspace folder set: ${dirHandle.name}`);
 
         // Try to load root.json if it exists
