@@ -846,17 +846,21 @@ function drawConnection(conn) {
     const fromNode = nodeMap.get(conn.fromId);
     const toNode = nodeMap.get(conn.toId);
 
-    if (fromNode && toNode) {
-        const fromCenter = getNodeCenter(fromNode);
-        const toCenter = getNodeCenter(toNode);
-
-        // Calculate edge points on both nodes
-        const startPoint = getNodeEdgePoint(toCenter.x, toCenter.y, fromNode);
-        const endPoint = getNodeEdgePoint(fromCenter.x, fromCenter.y, toNode);
-
-        const isSelected = conn === selectedConnection;
-        drawArrow(startPoint.x, startPoint.y, endPoint.x, endPoint.y, conn.directed, isSelected);
+    // Defensive check: skip if either node is missing (could happen during deletion)
+    if (!fromNode || !toNode) {
+        console.warn(`Connection ${conn.id} references missing nodes (from: ${conn.fromId}, to: ${conn.toId})`);
+        return;
     }
+
+    const fromCenter = getNodeCenter(fromNode);
+    const toCenter = getNodeCenter(toNode);
+
+    // Calculate edge points on both nodes
+    const startPoint = getNodeEdgePoint(toCenter.x, toCenter.y, fromNode);
+    const endPoint = getNodeEdgePoint(fromCenter.x, fromCenter.y, toNode);
+
+    const isSelected = conn === selectedConnection;
+    drawArrow(startPoint.x, startPoint.y, endPoint.x, endPoint.y, conn.directed, isSelected);
 }
 
 function render() {

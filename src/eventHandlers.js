@@ -868,7 +868,8 @@ document.addEventListener('keydown', (e) => {
             idsToDelete.forEach(id => {
                 nodeMap.delete(id);
                 fileHandleMap.delete(id);  // Clean up file handle from memory
-                deleteFileHandle(id);  // Clean up file handle from IndexedDB (async, no await needed)
+                // Clean up file handle from IndexedDB (async, with error handling)
+                deleteFileHandle(id).catch(err => console.warn(`Failed to delete file handle ${id}:`, err));
             });
 
             // Clear editingNode if deleting the node being edited

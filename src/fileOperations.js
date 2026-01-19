@@ -374,6 +374,10 @@ function validateSubgraph(subgraph, nodeId, nodeIndex) {
         if (subgraph.trim() === '') {
             throw new Error(`Node ${nodeIndex} (id: ${nodeId}): 'subgraph' file path cannot be empty`);
         }
+        // Prevent path traversal - must be filename only (no directory separators)
+        if (subgraph.includes('..') || subgraph.includes('/') || subgraph.includes('\\')) {
+            throw new Error(`Node ${nodeIndex} (id: ${nodeId}): 'subgraph' file path must be filename only, no path separators allowed (got '${subgraph}')`);
+        }
         if (!subgraph.toLowerCase().endsWith('.json')) {
             throw new Error(`Node ${nodeIndex} (id: ${nodeId}): 'subgraph' file path must end with .json (got '${subgraph}')`);
         }
@@ -818,21 +822,27 @@ async function loadSubgraphFromFile(filePath, nodeId) {
             try {
                 file = await fileHandle.getFile();
             } catch (error) {
-                throw new Error(`Failed to access file: ${error.message}`);
+                const err = new Error(`Failed to access file: ${error.message}`);
+                err.contextAdded = true; // Mark as having context
+                throw err;
             }
         }
 
         try {
             contents = await file.text();
         } catch (error) {
-            throw new Error(`Failed to read file contents: ${error.message}`);
+            const err = new Error(`Failed to read file contents: ${error.message}`);
+            err.contextAdded = true; // Mark as having context
+            throw err;
         }
 
         // Parse JSON
         try {
             subgraphData = JSON.parse(contents);
         } catch (error) {
-            throw new Error(`Invalid JSON format: ${error.message}`);
+            const err = new Error(`Invalid JSON format: ${error.message}`);
+            err.contextAdded = true; // Mark as having context
+            throw err;
         }
 
         // Validate the subgraph data
@@ -840,13 +850,15 @@ async function loadSubgraphFromFile(filePath, nodeId) {
             const tempNode = { id: nodeId, subgraph: subgraphData };
             validateSubgraph(tempNode.subgraph, nodeId, -1);
         } catch (error) {
-            throw new Error(`Invalid subgraph structure: ${error.message}`);
+            const err = new Error(`Invalid subgraph structure: ${error.message}`);
+            err.contextAdded = true; // Mark as having context
+            throw err;
         }
 
         return subgraphData;
     } catch (error) {
         // If error already has context, rethrow as-is
-        if (error.message.includes('Failed to') || error.message.includes('Invalid')) {
+        if (error.contextAdded) {
             throw error;
         }
         // Otherwise add generic context
@@ -880,9 +892,11 @@ async function enterSubgraph(node) {
             setStatus(`Loading subgraph from ${fileName}...`);
             subgraphData = await loadSubgraphFromFile(fileName, node.id);
         } else if (typeof node.subgraph === 'object') {
-            // Embedded subgraph - check if we're entering a node that's in our path
-            if (currentPath.includes(node.id)) {
-                throw new Error(`Circular reference detected: Node #${node.id} is already in the navigation path`);
+            // Embedded subgraph - check if we're entering a node that's already in the entire stack
+            // Check all node IDs in the subgraphStack, not just currentPath
+            const allPathIds = subgraphStack.flatMap(entry => entry.nodePath || []);
+            if (allPathIds.includes(node.id) || currentPath.includes(node.id)) {
+                throw new Error(`Circular reference detected: Node #${node.id} is already in the navigation stack`);
             }
 
             subgraphData = node.subgraph;
@@ -1576,8 +1590,10 @@ async function enterCellSubgraph(tableNode, row, col) {
         } else if (typeof cell.subgraph === 'object') {
             // Embedded subgraph - create a unique identifier for the cell
             const cellId = `${tableNode.id}-cell-${row}-${col}`;
-            if (currentPath.includes(cellId)) {
-                throw new Error(`Circular reference detected: Cell (${row + 1}, ${col + 1}) is already in the navigation path`);
+            // Check all node IDs in the subgraphStack, not just currentPath
+            const allPathIds = subgraphStack.flatMap(entry => entry.nodePath || []);
+            if (allPathIds.includes(cellId) || currentPath.includes(cellId)) {
+                throw new Error(`Circular reference detected: Cell (${row + 1}, ${col + 1}) is already in the navigation stack`);
             }
 
             subgraphData = cell.subgraph;

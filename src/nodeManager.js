@@ -97,10 +97,22 @@ function createConnection(fromId, toId) {
     }
 
     // Prevent duplicate connections
-    const exists = connections.some(conn =>
-        (conn.fromId === fromId && conn.toId === toId) ||
-        (conn.fromId === toId && conn.toId === fromId)
-    );
+    // For directed connections: only exact matches are duplicates (allow A→B and B→A)
+    // For undirected connections: both directions are duplicates
+    const exists = connections.some(conn => {
+        const sameDirection = conn.fromId === fromId && conn.toId === toId;
+        const reverseDirection = conn.fromId === toId && conn.toId === fromId;
+
+        // If we're creating an undirected connection, check if any connection exists
+        // If we're creating a directed connection, only check for exact match
+        if (!directedMode) {
+            // Creating undirected: check both directions and existing undirected
+            return (sameDirection || reverseDirection) && !conn.directed;
+        } else {
+            // Creating directed: check exact match only, or undirected in same positions
+            return sameDirection || (!conn.directed && reverseDirection);
+        }
+    });
 
     if (exists) {
         return null;

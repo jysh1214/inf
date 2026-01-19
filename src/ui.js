@@ -124,13 +124,17 @@ function selectSubgraphType(type) {
     }
 }
 
-// Close modal when clicking on overlay
+// Close modal when clicking on overlay (use flag to prevent duplicate listeners)
+let subgraphOverlayInitialized = false;
 document.addEventListener('DOMContentLoaded', () => {
+    if (subgraphOverlayInitialized) return;
+
     const modal = document.getElementById('subgraph-modal');
     if (modal) {
         const overlay = modal.querySelector('.modal-overlay');
         if (overlay) {
             overlay.addEventListener('click', closeSubgraphModal);
+            subgraphOverlayInitialized = true;
         }
     }
 });
@@ -273,8 +277,11 @@ function createTableWithSize() {
     setStatus(`Created ${rows}×${cols} table`);
 }
 
-// Setup table modal overlay click handler
+// Setup table modal overlay click handler (use flag to prevent duplicate listeners)
+let tableModalInitialized = false;
 document.addEventListener('DOMContentLoaded', () => {
+    if (tableModalInitialized) return;
+
     const tableModal = document.getElementById('table-modal');
     if (tableModal) {
         const overlay = tableModal.querySelector('.modal-overlay');
@@ -296,4 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
         rowsInput.addEventListener('keydown', handleEnter);
         colsInput.addEventListener('keydown', handleEnter);
     }
+
+    tableModalInitialized = true;
 });
