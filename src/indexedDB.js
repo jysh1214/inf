@@ -7,6 +7,8 @@ const DIR_STORE_NAME = 'directoryHandle';
 
 let db = null;
 let dbPromise = null;
+let dbInitFailed = false;
+let dbInitFailedTimer = null;
 
 /**
  * Initialize IndexedDB
@@ -15,6 +17,11 @@ let dbPromise = null;
 async function initDB() {
     // If already initialized, return existing db
     if (db) return db;
+
+    // If initialization failed recently, return null to prevent rapid retries
+    if (dbInitFailed) {
+        return null;
+    }
 
     // If initialization in progress, wait for it
     if (dbPromise) return dbPromise;
@@ -26,6 +33,7 @@ async function initDB() {
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
             db = request.result;
+            dbInitFailed = false; // Clear failure flag on success
             resolve(db);
         };
 
@@ -45,6 +53,15 @@ async function initDB() {
         return db;
     } catch (error) {
         dbPromise = null; // Reset on failure so retry is possible
+        dbInitFailed = true; // Set failure flag
+
+        // Clear failure flag after 2 seconds to allow retry
+        if (dbInitFailedTimer) clearTimeout(dbInitFailedTimer);
+        dbInitFailedTimer = setTimeout(() => {
+            dbInitFailed = false;
+            dbInitFailedTimer = null;
+        }, 2000);
+
         throw error;
     }
 }

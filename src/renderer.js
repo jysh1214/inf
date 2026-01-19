@@ -639,6 +639,12 @@ function drawArrow(x1, y1, x2, y2, directed, isSelected) {
 }
 
 function getNodeEdgePoint(fromX, fromY, toNode) {
+    // Defensive check for null/undefined nodes
+    if (!toNode) {
+        console.warn('getNodeEdgePoint called with null/undefined toNode');
+        return { x: fromX, y: fromY };
+    }
+
     const nodeCenter = getNodeCenter(toNode);
     const dx = nodeCenter.x - fromX;
     const dy = nodeCenter.y - fromY;
@@ -813,6 +819,12 @@ function lineIntersection(x1, y1, x2, y2, x3, y3, x4, y4) {
 }
 
 function getNodeCenter(node) {
+    // Defensive check for null/undefined nodes
+    if (!node) {
+        console.warn('getNodeCenter called with null/undefined node');
+        return { x: 0, y: 0 };
+    }
+
     if (node.type === 'circle') {
         return { x: node.x, y: node.y };
     } else if (node.type === 'table') {

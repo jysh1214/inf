@@ -1,6 +1,20 @@
 // Initial canvas setup
 resizeCanvas();
 
+// Clear any existing timers from previous session (prevents memory leaks)
+if (typeof autoSaveTimer !== 'undefined' && autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+}
+if (typeof autoSaveStatusTimer !== 'undefined' && autoSaveStatusTimer) {
+    clearTimeout(autoSaveStatusTimer);
+    autoSaveStatusTimer = null;
+}
+if (typeof cursorBlinkInterval !== 'undefined' && cursorBlinkInterval) {
+    clearInterval(cursorBlinkInterval);
+    cursorBlinkInterval = null;
+}
+
 // Restore workspace folder name from IndexedDB
 (async function restoreWorkspaceInfo() {
     try {

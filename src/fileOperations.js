@@ -862,7 +862,16 @@ async function enterSubgraph(node) {
         if (typeof node.subgraph === 'string') {
             // File path - check for circular reference
             const fileName = node.subgraph;
-            const fileAlreadyInStack = subgraphStack.some(entry => entry.fileName === fileName);
+
+            // Normalize filename for comparison (trim, lowercase)
+            const normalizedFileName = fileName.trim().toLowerCase();
+            const fileAlreadyInStack = subgraphStack.some(entry => {
+                if (entry.fileName) {
+                    return entry.fileName.trim().toLowerCase() === normalizedFileName;
+                }
+                return false;
+            });
+
             if (fileAlreadyInStack) {
                 throw new Error(`Circular reference detected: "${fileName}" is already in the navigation stack`);
             }
@@ -1107,28 +1116,28 @@ async function exitSubgraph() {
                     // File-based subgraph - save to file
                     let fileHandle = fileHandleMap.get(parentNodeId);
 
-                // If we don't have the file handle (e.g., after page reload), prompt user
-                if (!fileHandle && 'showOpenFilePicker' in window) {
-                    try {
-                        setStatus(`Saving ${fileName} - please select the file...`);
-                        const handles = await window.showOpenFilePicker({
-                            types: [{
-                                description: 'JSON Files',
-                                accept: { 'application/json': ['.json'] }
-                            }],
-                            multiple: false
-                        });
-                        fileHandle = handles[0];
-                        fileHandleMap.set(parentNodeId, fileHandle);
-                    } catch (error) {
-                        if (error.name === 'AbortError') {
-                            setStatus('⚠️ File selection cancelled - subgraph changes not saved to file');
-                        } else {
-                            setStatus(`⚠️ Failed to select file: ${error.message}`);
+                    // If we don't have the file handle (e.g., after page reload), prompt user
+                    if (!fileHandle && 'showOpenFilePicker' in window) {
+                        try {
+                            setStatus(`Saving ${fileName} - please select the file...`);
+                            const handles = await window.showOpenFilePicker({
+                                types: [{
+                                    description: 'JSON Files',
+                                    accept: { 'application/json': ['.json'] }
+                                }],
+                                multiple: false
+                            });
+                            fileHandle = handles[0];
+                            fileHandleMap.set(parentNodeId, fileHandle);
+                        } catch (error) {
+                            if (error.name === 'AbortError') {
+                                setStatus('⚠️ File selection cancelled - subgraph changes not saved to file');
+                            } else {
+                                setStatus(`⚠️ Failed to select file: ${error.message}`);
+                            }
+                            fileHandle = null;
                         }
-                        fileHandle = null;
                     }
-                }
 
                     // Save to file if we have a handle
                     if (fileHandle) {
