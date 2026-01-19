@@ -17,12 +17,13 @@ This guide explains the JSON format for Inf diagrams, allowing you to create and
 
 ## Overview
 
-Inf diagrams are stored as JSON files with a well-defined structure. You can create these files manually or use the UI to generate them. The format supports:
+Inf diagrams are stored as JSON files with a well-defined structure. You can create these files manually, use the UI to generate them, or have AI assistants create comprehensive, detailed diagrams for you. The format supports:
 
 - Six node types: rectangle, circle, diamond, text, code, and table
 - Directed and undirected connections
-- Hierarchical subgraphs (embedded or file-based)
+- **Infinite levels of hierarchical subgraphs** (embedded or file-based)
 - Customizable canvas size and zoom levels
+- AI-generated content with rich, nested structures
 
 ---
 
@@ -437,7 +438,8 @@ Store complete diagram data inside the node's `subgraph` property:
 - Are saved automatically with the parent diagram
 - Changes are immediately persisted
 - Good for keeping everything in one file
-- Can be nested infinitely deep
+- **Can be nested infinitely deep** - there is no limit to subgraph nesting levels
+- Perfect for AI-generated content with arbitrary depth and detail
 
 ### File-Based Subgraphs
 
@@ -807,6 +809,29 @@ Example:
 - Use the UI's "Load" function to validate your JSON
 - Check browser console for detailed error messages
 - Validation errors show which node/connection failed
+
+### AI-Generated Content
+
+Inf is designed to work seamlessly with AI assistants for creating rich, detailed documentation:
+
+**Capabilities:**
+- AI can generate comprehensive diagram structures with multiple files
+- AI can create deeply nested subgraphs with infinite levels of detail
+- AI can populate code nodes with real source code snippets
+- AI can create table nodes with detailed comparisons and cell-level subgraphs
+- AI can organize complex topics into hierarchical, navigable structures
+
+**Best Practices:**
+- Ask AI to create a `root.json` file as the main entry point
+- Request file-based subgraphs for large, complex topics
+- Have AI use embedded subgraphs for details specific to each node
+- Let AI determine the optimal depth and structure based on content complexity
+- AI can create arbitrarily deep hierarchies without hitting limits
+
+**Example Prompt:**
+> "Create an Inf diagram documenting the React ecosystem. Use root.json as the main file with an overview, and create detailed subgraphs for hooks, state management, routing, and performance. Include code examples in code nodes and comparison tables for library options. Go as deep as needed to be comprehensive."
+
+See `AI_PROMPT.md` for more guidance on working with AI assistants.
 
 ---
 

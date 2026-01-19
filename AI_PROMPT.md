@@ -2,6 +2,11 @@
 
 Use this concise prompt when asking AI assistants to create structured notes in Inf diagram format.
 
+**Key Capabilities:**
+- ✨ **Infinite Nesting**: Subgraphs can be nested to unlimited depth - go as deep as needed
+- 🤖 **AI-Powered Content**: AI can generate comprehensive, detailed diagrams with rich hierarchical structures
+- 📊 **Full Feature Set**: AI can use all node types (rectangle, circle, diamond, text, code, table) with embedded or file-based subgraphs
+
 ---
 
 ## The Prompt
@@ -14,12 +19,13 @@ Structure:
 - Put detailed explanations in separate JSON files as file-based subgraphs
 - Use appropriate node types:
   - rectangle (concepts)
-  - circle (entry/exit points)
+  - circle (entry / exit points)
   - diamond (decisions)
-  - text (details/annotations)
-  - code (pseudocode/source code snippets)
-  - table (data/comparisons with subgraph-capable cells)
-- Create meaningful connections (directed for flow/dependency, undirected for associations)
+  - text (details / annotations)
+  - code (pseudocode / source code snippets)
+  - table (data / comparisons with subgraph-capable cells)
+- Create meaningful connections (directed for flow / dependency, undirected for associations)
+- **Go as deep as needed** - subgraphs support infinite nesting levels
 
 Output:
 - **root.json** - Main diagram file with root-level overview (REQUIRED - this name is mandatory)
@@ -100,3 +106,35 @@ Structure:
 - **Workflow**: Save all files in one folder with main file named `root.json`, then user clicks "Set Folder" in Inf to select that folder - `root.json` loads automatically!
 - **File naming**: Main file = `root.json` (required), subgraphs = descriptive names like `module-auth.json`, `concept-events.json`
 - **Code nodes**: Use `"type": "code"` for source code snippets - supports syntax highlighting for JavaScript/TypeScript, C/C++, and Python with monospace font and no word wrapping
+
+---
+
+## Creating Comprehensive Content with AI
+
+AI assistants excel at generating detailed, well-structured Inf diagrams:
+
+### Depth and Detail
+- **No Limits**: Inf supports infinite subgraph nesting - AI can create arbitrarily deep hierarchies
+- **Be Comprehensive**: Don't hold back on detail - add as many subgraphs and nodes as needed
+- **Nested Structures**: Each node can contain a subgraph, which can contain nodes with their own subgraphs, infinitely
+- **Rich Content**: Use code nodes for real source code, text nodes for explanations, tables for comparisons
+
+### Content Generation Strategies
+
+**Breadth-First Approach:**
+1. Create root.json with high-level overview and main topics
+2. Create separate files for each major topic (file-based subgraphs)
+3. Within each topic file, add embedded subgraphs for detailed concepts
+4. Add code examples, tables, and detailed text nodes as needed
+
+**Depth-First Approach:**
+1. Create root.json with overview
+2. Use embedded subgraphs extensively for immediate detail
+3. Nest subgraphs within subgraphs to arbitrary depth
+4. Keep everything in one file for simplicity
+
+**Hybrid Approach (Recommended for Large Topics):**
+1. Root.json contains overview with file-based subgraphs for major sections
+2. Each section file uses embedded subgraphs for detailed explanations
+3. Balance between file organization and embedded detail
+4. Create as many levels as needed - there are no artificial limits
