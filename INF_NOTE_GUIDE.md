@@ -34,7 +34,7 @@ Every Inf diagram JSON file has the following top-level fields:
 
 ```json
 {
-  "version": "1.0",
+  "version": "2.3",
   "nodes": [],
   "connections": [],
   "groups": [],
@@ -331,7 +331,7 @@ Use table nodes for:
         "text": "Details",
         "textAlign": "center",
         "subgraph": {
-          "version": "1.0",
+          "version": "2.3",
           "nodes": [
             {
               "id": 1,
@@ -445,7 +445,7 @@ Groups are **graph-specific**:
 
 ```json
 {
-  "version": "1.0",
+  "version": "2.3",
   "nodes": [
     {"id": 1, "type": "rectangle", "text": "Login", "textAlign": "center", "x": 100, "y": 100, "width": 120, "height": 80},
     {"id": 2, "type": "rectangle", "text": "Signup", "textAlign": "center", "x": 250, "y": 100, "width": 120, "height": 80},
@@ -493,7 +493,7 @@ Store complete diagram data inside the node's `subgraph` property:
   "width": 120,
   "height": 80,
   "subgraph": {
-    "version": "1.0",
+    "version": "2.3",
     "nodes": [
       {
         "id": 1,
@@ -592,7 +592,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "1.0",
+  "version": "2.3",
   "nodes": [],
   "connections": [],
   "nextId": 1,
@@ -606,7 +606,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "1.0",
+  "version": "2.3",
   "nodes": [
     {
       "id": 1,
@@ -678,7 +678,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "1.0",
+  "version": "2.3",
   "nodes": [
     {
       "id": 1,
@@ -690,7 +690,7 @@ The application validates and prevents circular references at runtime.
       "width": 120,
       "height": 80,
       "subgraph": {
-        "version": "1.0",
+        "version": "2.3",
         "nodes": [
           {
             "id": 1,
