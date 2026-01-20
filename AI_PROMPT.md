@@ -25,6 +25,7 @@ Structure:
   - code (commands / pseudocode / source code snippets)
   - table (data / comparisons with subgraph-capable cells)
 - Create meaningful connections (directed for flow / dependency, undirected for associations)
+- Use groups to organize related nodes with visual boundaries and labels
 - **Go as deep as needed** - subgraphs support infinite nesting levels
 
 Output:

@@ -8,6 +8,7 @@ This guide explains the JSON format for Inf diagrams, allowing you to create and
 - [Top-Level Structure](#top-level-structure)
 - [Node Types](#node-types)
 - [Connections](#connections)
+- [Groups](#groups)
 - [Subgraphs](#subgraphs)
 - [Complete Examples](#complete-examples)
 - [Validation Rules](#validation-rules)
@@ -36,6 +37,7 @@ Every Inf diagram JSON file has the following top-level fields:
   "version": "1.0",
   "nodes": [],
   "connections": [],
+  "groups": [],
   "nextId": 1,
   "canvasWidth": 2000,
   "canvasHeight": 2000,
@@ -50,9 +52,10 @@ Every Inf diagram JSON file has the following top-level fields:
 | `version` | string | Yes | Format version (current: "1.0") |
 | `nodes` | array | Yes | Array of node objects |
 | `connections` | array | Yes | Array of connection objects |
-| `nextId` | number | Yes | Next available ID for new nodes/connections |
-| `canvasWidth` | number | Yes | Canvas width in pixels (1000-20000, default: 2000) |
-| `canvasHeight` | number | Yes | Canvas height in pixels (1000-20000, default: 2000) |
+| `groups` | array | No | Array of group objects (optional, for backwards compatibility) |
+| `nextId` | number | Yes | Next available ID for new nodes/connections/groups |
+| `canvasWidth` | number | Yes | Canvas width in pixels (100-20000, default: 2000) |
+| `canvasHeight` | number | Yes | Canvas height in pixels (100-20000, default: 2000) |
 | `zoom` | number | Yes | Zoom level (0.1-3.0, default: 1.0) |
 
 ---
@@ -394,6 +397,83 @@ Connections link two nodes together with lines. They can be directed (with arrow
 
 ---
 
+## Groups
+
+Groups provide visual organization for related nodes by drawing a labeled, dashed border around them. Groups are purely visual and don't affect node functionality or connections.
+
+```json
+{
+  "id": 8,
+  "name": "Authentication Module",
+  "nodeIds": [1, 2, 3]
+}
+```
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `id` | number | Yes | Unique group identifier |
+| `name` | string | Yes | Group label displayed at top-left (max 50 chars) |
+| `nodeIds` | array | Yes | Array of node IDs in this group (minimum 2) |
+
+### Group Rules
+
+- `id` must be unique across all groups
+- `name` cannot be empty
+- `nodeIds` must contain at least 2 node IDs
+- All node IDs in `nodeIds` must reference existing nodes
+- No duplicate node IDs within a group
+- Nodes can belong to multiple groups simultaneously
+
+### Visual Rendering
+
+Groups render with:
+- **Dashed border**: Light grey (#999) dashed rectangle with 15px padding around all contained nodes
+- **Label**: Group name displayed in bold at the top-left corner
+- **Auto-sizing**: Border automatically expands/contracts as nodes move
+- **Z-order**: Groups render behind connections and nodes
+
+### Group Scope
+
+Groups are **graph-specific**:
+- Each graph context (root, subgraphs) has its own independent groups
+- When entering a subgraph, parent groups are saved to the navigation stack
+- When exiting a subgraph, child groups are saved and parent groups are restored
+- Groups are included in JSON save/load for each graph level
+- No cross-contamination between different graph contexts
+
+### Example
+
+```json
+{
+  "version": "1.0",
+  "nodes": [
+    {"id": 1, "type": "rectangle", "text": "Login", "textAlign": "center", "x": 100, "y": 100, "width": 120, "height": 80},
+    {"id": 2, "type": "rectangle", "text": "Signup", "textAlign": "center", "x": 250, "y": 100, "width": 120, "height": 80},
+    {"id": 3, "type": "rectangle", "text": "JWT Token", "textAlign": "center", "x": 100, "y": 220, "width": 120, "height": 80},
+    {"id": 4, "type": "rectangle", "text": "Database", "textAlign": "center", "x": 500, "y": 100, "width": 120, "height": 80}
+  ],
+  "connections": [
+    {"id": 5, "fromId": 1, "toId": 3, "directed": true},
+    {"id": 6, "fromId": 2, "toId": 3, "directed": true}
+  ],
+  "groups": [
+    {
+      "id": 7,
+      "name": "Auth Module",
+      "nodeIds": [1, 2, 3]
+    }
+  ],
+  "nextId": 8,
+  "canvasWidth": 2000,
+  "canvasHeight": 2000,
+  "zoom": 1.0
+}
+```
+
+In this example, nodes 1, 2, and 3 will be visually enclosed by a dashed border labeled "Auth Module" at the top-left corner.
+
+---
+
 ## Subgraphs
 
 Nodes can contain subgraphs, creating hierarchical diagrams. Subgraphs can be **embedded** (stored in the same file) or **file-based** (stored in separate JSON files).
@@ -686,8 +766,9 @@ The application validates JSON files when loading. Here are the key rules:
 - `version` is a string
 - `nodes` is an array
 - `connections` is an array
+- `groups` is an array (optional, can be omitted)
 - `nextId` is a positive number
-- `canvasWidth` and `canvasHeight` are between 1000-20000
+- `canvasWidth` and `canvasHeight` are between 100-20000
 - `zoom` is between 0.1-3.0
 
 ### Node Validation
@@ -724,6 +805,23 @@ The application validates JSON files when loading. Here are the key rules:
 - Self-connections
 - Missing required properties
 
+### Group Validation
+
+✅ **Valid:**
+- `id` is a unique positive integer
+- `name` is a non-empty string
+- `nodeIds` is an array with at least 2 node IDs
+- All node IDs reference existing nodes
+- No duplicate node IDs within the group
+
+❌ **Invalid:**
+- Duplicate group IDs
+- Empty or missing `name`
+- Fewer than 2 nodes in `nodeIds`
+- References to non-existent nodes
+- Duplicate node IDs within the group
+- Missing required properties
+
 ### Subgraph Validation
 
 ✅ **Valid:**
@@ -742,7 +840,7 @@ The application validates JSON files when loading. Here are the key rules:
 
 ### ID Management
 
-- **Always increment `nextId`** to be higher than any existing node or connection ID
+- **Always increment `nextId`** to be higher than any existing node, connection, or group ID
 - Keep IDs unique within each diagram (including subgraphs)
 - IDs don't need to be sequential, just unique
 
@@ -754,14 +852,20 @@ Example:
     {"id": 2, ...},
     {"id": 5, ...}  // Gap is OK
   ],
-  "nextId": 6  // Must be > 5
+  "connections": [
+    {"id": 6, ...}
+  ],
+  "groups": [
+    {"id": 7, ...}
+  ],
+  "nextId": 8  // Must be > 7 (highest ID used)
 }
 ```
 
 ### Canvas Sizing
 
 - **Default:** 2000×2000 pixels is a good starting size
-- **Minimum:** 1000×1000 pixels
+- **Minimum:** 100×100 pixels
 - **Maximum:** 20000×20000 pixels
 - Consider your content - larger diagrams need more canvas space
 
@@ -791,6 +895,21 @@ Example:
 - Collaborating with version control
 - Managing very large hierarchies
 - Wanting independent file management
+
+### Groups Strategy
+
+**Use groups to:**
+- Visually organize related nodes (modules, components, layers)
+- Create clear boundaries between different functional areas
+- Label collections of nodes with meaningful names
+- Improve diagram readability without affecting structure
+
+**Best practices:**
+- Name groups clearly and concisely (e.g., "Auth Module", "UI Layer")
+- Keep related nodes physically close together for better visual grouping
+- Nodes can belong to multiple groups (e.g., shared between layers)
+- Groups are purely visual - they don't affect connections or node behavior
+- Each graph context has independent groups (root vs. subgraphs)
 
 ### Performance
 
