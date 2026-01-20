@@ -22,7 +22,7 @@ Structure:
   - circle (entry / exit points)
   - diamond (decisions)
   - text (details / annotations)
-  - code (pseudocode / source code snippets)
+  - code (commands / pseudocode / source code snippets)
   - table (data / comparisons with subgraph-capable cells)
 - Create meaningful connections (directed for flow / dependency, undirected for associations)
 - **Go as deep as needed** - subgraphs support infinite nesting levels
