@@ -869,6 +869,14 @@ document.addEventListener('keydown', (e) => {
             // Remove all selected nodes
             nodes = nodes.filter(n => !idsToDelete.includes(n.id));
 
+            // Clean up groups: remove deleted node IDs and remove groups with < 2 remaining nodes
+            groups = groups.filter(group => {
+                // Remove deleted node IDs from this group
+                group.nodeIds = group.nodeIds.filter(nodeId => !idsToDelete.includes(nodeId));
+                // Keep group only if it still has at least 2 nodes
+                return group.nodeIds.length >= 2;
+            });
+
             // Clean up maps
             idsToDelete.forEach(id => {
                 nodeMap.delete(id);

@@ -1708,6 +1708,7 @@ async function enterCellSubgraph(tableNode, row, col) {
             parentState: {
                 nodes: JSON.parse(JSON.stringify(nodes)),
                 connections: JSON.parse(JSON.stringify(connections)),
+                groups: JSON.parse(JSON.stringify(groups)),
                 nextId: nextId,
                 canvasWidth: canvasWidth,
                 canvasHeight: canvasHeight,
@@ -1730,6 +1731,7 @@ async function enterCellSubgraph(tableNode, row, col) {
         // Load subgraph data
         nodes = subgraphData.nodes || [];
         connections = subgraphData.connections || [];
+        groups = subgraphData.groups || [];
         nextId = subgraphData.nextId || 1;
         canvasWidth = subgraphData.canvasWidth || DEFAULT_CANVAS_WIDTH;
         canvasHeight = subgraphData.canvasHeight || DEFAULT_CANVAS_HEIGHT;
