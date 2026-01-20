@@ -74,3 +74,30 @@ const DEFAULT_CANVAS_HEIGHT = 1000;
 const ZOOM_STEP = 0.1;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3.0;
+
+// UI/Visual constants
+const TEXT_PADDING = 8;                      // Horizontal padding for text inside nodes
+const CELL_PADDING = 4;                      // Padding inside table cells
+const GROUP_PADDING = 15;                    // Padding around nodes in group bounding box
+const HOVER_OFFSET = 2;                      // Offset for hover effect border
+const PASTE_OFFSET = 20;                     // Offset when pasting nodes to avoid overlap
+
+// Border and line widths
+const SUBGRAPH_BORDER_WIDTH = 4;             // Border thickness for nodes with subgraphs
+const SELECTED_BORDER_WIDTH = 2;             // Border thickness for selected nodes
+const EDITING_BORDER_WIDTH = 3;              // Border thickness for editing nodes
+const TABLE_BORDER_DETECT_WIDTH = 10;        // Hit detection area for table borders
+
+// Cursor rendering
+const CURSOR_HEIGHT = 8;                     // Half-height of cursor (above and below line)
+const CURSOR_X_OFFSET_NORMAL = 2;            // Horizontal offset for cursor in normal nodes
+const CURSOR_X_OFFSET_TABLE = 1;             // Horizontal offset for cursor in table cells
+
+// Connection rendering
+const ARROWHEAD_LENGTH = 15;                 // Length of connection arrowheads
+
+// Text editing
+const TEXT_LENGTH_WARNING_THRESHOLD = 50;    // Characters remaining before showing warning
+
+// Code node rendering
+const CODE_LINE_HEIGHT_OFFSET = 4;           // Additional spacing for code lines beyond font size

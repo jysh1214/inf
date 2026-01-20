@@ -748,7 +748,7 @@ document.addEventListener('keydown', (e) => {
                 startCursorBlink();
                 // Show remaining characters when getting close to limit
                 const remaining = MAX_TEXT_LENGTH - getEditingText(editingNode).length;
-                if (remaining <= 50) {
+                if (remaining <= TEXT_LENGTH_WARNING_THRESHOLD) {
                     if (editingNode.type === 'table') {
                         setStatus(`Editing table #${editingNode.id} cell - ${remaining} characters remaining`);
                     } else {
@@ -816,7 +816,6 @@ document.addEventListener('keydown', (e) => {
 
             // Create all nodes maintaining relative positions
             const idMapping = {};  // Map old IDs to new IDs for connections
-            const PASTE_OFFSET = 20;
 
             copiedNodes.forEach(copiedNode => {
                 const newNode = JSON.parse(JSON.stringify(copiedNode));

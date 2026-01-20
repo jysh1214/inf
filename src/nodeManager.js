@@ -126,7 +126,7 @@ function createConnection(fromId, toId) {
     };
 }
 
-function isPointOnTableBorder(x, y, node, borderWidth = 10) {
+function isPointOnTableBorder(x, y, node, borderWidth = TABLE_BORDER_DETECT_WIDTH) {
     if (node.type !== 'table') return false;
 
     const totalWidth = node.cols * node.cellWidth;

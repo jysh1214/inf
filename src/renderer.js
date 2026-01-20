@@ -33,7 +33,7 @@ function drawRectangleNode(node, isSelected) {
 
     // Border - thicker for nodes with subgraphs
     ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : NODE_BORDER_COLOR);
-    ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
+    ctx.lineWidth = node.subgraph ? SUBGRAPH_BORDER_WIDTH : (isEditing ? EDITING_BORDER_WIDTH : (isSelected ? SELECTED_BORDER_WIDTH : 1));
     ctx.strokeRect(node.x, node.y, node.width, node.height);
 
     // Text
@@ -62,7 +62,7 @@ function drawCircleNode(node, isSelected) {
 
     // Border - thicker for nodes with subgraphs
     ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : NODE_BORDER_COLOR);
-    ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
+    ctx.lineWidth = node.subgraph ? SUBGRAPH_BORDER_WIDTH : (isEditing ? EDITING_BORDER_WIDTH : (isSelected ? SELECTED_BORDER_WIDTH : 1));
     ctx.beginPath();
     ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -101,7 +101,7 @@ function drawDiamondNode(node, isSelected) {
 
     // Border - thicker for nodes with subgraphs
     ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : NODE_BORDER_COLOR);
-    ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
+    ctx.lineWidth = node.subgraph ? SUBGRAPH_BORDER_WIDTH : (isEditing ? EDITING_BORDER_WIDTH : (isSelected ? SELECTED_BORDER_WIDTH : 1));
     ctx.beginPath();
     ctx.moveTo(centerX, node.y);
     ctx.lineTo(node.x + node.width, centerY);
@@ -135,7 +135,7 @@ function drawTextNode(node, isSelected) {
     // Thick border for text nodes with subgraphs (always show)
     if (node.subgraph && !isSelected && !isEditing) {
         ctx.strokeStyle = NODE_BORDER_COLOR;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = SUBGRAPH_BORDER_WIDTH;
         ctx.strokeRect(node.x, node.y, node.width, node.height);
     }
 
@@ -143,7 +143,7 @@ function drawTextNode(node, isSelected) {
     if (isSelected || isEditing) {
         // Draw faint selection rectangle
         ctx.strokeStyle = isEditing ? '#ffa000' : '#2196f3';
-        ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 2 : 1);
+        ctx.lineWidth = node.subgraph ? SUBGRAPH_BORDER_WIDTH : (isEditing ? SELECTED_BORDER_WIDTH : 1);
         ctx.setLineDash([5, 5]);
         ctx.strokeRect(node.x, node.y, node.width, node.height);
         ctx.setLineDash([]);
@@ -167,7 +167,7 @@ function drawCodeNode(node, isSelected) {
 
     // Border
     ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : NODE_BORDER_COLOR);
-    ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
+    ctx.lineWidth = node.subgraph ? SUBGRAPH_BORDER_WIDTH : (isEditing ? EDITING_BORDER_WIDTH : (isSelected ? SELECTED_BORDER_WIDTH : 1));
     ctx.strokeRect(node.x, node.y, node.width, node.height);
 
     // Text with monospace font
@@ -203,7 +203,6 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
     ctx.clip();
 
     // Calculate text x position based on alignment (with padding)
-    const TEXT_PADDING = 8;
     let textX;
     if (textAlign === 'left') {
         textX = centerX - maxWidth / 2 + TEXT_PADDING;
@@ -217,7 +216,7 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
     const lines = displayText.split('\n');
 
     // Use slightly smaller line height for code
-    const codeLineHeight = CODE_FONT_SIZE + 4;
+    const codeLineHeight = CODE_FONT_SIZE + CODE_LINE_HEIGHT_OFFSET;
     const startY = centerY - (lines.length - 1) * codeLineHeight / 2;
 
     // Helper function to get syntax color for a token
@@ -305,10 +304,10 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
         }
 
         ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = SELECTED_BORDER_WIDTH;
         ctx.beginPath();
-        ctx.moveTo(cursorX + 2, cursorLineY - 8);
-        ctx.lineTo(cursorX + 2, cursorLineY + 8);
+        ctx.moveTo(cursorX + CURSOR_X_OFFSET_NORMAL, cursorLineY - CURSOR_HEIGHT);
+        ctx.lineTo(cursorX + CURSOR_X_OFFSET_NORMAL, cursorLineY + CURSOR_HEIGHT);
         ctx.stroke();
     }
 
@@ -325,7 +324,7 @@ function drawTableNode(node, isSelected) {
 
     // Outer border - thicker for nodes with subgraphs
     ctx.strokeStyle = isSelected ? '#2196f3' : NODE_BORDER_COLOR;
-    ctx.lineWidth = node.subgraph ? 4 : (isSelected ? 2 : 1);
+    ctx.lineWidth = node.subgraph ? SUBGRAPH_BORDER_WIDTH : (isSelected ? SELECTED_BORDER_WIDTH : 1);
     ctx.strokeRect(node.x, node.y, totalWidth, totalHeight);
 
     // Draw grid lines and cell content
@@ -344,15 +343,15 @@ function drawTableNode(node, isSelected) {
 
             // Draw cell border
             ctx.strokeStyle = isCellSelected ? '#2196f3' : '#ccc';
-            ctx.lineWidth = isCellSelected ? 2 : 1;
+            ctx.lineWidth = isCellSelected ? SELECTED_BORDER_WIDTH : 1;
             ctx.strokeRect(cellX, cellY, node.cellWidth, node.cellHeight);
 
             // Draw dashed border for cells with subgraphs
             if (cell.subgraph) {
                 ctx.strokeStyle = DEFAULT_COLOR;
-                ctx.lineWidth = 2;
+                ctx.lineWidth = SELECTED_BORDER_WIDTH;
                 ctx.setLineDash([5, 5]);
-                ctx.strokeRect(cellX + 1, cellY + 1, node.cellWidth - 2, node.cellHeight - 2);
+                ctx.strokeRect(cellX + 1, cellY + 1, node.cellWidth - (CELL_PADDING / 2), node.cellHeight - (CELL_PADDING / 2));
                 ctx.setLineDash([]); // Reset to solid
             }
 
@@ -362,7 +361,7 @@ function drawTableNode(node, isSelected) {
                 ctx.fillStyle = '#fff9c4';
                 ctx.fillRect(cellX, cellY, node.cellWidth, node.cellHeight);
                 ctx.strokeStyle = '#ffa000';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = SELECTED_BORDER_WIDTH;
                 ctx.strokeRect(cellX, cellY, node.cellWidth, node.cellHeight);
             }
 
@@ -371,7 +370,7 @@ function drawTableNode(node, isSelected) {
             if (cellText || isEditingCell) {
                 ctx.save();
                 ctx.beginPath();
-                ctx.rect(cellX + 2, cellY + 2, node.cellWidth - 4, node.cellHeight - 4);
+                ctx.rect(cellX + CELL_PADDING / 2, cellY + CELL_PADDING / 2, node.cellWidth - CELL_PADDING, node.cellHeight - CELL_PADDING);
                 ctx.clip();
 
                 ctx.fillStyle = '#333';
@@ -385,9 +384,9 @@ function drawTableNode(node, isSelected) {
                 // Calculate text X position based on alignment
                 let textX;
                 if (cellAlign === 'left') {
-                    textX = cellX + 8;  // Left edge with padding
+                    textX = cellX + TEXT_PADDING;  // Left edge with padding
                 } else if (cellAlign === 'right') {
-                    textX = cellX + node.cellWidth - 8;  // Right edge with padding
+                    textX = cellX + node.cellWidth - TEXT_PADDING;  // Right edge with padding
                 } else {
                     textX = centerX;  // Center
                 }
@@ -401,20 +400,20 @@ function drawTableNode(node, isSelected) {
 
                     let cursorX;
                     if (cellAlign === 'left') {
-                        cursorX = cellX + 8 + textWidth;
+                        cursorX = cellX + TEXT_PADDING + textWidth;
                     } else if (cellAlign === 'right') {
                         const fullTextWidth = ctx.measureText(cellText).width;
-                        cursorX = cellX + node.cellWidth - 8 - fullTextWidth + textWidth;
+                        cursorX = cellX + node.cellWidth - TEXT_PADDING - fullTextWidth + textWidth;
                     } else {
                         const fullTextWidth = ctx.measureText(cellText).width;
                         cursorX = centerX - fullTextWidth / 2 + textWidth;
                     }
 
                     ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 2;
+                    ctx.lineWidth = SELECTED_BORDER_WIDTH;
                     ctx.beginPath();
-                    ctx.moveTo(cursorX + 1, centerY - 8);
-                    ctx.lineTo(cursorX + 1, centerY + 8);
+                    ctx.moveTo(cursorX + CURSOR_X_OFFSET_TABLE, centerY - CURSOR_HEIGHT);
+                    ctx.lineTo(cursorX + CURSOR_X_OFFSET_TABLE, centerY + CURSOR_HEIGHT);
                     ctx.stroke();
                 }
 
@@ -471,7 +470,6 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
     }
 
     // Calculate text x position based on alignment (with padding for left/right)
-    const TEXT_PADDING = 8;
     let textX;
     if (textAlign === 'left') {
         textX = centerX - maxWidth / 2 + TEXT_PADDING;
@@ -587,10 +585,10 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
         }
 
         ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = SELECTED_BORDER_WIDTH;
         ctx.beginPath();
-        ctx.moveTo(cursorX + 2, cursorLineY - 8);
-        ctx.lineTo(cursorX + 2, cursorLineY + 8);
+        ctx.moveTo(cursorX + CURSOR_X_OFFSET_NORMAL, cursorLineY - CURSOR_HEIGHT);
+        ctx.lineTo(cursorX + CURSOR_X_OFFSET_NORMAL, cursorLineY + CURSOR_HEIGHT);
         ctx.stroke();
     }
 
@@ -620,18 +618,17 @@ function drawArrow(x1, y1, x2, y2, directed, isSelected) {
     // Draw arrowhead on top if directed
     if (directed) {
         const angle = Math.atan2(y2 - y1, x2 - x1);
-        const headLength = 15;
         const headWidth = Math.PI / 6;
 
         ctx.beginPath();
         ctx.moveTo(x2, y2);
         ctx.lineTo(
-            x2 - headLength * Math.cos(angle - headWidth),
-            y2 - headLength * Math.sin(angle - headWidth)
+            x2 - ARROWHEAD_LENGTH * Math.cos(angle - headWidth),
+            y2 - ARROWHEAD_LENGTH * Math.sin(angle - headWidth)
         );
         ctx.lineTo(
-            x2 - headLength * Math.cos(angle + headWidth),
-            y2 - headLength * Math.sin(angle + headWidth)
+            x2 - ARROWHEAD_LENGTH * Math.cos(angle + headWidth),
+            y2 - ARROWHEAD_LENGTH * Math.sin(angle + headWidth)
         );
         ctx.closePath();
         ctx.fill();
@@ -923,15 +920,14 @@ function drawGroup(group) {
     const bbox = getGroupBoundingBox(group.nodeIds);
     if (!bbox) return; // No valid nodes in group
 
-    const padding = 15; // Padding around nodes
-    const x = bbox.minX - padding;
-    const y = bbox.minY - padding;
-    const width = bbox.maxX - bbox.minX + 2 * padding;
-    const height = bbox.maxY - bbox.minY + 2 * padding;
+    const x = bbox.minX - GROUP_PADDING;
+    const y = bbox.minY - GROUP_PADDING;
+    const width = bbox.maxX - bbox.minX + 2 * GROUP_PADDING;
+    const height = bbox.maxY - bbox.minY + 2 * GROUP_PADDING;
 
     // Draw dashed border
     ctx.strokeStyle = NODE_BORDER_COLOR; // Light grey color like node borders
-    ctx.lineWidth = 2;
+    ctx.lineWidth = SELECTED_BORDER_WIDTH;
     ctx.setLineDash([8, 4]); // Dashed pattern
     ctx.strokeRect(x, y, width, height);
     ctx.setLineDash([]); // Reset dash pattern
@@ -941,7 +937,7 @@ function drawGroup(group) {
     ctx.fillStyle = NODE_BORDER_COLOR;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(group.name, x + 8, y - 4);
+    ctx.fillText(group.name, x + TEXT_PADDING, y - CELL_PADDING);
 }
 
 function render() {
@@ -988,18 +984,17 @@ function render() {
         switch (hoveredNode.type) {
             case 'circle':
                 ctx.beginPath();
-                ctx.arc(hoveredNode.x, hoveredNode.y, hoveredNode.radius + 2, 0, Math.PI * 2);
+                ctx.arc(hoveredNode.x, hoveredNode.y, hoveredNode.radius + HOVER_OFFSET, 0, Math.PI * 2);
                 ctx.stroke();
                 break;
             case 'diamond':
                 const centerX = hoveredNode.x + hoveredNode.width / 2;
                 const centerY = hoveredNode.y + hoveredNode.height / 2;
-                const offset = 2;
                 ctx.beginPath();
-                ctx.moveTo(centerX, hoveredNode.y - offset);
-                ctx.lineTo(hoveredNode.x + hoveredNode.width + offset, centerY);
-                ctx.lineTo(centerX, hoveredNode.y + hoveredNode.height + offset);
-                ctx.lineTo(hoveredNode.x - offset, centerY);
+                ctx.moveTo(centerX, hoveredNode.y - HOVER_OFFSET);
+                ctx.lineTo(hoveredNode.x + hoveredNode.width + HOVER_OFFSET, centerY);
+                ctx.lineTo(centerX, hoveredNode.y + hoveredNode.height + HOVER_OFFSET);
+                ctx.lineTo(hoveredNode.x - HOVER_OFFSET, centerY);
                 ctx.closePath();
                 ctx.stroke();
                 break;
@@ -1007,13 +1002,13 @@ function render() {
                 // Table nodes use cols/rows/cellWidth/cellHeight instead of width/height
                 const totalWidth = hoveredNode.cols * hoveredNode.cellWidth;
                 const totalHeight = hoveredNode.rows * hoveredNode.cellHeight;
-                ctx.strokeRect(hoveredNode.x - 2, hoveredNode.y - 2,
-                              totalWidth + 4, totalHeight + 4);
+                ctx.strokeRect(hoveredNode.x - HOVER_OFFSET, hoveredNode.y - HOVER_OFFSET,
+                              totalWidth + HOVER_OFFSET * 2, totalHeight + HOVER_OFFSET * 2);
                 break;
             default:
                 // Rectangle, text, and code
-                ctx.strokeRect(hoveredNode.x - 2, hoveredNode.y - 2,
-                              hoveredNode.width + 4, hoveredNode.height + 4);
+                ctx.strokeRect(hoveredNode.x - HOVER_OFFSET, hoveredNode.y - HOVER_OFFSET,
+                              hoveredNode.width + HOVER_OFFSET * 2, hoveredNode.height + HOVER_OFFSET * 2);
                 break;
         }
 
