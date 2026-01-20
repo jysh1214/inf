@@ -39,12 +39,44 @@ async function initDB() {
 
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME);
+            const transaction = event.target.transaction;
+
+            try {
+                // Create file handles store if it doesn't exist
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+
+                // Create directory handle store if it doesn't exist
+                if (!db.objectStoreNames.contains(DIR_STORE_NAME)) {
+                    db.createObjectStore(DIR_STORE_NAME);
+                }
+
+                // Validate that stores were created successfully
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    throw new Error(`Failed to create object store: ${STORE_NAME}`);
+                }
+                if (!db.objectStoreNames.contains(DIR_STORE_NAME)) {
+                    throw new Error(`Failed to create object store: ${DIR_STORE_NAME}`);
+                }
+            } catch (error) {
+                console.error('IndexedDB upgrade error:', error);
+                // Transaction will be aborted automatically on error
+                transaction.abort();
             }
-            if (!db.objectStoreNames.contains(DIR_STORE_NAME)) {
-                db.createObjectStore(DIR_STORE_NAME);
-            }
+
+            // Add transaction complete handler for validation
+            transaction.oncomplete = () => {
+                console.log('IndexedDB upgrade completed successfully');
+            };
+
+            transaction.onerror = () => {
+                console.error('IndexedDB upgrade transaction failed:', transaction.error);
+            };
+
+            transaction.onabort = () => {
+                console.error('IndexedDB upgrade transaction aborted');
+            };
         };
     });
 

@@ -86,6 +86,48 @@ function isValidId(value) {
 }
 
 /**
+ * Safely calculate nextId from nodes, connections, and groups
+ * Filters out any items with invalid IDs before calculating
+ * @param {Array} nodes - Array of nodes
+ * @param {Array} connections - Array of connections
+ * @param {Array} groups - Array of groups
+ * @returns {number} Safe next ID to use (minimum 1)
+ */
+function calculateSafeNextId(nodes, connections, groups) {
+    const allIds = [];
+
+    // Safely collect node IDs
+    if (Array.isArray(nodes)) {
+        nodes.forEach(node => {
+            if (node && isValidId(node.id)) {
+                allIds.push(node.id);
+            }
+        });
+    }
+
+    // Safely collect connection IDs
+    if (Array.isArray(connections)) {
+        connections.forEach(conn => {
+            if (conn && isValidId(conn.id)) {
+                allIds.push(conn.id);
+            }
+        });
+    }
+
+    // Safely collect group IDs
+    if (Array.isArray(groups)) {
+        groups.forEach(group => {
+            if (group && isValidId(group.id)) {
+                allIds.push(group.id);
+            }
+        });
+    }
+
+    // Return max + 1, or 1 if no valid IDs found
+    return allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
+}
+
+/**
  * Validate complete diagram data structure
  * @param {object} data - The diagram data to validate
  * @throws {Error} If validation fails
@@ -595,8 +637,7 @@ async function selectWorkspaceFolder() {
             if (data.nextId !== undefined && data.nextId !== null) {
                 nextId = data.nextId;
             } else {
-                const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id)];
-                nextId = allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
+                nextId = calculateSafeNextId(nodes, connections, groups);
             }
 
             // Restore canvas size and zoom if saved
@@ -957,6 +998,54 @@ async function loadSubgraphFromFile(filePath, nodeId) {
     }
 }
 
+/**
+ * Recursively check if a subgraph contains circular references
+ * @param {object} subgraphData - The subgraph data to check
+ * @param {Set} forbiddenIds - Set of node IDs that would create a circular reference
+ * @returns {object|null} Returns error info if circular reference found, null otherwise
+ */
+function checkSubgraphForCircularRefs(subgraphData, forbiddenIds) {
+    if (!subgraphData || !subgraphData.nodes) {
+        return null;
+    }
+
+    // Check each node in this subgraph
+    for (let node of subgraphData.nodes) {
+        // If this node's ID is forbidden, we have a circular reference
+        if (forbiddenIds.has(node.id)) {
+            return {
+                nodeId: node.id,
+                message: `Node #${node.id} would create a circular reference`
+            };
+        }
+
+        // If this node has an embedded subgraph, recursively check it
+        if (node.subgraph && typeof node.subgraph === 'object') {
+            const nestedCheck = checkSubgraphForCircularRefs(node.subgraph, forbiddenIds);
+            if (nestedCheck) {
+                return nestedCheck;
+            }
+        }
+
+        // Also check table cells for embedded subgraphs
+        if (node.type === 'table' && node.cells) {
+            for (let row = 0; row < node.rows; row++) {
+                for (let col = 0; col < node.cols; col++) {
+                    const cell = node.cells[row][col];
+                    if (cell && cell.subgraph && typeof cell.subgraph === 'object') {
+                        const cellCheck = checkSubgraphForCircularRefs(cell.subgraph, forbiddenIds);
+                        if (cellCheck) {
+                            return cellCheck;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return null; // No circular references found
+}
+
 async function enterSubgraph(node) {
     try {
         let subgraphData = null;
@@ -991,6 +1080,13 @@ async function enterSubgraph(node) {
             }
 
             subgraphData = node.subgraph;
+
+            // Recursively check if the embedded subgraph contains any forbidden node IDs
+            const forbiddenIds = new Set([...allPathIds, ...currentPath, node.id]);
+            const circularCheck = checkSubgraphForCircularRefs(subgraphData, forbiddenIds);
+            if (circularCheck) {
+                throw new Error(`Circular reference detected in embedded subgraph: ${circularCheck.message}`);
+            }
         } else {
             throw new Error('Invalid subgraph format');
         }
@@ -1031,8 +1127,7 @@ async function enterSubgraph(node) {
         if (subgraphData.nextId !== undefined && subgraphData.nextId !== null) {
             nextId = subgraphData.nextId;
         } else {
-            const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id), ...groups.map(g => g.id)];
-            nextId = allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
+            nextId = calculateSafeNextId(nodes, connections, groups);
         }
 
         // Restore canvas size and zoom if saved in subgraph
@@ -1397,8 +1492,7 @@ function loadFromJSON(event) {
                 }
                 nextId = saveData.nextId;
             } else {
-                const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id), ...groups.map(g => g.id)];
-                nextId = allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
+                nextId = calculateSafeNextId(nodes, connections, groups);
             }
 
             // Restore canvas size and zoom if saved
@@ -1693,6 +1787,13 @@ async function enterCellSubgraph(tableNode, row, col) {
             }
 
             subgraphData = cell.subgraph;
+
+            // Recursively check if the embedded subgraph contains any forbidden node IDs
+            const forbiddenIds = new Set([...allPathIds, ...currentPath, cellId]);
+            const circularCheck = checkSubgraphForCircularRefs(subgraphData, forbiddenIds);
+            if (circularCheck) {
+                throw new Error(`Circular reference detected in cell subgraph: ${circularCheck.message}`);
+            }
         } else {
             throw new Error('Invalid cell subgraph format');
         }

@@ -877,8 +877,27 @@ document.addEventListener('keydown', (e) => {
                 return group.nodeIds.length >= 2;
             });
 
-            // Clean up maps
+            // Clean up maps and file handles
             idsToDelete.forEach(id => {
+                const node = nodeMap.get(id);
+
+                // If it's a table node, clean up cell subgraph file handles
+                if (node && node.type === 'table' && node.cells) {
+                    for (let row = 0; row < node.rows; row++) {
+                        for (let col = 0; col < node.cols; col++) {
+                            const cell = node.cells[row][col];
+                            // If cell has a file-based subgraph, clean up its file handle
+                            if (cell && typeof cell.subgraph === 'string') {
+                                const cellKey = `${id}-cell-${row}-${col}`;
+                                fileHandleMap.delete(cellKey);
+                                deleteFileHandle(cellKey).catch(err =>
+                                    console.warn(`Failed to delete cell file handle ${cellKey}:`, err)
+                                );
+                            }
+                        }
+                    }
+                }
+
                 nodeMap.delete(id);
                 fileHandleMap.delete(id);  // Clean up file handle from memory
                 // Clean up file handle from IndexedDB (async, with error handling)
