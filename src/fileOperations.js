@@ -474,6 +474,10 @@ async function selectWorkspaceFolder() {
             mode: 'read'
         });
 
+        // Clear all cached file handles (in-memory and IndexedDB)
+        fileHandleMap.clear();
+        await clearAllFileHandles();
+
         // Store the directory handle
         await storeDirectoryHandle(dirHandle);
 

@@ -247,3 +247,28 @@ async function findFileInDirectory(filename) {
         return null;
     }
 }
+
+/**
+ * Clear all file handles from IndexedDB
+ * Used when resetting workspace folder
+ */
+async function clearAllFileHandles() {
+    try {
+        if (!db) await initDB();
+
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.clear();
+
+            request.onsuccess = () => {
+                console.log('Cleared all file handles from IndexedDB');
+                resolve();
+            };
+            request.onerror = () => reject(request.error);
+        });
+    } catch (error) {
+        console.error('Failed to clear file handles:', error);
+        // Don't throw - clearing failure shouldn't break the app
+    }
+}

@@ -63,7 +63,7 @@ const SYNTAX_PATTERNS = {
     comment: /^(\/\/|#)/  // Support // (JS/C++) and # (Python) comments
 };
 const CANVAS_SIZE_STEP = 100;
-const MIN_CANVAS_SIZE = 500;
+const MIN_CANVAS_SIZE = 100;
 const MAX_CANVAS_SIZE = 20000;
 const DEFAULT_CANVAS_WIDTH = 1000;
 const DEFAULT_CANVAS_HEIGHT = 1000;
