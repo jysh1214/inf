@@ -512,6 +512,16 @@ Syntax highlighting colors and keywords in `constants.js`:
 
 ## Version History
 
+- **v2.3** (2026-01-20):
+  - **Critical bug fixes**: Fixed 4 critical issues found in comprehensive code review
+    - Memory leak: Clean up cell subgraph file handles when deleting table nodes
+    - Circular references: Add recursive validation for deeply nested embedded subgraphs
+    - ID generation: Create calculateSafeNextId() to prevent duplicates and crashes
+    - IndexedDB: Add transaction validation and error handling in upgrade handler
+  - **Code quality improvements**: Extract all magic numbers to named constants
+    - Added 15 new descriptive constants (TEXT_PADDING, GROUP_PADDING, CURSOR_HEIGHT, etc.)
+    - Improved code maintainability and self-documentation
+    - Easier customization and consistency across the codebase
 - **v2.0** (2026-01-19):
   - **UI/UX overhaul**: Modern purple gradient design system
   - **Beautiful error modal**: Replaces browser alert() with animated custom modal
