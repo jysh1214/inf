@@ -275,3 +275,52 @@ function getResizeCorner(x, y, node) {
             return null;
     }
 }
+
+// Group management functions
+/**
+ * Create a group from currently selected nodes
+ * Shows modal to get group name
+ */
+function createGroupFromSelection() {
+    // Validate that we have at least 2 nodes selected
+    if (selectedNodeIds.size < 2) {
+        setStatus('⚠️ Please select at least 2 nodes to create a group');
+        return;
+    }
+
+    // Show the group name modal
+    showGroupModal();
+}
+
+/**
+ * Confirm group creation with the entered name
+ * Called when user clicks "Create" in the modal
+ */
+function confirmCreateGroup() {
+    const nameInput = document.getElementById('group-name');
+    const groupName = nameInput ? nameInput.value.trim() : '';
+
+    // Validate group name
+    if (!groupName) {
+        setStatus('⚠️ Group name cannot be empty');
+        return;
+    }
+
+    // Create the group object
+    const group = {
+        id: nextId++,
+        name: groupName,
+        nodeIds: Array.from(selectedNodeIds)
+    };
+
+    // Add to groups array
+    groups.push(group);
+
+    // Close modal
+    closeGroupModal();
+
+    // Render and trigger auto-save
+    render();
+    triggerAutoSave();
+    setStatus(`✓ Created group "${groupName}" with ${group.nodeIds.length} nodes`);
+}

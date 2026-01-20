@@ -160,6 +160,7 @@ function clearCanvas() {
         stopCursorBlink();
         nodes = [];
         connections = [];
+        groups = [];
         nodeMap.clear();
         selectedNodeIds.clear();
         selectedConnection = null;

@@ -8,6 +8,7 @@ async function saveToJSON() {
         version: VERSION,
         nodes: nodes,
         connections: connections,
+        groups: groups,
         nextId: nextId,
         canvasWidth: canvasWidth,
         canvasHeight: canvasHeight,
@@ -100,6 +101,10 @@ function validateDiagramData(data) {
     if (!data.connections || !Array.isArray(data.connections)) {
         throw new Error('Invalid file format: missing or invalid "connections" array');
     }
+    // Groups are optional (for backwards compatibility)
+    if (data.groups !== undefined && !Array.isArray(data.groups)) {
+        throw new Error('Invalid file format: "groups" must be an array');
+    }
 
     // Check for null/undefined elements in arrays
     if (data.nodes.some((node, i) => node === null || node === undefined)) {
@@ -107,6 +112,9 @@ function validateDiagramData(data) {
     }
     if (data.connections.some((conn, i) => conn === null || conn === undefined)) {
         throw new Error('Invalid file format: connections array contains null or undefined elements');
+    }
+    if (data.groups && data.groups.some((group, i) => group === null || group === undefined)) {
+        throw new Error('Invalid file format: groups array contains null or undefined elements');
     }
 
     // Validate each node
@@ -131,6 +139,20 @@ function validateDiagramData(data) {
     // Check for duplicate connection IDs
     if (connectionIds.size !== data.connections.length) {
         throw new Error('Invalid file format: duplicate connection IDs found');
+    }
+
+    // Validate each group (if present)
+    if (data.groups && data.groups.length > 0) {
+        const groupIds = new Set();
+        data.groups.forEach((group, index) => {
+            validateGroup(group, index, nodeIds);
+            groupIds.add(group.id);
+        });
+
+        // Check for duplicate group IDs
+        if (groupIds.size !== data.groups.length) {
+            throw new Error('Invalid file format: duplicate group IDs found');
+        }
     }
 
     // Validate optional canvas size
@@ -362,6 +384,49 @@ function validateConnection(conn, index, nodeIds) {
     }
 }
 
+function validateGroup(group, index, nodeIds) {
+    if (group === null || group === undefined || typeof group !== 'object') {
+        throw new Error(`Group ${index}: must be an object`);
+    }
+
+    // Validate id
+    if (!isValidId(group.id)) {
+        throw new Error(`Group ${index}: invalid or missing 'id' (got ${group.id})`);
+    }
+
+    // Validate name
+    if (typeof group.name !== 'string') {
+        throw new Error(`Group ${index} (id: ${group.id}): 'name' must be a string (got ${typeof group.name})`);
+    }
+    if (group.name.trim() === '') {
+        throw new Error(`Group ${index} (id: ${group.id}): 'name' cannot be empty`);
+    }
+
+    // Validate nodeIds
+    if (!Array.isArray(group.nodeIds)) {
+        throw new Error(`Group ${index} (id: ${group.id}): 'nodeIds' must be an array (got ${typeof group.nodeIds})`);
+    }
+    if (group.nodeIds.length < 2) {
+        throw new Error(`Group ${index} (id: ${group.id}): 'nodeIds' must contain at least 2 node IDs (got ${group.nodeIds.length})`);
+    }
+
+    // Validate each node ID in the group
+    group.nodeIds.forEach((nodeId, i) => {
+        if (!isValidId(nodeId)) {
+            throw new Error(`Group ${index} (id: ${group.id}): nodeIds[${i}] is invalid (got ${nodeId})`);
+        }
+        if (!nodeIds.has(nodeId)) {
+            throw new Error(`Group ${index} (id: ${group.id}): nodeIds[${i}] references non-existent node ${nodeId}`);
+        }
+    });
+
+    // Check for duplicate node IDs in the group
+    const uniqueNodeIds = new Set(group.nodeIds);
+    if (uniqueNodeIds.size !== group.nodeIds.length) {
+        throw new Error(`Group ${index} (id: ${group.id}): 'nodeIds' contains duplicate node IDs`);
+    }
+}
+
 function validateSubgraph(subgraph, nodeId, nodeIndex) {
     // Check if subgraph is null/undefined (valid - no subgraph)
     if (subgraph === null || subgraph === undefined) {
@@ -425,6 +490,28 @@ function validateSubgraph(subgraph, nodeId, nodeIndex) {
         // Check for duplicate connection IDs
         if (subConnIds.size !== subgraph.connections.length) {
             throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' contains duplicate connection IDs`);
+        }
+
+        // Validate groups if present
+        if (subgraph.groups !== undefined && subgraph.groups !== null) {
+            if (!Array.isArray(subgraph.groups)) {
+                throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' groups must be an array`);
+            }
+            if (subgraph.groups.some((g, i) => g === null || g === undefined)) {
+                throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' groups array contains null or undefined elements`);
+            }
+
+            // Validate each group
+            const subGroupIds = new Set();
+            subgraph.groups.forEach((group, idx) => {
+                validateGroup(group, idx, subNodeIds);
+                subGroupIds.add(group.id);
+            });
+
+            // Check for duplicate group IDs
+            if (subGroupIds.size !== subgraph.groups.length) {
+                throw new Error(`Node ${nodeIndex} (id: ${nodeId}): embedded 'subgraph' contains duplicate group IDs`);
+            }
         }
 
         // Validate optional canvas dimensions
@@ -916,6 +1003,7 @@ async function enterSubgraph(node) {
             parentState: {
                 nodes: JSON.parse(JSON.stringify(nodes)),
                 connections: JSON.parse(JSON.stringify(connections)),
+                groups: JSON.parse(JSON.stringify(groups)),
                 nextId: nextId,
                 canvasWidth: canvasWidth,
                 canvasHeight: canvasHeight,
@@ -937,12 +1025,13 @@ async function enterSubgraph(node) {
         // Load subgraph data
         nodes = subgraphData.nodes;
         connections = subgraphData.connections;
+        groups = subgraphData.groups || [];
 
         // Calculate nextId safely
         if (subgraphData.nextId !== undefined && subgraphData.nextId !== null) {
             nextId = subgraphData.nextId;
         } else {
-            const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id)];
+            const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id), ...groups.map(g => g.id)];
             nextId = allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
         }
 
@@ -1045,6 +1134,7 @@ async function exitSubgraph() {
             version: VERSION,
             nodes: nodes,
             connections: connections,
+            groups: groups,
             nextId: nextId,
             canvasWidth: canvasWidth,
             canvasHeight: canvasHeight,
@@ -1063,6 +1153,7 @@ async function exitSubgraph() {
         // Restore parent state
         nodes = parentState.nodes;
         connections = parentState.connections;
+        groups = parentState.groups || [];
         nextId = parentState.nextId;
         canvasWidth = parentState.canvasWidth;
         canvasHeight = parentState.canvasHeight;
@@ -1297,6 +1388,7 @@ function loadFromJSON(event) {
             // Load the data
             nodes = saveData.nodes;
             connections = saveData.connections;
+            groups = saveData.groups || [];
 
             // Calculate nextId safely
             if (saveData.nextId !== undefined && saveData.nextId !== null) {
@@ -1305,7 +1397,7 @@ function loadFromJSON(event) {
                 }
                 nextId = saveData.nextId;
             } else {
-                const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id)];
+                const allIds = [...nodes.map(n => n.id), ...connections.map(c => c.id), ...groups.map(g => g.id)];
                 nextId = allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
             }
 

@@ -35,6 +35,7 @@ function autoSave() {
             version: VERSION,
             nodes: nodes,
             connections: connections,
+            groups: groups,
             nextId: nextId,
             canvasWidth: canvasWidth,
             canvasHeight: canvasHeight,
@@ -120,6 +121,7 @@ function autoLoad() {
         // Load the data
         nodes = saveData.nodes;
         connections = saveData.connections || [];
+        groups = saveData.groups || [];
         nextId = saveData.nextId || 1;
 
         // Restore canvas size and zoom if saved

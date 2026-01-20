@@ -9,6 +9,7 @@ let canvasHeight = DEFAULT_CANVAS_HEIGHT;
 let zoom = 1.0;
 let nodes = [];
 let connections = [];
+let groups = [];  // Array of group objects: {id, name, nodeIds}
 let selectedNodeIds = new Set();  // Set of node IDs currently selected (multi-select)
 let selectedConnection = null;
 let selectedCell = null;  // {table: node, row: number, col: number}

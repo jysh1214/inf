@@ -32,7 +32,7 @@ function drawRectangleNode(node, isSelected) {
     ctx.fillRect(node.x, node.y, node.width, node.height);
 
     // Border - thicker for nodes with subgraphs
-    ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
+    ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : NODE_BORDER_COLOR);
     ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
     ctx.strokeRect(node.x, node.y, node.width, node.height);
 
@@ -61,7 +61,7 @@ function drawCircleNode(node, isSelected) {
     ctx.fill();
 
     // Border - thicker for nodes with subgraphs
-    ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
+    ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : NODE_BORDER_COLOR);
     ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
     ctx.beginPath();
     ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
@@ -100,7 +100,7 @@ function drawDiamondNode(node, isSelected) {
     ctx.fill();
 
     // Border - thicker for nodes with subgraphs
-    ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
+    ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : NODE_BORDER_COLOR);
     ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
     ctx.beginPath();
     ctx.moveTo(centerX, node.y);
@@ -134,7 +134,7 @@ function drawTextNode(node, isSelected) {
 
     // Thick border for text nodes with subgraphs (always show)
     if (node.subgraph && !isSelected && !isEditing) {
-        ctx.strokeStyle = '#999';
+        ctx.strokeStyle = NODE_BORDER_COLOR;
         ctx.lineWidth = 4;
         ctx.strokeRect(node.x, node.y, node.width, node.height);
     }
@@ -166,7 +166,7 @@ function drawCodeNode(node, isSelected) {
     ctx.fillRect(node.x, node.y, node.width, node.height);
 
     // Border
-    ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : '#999');
+    ctx.strokeStyle = isEditing ? '#ffa000' : (isSelected ? '#2196f3' : NODE_BORDER_COLOR);
     ctx.lineWidth = node.subgraph ? 4 : (isEditing ? 3 : (isSelected ? 2 : 1));
     ctx.strokeRect(node.x, node.y, node.width, node.height);
 
@@ -324,7 +324,7 @@ function drawTableNode(node, isSelected) {
     ctx.fillRect(node.x, node.y, totalWidth, totalHeight);
 
     // Outer border - thicker for nodes with subgraphs
-    ctx.strokeStyle = isSelected ? '#2196f3' : '#999';
+    ctx.strokeStyle = isSelected ? '#2196f3' : NODE_BORDER_COLOR;
     ctx.lineWidth = node.subgraph ? 4 : (isSelected ? 2 : 1);
     ctx.strokeRect(node.x, node.y, totalWidth, totalHeight);
 
@@ -349,7 +349,7 @@ function drawTableNode(node, isSelected) {
 
             // Draw dashed border for cells with subgraphs
             if (cell.subgraph) {
-                ctx.strokeStyle = '#666';
+                ctx.strokeStyle = DEFAULT_COLOR;
                 ctx.lineWidth = 2;
                 ctx.setLineDash([5, 5]);
                 ctx.strokeRect(cellX + 1, cellY + 1, node.cellWidth - 2, node.cellHeight - 2);
@@ -607,8 +607,8 @@ function drawResizeHandles(corners) {
 }
 
 function drawArrow(x1, y1, x2, y2, directed, isSelected) {
-    ctx.strokeStyle = isSelected ? '#2196f3' : '#666';
-    ctx.fillStyle = isSelected ? '#2196f3' : '#666';
+    ctx.strokeStyle = isSelected ? '#2196f3' : DEFAULT_COLOR;
+    ctx.fillStyle = isSelected ? '#2196f3' : DEFAULT_COLOR;
     ctx.lineWidth = isSelected ? 3 : 2;
 
     // Always draw the full line to the node border
@@ -863,6 +863,87 @@ function drawConnection(conn) {
     drawArrow(startPoint.x, startPoint.y, endPoint.x, endPoint.y, conn.directed, isSelected);
 }
 
+// Group rendering functions
+/**
+ * Calculate bounding box for a group of nodes
+ * @param {Array} nodeIds - Array of node IDs in the group
+ * @returns {Object} Bounding box {minX, minY, maxX, maxY} or null if no valid nodes
+ */
+function getGroupBoundingBox(nodeIds) {
+    if (!nodeIds || nodeIds.length === 0) return null;
+
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+
+    for (let nodeId of nodeIds) {
+        const node = nodeMap.get(nodeId);
+        if (!node) continue; // Skip deleted nodes
+
+        let nodeMinX, nodeMinY, nodeMaxX, nodeMaxY;
+
+        switch (node.type) {
+            case 'circle':
+                nodeMinX = node.x - node.radius;
+                nodeMinY = node.y - node.radius;
+                nodeMaxX = node.x + node.radius;
+                nodeMaxY = node.y + node.radius;
+                break;
+            case 'table':
+                nodeMinX = node.x;
+                nodeMinY = node.y;
+                nodeMaxX = node.x + (node.cols * node.cellWidth);
+                nodeMaxY = node.y + (node.rows * node.cellHeight);
+                break;
+            default:
+                // Rectangle, diamond, text, code
+                nodeMinX = node.x;
+                nodeMinY = node.y;
+                nodeMaxX = node.x + node.width;
+                nodeMaxY = node.y + node.height;
+                break;
+        }
+
+        minX = Math.min(minX, nodeMinX);
+        minY = Math.min(minY, nodeMinY);
+        maxX = Math.max(maxX, nodeMaxX);
+        maxY = Math.max(maxY, nodeMaxY);
+    }
+
+    // Return null if no valid nodes were found
+    if (minX === Infinity) return null;
+
+    return { minX, minY, maxX, maxY };
+}
+
+/**
+ * Draw a group border and label
+ * @param {Object} group - Group object {id, name, nodeIds}
+ */
+function drawGroup(group) {
+    const bbox = getGroupBoundingBox(group.nodeIds);
+    if (!bbox) return; // No valid nodes in group
+
+    const padding = 15; // Padding around nodes
+    const x = bbox.minX - padding;
+    const y = bbox.minY - padding;
+    const width = bbox.maxX - bbox.minX + 2 * padding;
+    const height = bbox.maxY - bbox.minY + 2 * padding;
+
+    // Draw dashed border
+    ctx.strokeStyle = NODE_BORDER_COLOR; // Light grey color like node borders
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]); // Dashed pattern
+    ctx.strokeRect(x, y, width, height);
+    ctx.setLineDash([]); // Reset dash pattern
+
+    // Draw group name label at top-left corner
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillStyle = NODE_BORDER_COLOR;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(group.name, x + 8, y - 4);
+}
+
 function render() {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -891,6 +972,9 @@ function render() {
         ctx.stroke();
         ctx.setLineDash([]);
     }
+
+    // Draw groups (behind nodes)
+    groups.forEach(group => drawGroup(group));
 
     // Draw nodes
     nodes.forEach(node => drawNode(node));

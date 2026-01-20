@@ -163,6 +163,14 @@ document.addEventListener('keydown', (e) => {
             closeTableModal();
             e.preventDefault();
             e.stopImmediatePropagation();
+            return;
+        }
+
+        const groupModal = document.getElementById('group-modal');
+        if (groupModal && groupModal.style.display === 'flex') {
+            closeGroupModal();
+            e.preventDefault();
+            e.stopImmediatePropagation();
         }
     }
 });
@@ -305,4 +313,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     tableModalInitialized = true;
+});
+
+// Group modal functions
+/**
+ * Show the group name input modal
+ */
+function showGroupModal() {
+    const modal = document.getElementById('group-modal');
+    if (!modal) {
+        console.error('Group modal not found');
+        setStatus('⚠️ Error: Modal UI not loaded');
+        return;
+    }
+
+    // Reset input value
+    const nameInput = document.getElementById('group-name');
+    if (nameInput) nameInput.value = '';
+
+    // Show the modal
+    modal.style.display = 'flex';
+
+    // Focus the name input
+    if (nameInput) {
+        setTimeout(() => nameInput.focus(), 100);
+    }
+}
+
+/**
+ * Close the group modal
+ */
+function closeGroupModal() {
+    const modal = document.getElementById('group-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Setup group modal overlay click handler and Enter key support
+let groupModalInitialized = false;
+document.addEventListener('DOMContentLoaded', () => {
+    if (groupModalInitialized) return;
+
+    const groupModal = document.getElementById('group-modal');
+    if (groupModal) {
+        const overlay = groupModal.querySelector('.modal-overlay');
+        if (overlay) {
+            overlay.addEventListener('click', closeGroupModal);
+        }
+    }
+
+    // Allow Enter key to confirm group creation
+    const nameInput = document.getElementById('group-name');
+    if (nameInput) {
+        nameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                confirmCreateGroup();
+                e.preventDefault();
+            }
+        });
+    }
+
+    groupModalInitialized = true;
 });

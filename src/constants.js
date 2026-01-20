@@ -24,6 +24,10 @@ const FONT_SIZE = 14;
 const CODE_FONT_FAMILY = 'Monaco, Menlo, "Courier New", monospace';
 const CODE_FONT_SIZE = 13;
 
+// Color constants
+const DEFAULT_COLOR = '#666';  // Default grey color for connections
+const NODE_BORDER_COLOR = '#999';  // Light grey color for node borders and groups
+
 // Syntax highlighting color map
 const SYNTAX_COLORS = {
     keyword: '#0000ff',      // Blue

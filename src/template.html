@@ -75,6 +75,13 @@
             </div>
         </div>
 
+        <div class="node-types">
+            <h4>Groups</h4>
+            <div class="node-type-buttons">
+                <button onclick="createGroupFromSelection()" class="node-btn" id="btn-create-group" title="Create Group from Selected Nodes">Create Group</button>
+            </div>
+        </div>
+
         <div class="node-types" id="subgraph-navigation" style="display: none;">
             <h4>Navigation</h4>
             <div class="node-type-buttons">
@@ -130,6 +137,27 @@
             <div class="modal-buttons">
                 <button class="modal-confirm" onclick="createTableWithSize()">Create</button>
                 <button class="modal-cancel" onclick="closeTableModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group Name Input Modal -->
+    <div id="group-modal" class="modal" style="display: none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <h2 class="modal-title">Create Group</h2>
+            <p class="modal-description">Enter a name for this group:</p>
+
+            <div class="table-size-inputs">
+                <div class="input-group">
+                    <label for="group-name">Group Name:</label>
+                    <input type="text" id="group-name" placeholder="e.g., Auth Module" maxlength="50">
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-confirm" onclick="confirmCreateGroup()">Create</button>
+                <button class="modal-cancel" onclick="closeGroupModal()">Cancel</button>
             </div>
         </div>
     </div>
