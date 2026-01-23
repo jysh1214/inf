@@ -308,47 +308,146 @@ function alignNodes(alignType) {
     // Calculate bounding box of all selected nodes
     const bounds = selectedNodes.map(node => getNodeBounds(node));
 
-    let targetValue;
+    // Horizontal alignments (top, bottom, center-h) - distribute horizontal spacing
+    if (alignType === 'top' || alignType === 'bottom' || alignType === 'center-h') {
+        let targetY;
 
-    if (alignType === 'center-h') {
-        // Align horizontally (same Y) - creates horizontal line
-        targetValue = Math.round(bounds.reduce((sum, b) => sum + b.centerY, 0) / bounds.length);
-    } else if (alignType === 'center-v') {
-        // Align vertically (same X) - creates vertical line
-        targetValue = Math.round(bounds.reduce((sum, b) => sum + b.centerX, 0) / bounds.length);
-    } else if (alignType === 'top') {
-        // Align to topmost edge
-        targetValue = Math.min(...bounds.map(b => b.top));
-    } else if (alignType === 'bottom') {
-        // Align to bottommost edge
-        targetValue = Math.max(...bounds.map(b => b.bottom));
-    } else if (alignType === 'left') {
-        // Align to leftmost edge
-        targetValue = Math.min(...bounds.map(b => b.left));
-    } else if (alignType === 'right') {
-        // Align to rightmost edge
-        targetValue = Math.max(...bounds.map(b => b.right));
+        if (alignType === 'center-h') {
+            // Align horizontally (same Y) - creates horizontal line
+            targetY = Math.round(bounds.reduce((sum, b) => sum + b.centerY, 0) / bounds.length);
+        } else if (alignType === 'top') {
+            // Align to topmost edge
+            targetY = Math.min(...bounds.map(b => b.top));
+        } else if (alignType === 'bottom') {
+            // Align to bottommost edge
+            targetY = Math.max(...bounds.map(b => b.bottom));
+        }
+
+        // Sort nodes by their current X position (left to right)
+        const sortedNodes = selectedNodes.map((node, index) => ({
+            node,
+            bounds: bounds[index]
+        })).sort((a, b) => a.bounds.left - b.bounds.left);
+
+        // If 3+ nodes, distribute horizontal spacing evenly
+        if (sortedNodes.length >= 3) {
+            const leftmost = sortedNodes[0].bounds.left;
+            const rightmost = sortedNodes[sortedNodes.length - 1].bounds.right;
+
+            // Calculate total width occupied by all nodes
+            const totalNodeWidth = sortedNodes.reduce((sum, item) =>
+                sum + (item.bounds.right - item.bounds.left), 0);
+
+            // Calculate total available space for gaps
+            const totalSpace = rightmost - leftmost;
+            const totalGapSpace = totalSpace - totalNodeWidth;
+            const numGaps = sortedNodes.length - 1;
+            const averageGap = totalGapSpace / numGaps;
+
+            // Position nodes with even spacing
+            let currentX = leftmost;
+            sortedNodes.forEach((item) => {
+                const nodeWidth = item.bounds.right - item.bounds.left;
+                const offsetX = currentX - item.bounds.left;
+
+                // Move node horizontally
+                if (item.node.type === 'circle') {
+                    item.node.x += offsetX;
+                } else {
+                    item.node.x += offsetX;
+                }
+
+                // Align vertically
+                setNodePosition(item.node, alignType, targetY);
+
+                // Move to next position
+                currentX += nodeWidth + averageGap;
+            });
+        } else {
+            // Just align Y position for 2 nodes
+            selectedNodes.forEach((node) => {
+                setNodePosition(node, alignType, targetY);
+            });
+        }
+    }
+    // Vertical alignments (left, right, center-v) - distribute vertical spacing
+    else if (alignType === 'left' || alignType === 'right' || alignType === 'center-v') {
+        let targetX;
+
+        if (alignType === 'center-v') {
+            // Align vertically (same X) - creates vertical line
+            targetX = Math.round(bounds.reduce((sum, b) => sum + b.centerX, 0) / bounds.length);
+        } else if (alignType === 'left') {
+            // Align to leftmost edge
+            targetX = Math.min(...bounds.map(b => b.left));
+        } else if (alignType === 'right') {
+            // Align to rightmost edge
+            targetX = Math.max(...bounds.map(b => b.right));
+        }
+
+        // Sort nodes by their current Y position (top to bottom)
+        const sortedNodes = selectedNodes.map((node, index) => ({
+            node,
+            bounds: bounds[index]
+        })).sort((a, b) => a.bounds.top - b.bounds.top);
+
+        // If 3+ nodes, distribute vertical spacing evenly
+        if (sortedNodes.length >= 3) {
+            const topmost = sortedNodes[0].bounds.top;
+            const bottommost = sortedNodes[sortedNodes.length - 1].bounds.bottom;
+
+            // Calculate total height occupied by all nodes
+            const totalNodeHeight = sortedNodes.reduce((sum, item) =>
+                sum + (item.bounds.bottom - item.bounds.top), 0);
+
+            // Calculate total available space for gaps
+            const totalSpace = bottommost - topmost;
+            const totalGapSpace = totalSpace - totalNodeHeight;
+            const numGaps = sortedNodes.length - 1;
+            const averageGap = totalGapSpace / numGaps;
+
+            // Position nodes with even spacing
+            let currentY = topmost;
+            sortedNodes.forEach((item) => {
+                const nodeHeight = item.bounds.bottom - item.bounds.top;
+                const offsetY = currentY - item.bounds.top;
+
+                // Move node vertically
+                if (item.node.type === 'circle') {
+                    item.node.y += offsetY;
+                } else {
+                    item.node.y += offsetY;
+                }
+
+                // Align horizontally
+                setNodePosition(item.node, alignType, targetX);
+
+                // Move to next position
+                currentY += nodeHeight + averageGap;
+            });
+        } else {
+            // Just align X position for 2 nodes
+            selectedNodes.forEach((node) => {
+                setNodePosition(node, alignType, targetX);
+            });
+        }
     } else {
         setStatus(`Unknown alignment type: ${alignType}`);
         return;
     }
 
-    // Align all selected nodes
-    selectedNodes.forEach((node) => {
-        setNodePosition(node, alignType, targetValue);
-    });
-
     render();
     triggerAutoSave();
 
     const alignNames = {
-        'center-h': 'Horizontal Center',
-        'center-v': 'Vertical Center',
-        'top': 'Top',
-        'bottom': 'Bottom',
-        'left': 'Left',
-        'right': 'Right'
+        'center-h': 'Horizontal (distributed)',
+        'center-v': 'Vertical (distributed)',
+        'top': 'Top (distributed)',
+        'bottom': 'Bottom (distributed)',
+        'left': 'Left (distributed)',
+        'right': 'Right (distributed)'
     };
     const alignName = alignNames[alignType] || alignType;
-    setStatus(`Aligned ${selectedNodes.length} nodes: ${alignName}`);
+    const spacingNote = selectedNodes.length >= 3 ? ' with even spacing' : '';
+    setStatus(`Aligned ${selectedNodes.length} nodes: ${alignName}${spacingNote}`);
 }
