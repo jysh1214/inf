@@ -27,6 +27,7 @@ const CODE_FONT_SIZE = 13;
 // Color constants
 const DEFAULT_COLOR = '#666';  // Default grey color for connections
 const NODE_BORDER_COLOR = '#999';  // Light grey color for node borders and groups
+const TEXT_SELECTION_COLOR = 'rgba(33, 150, 243, 0.3)';  // Semi-transparent blue for selected text
 
 // Syntax highlighting color map
 const SYNTAX_COLORS = {

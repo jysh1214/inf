@@ -21,6 +21,7 @@ let currentNodeType = 'rectangle';
 let currentTextAlign = 'center';
 let editingNode = null;
 let copiedNodes = [];  // Array of copied nodes for multi-select copy/paste
+let textClipboard = '';  // Text clipboard for cut/copy/paste operations within text editing
 
 // Interaction state
 let isDragging = false;
@@ -45,6 +46,8 @@ let autoSaveStatusTimer = null;
 let cursorVisible = true;
 let cursorBlinkInterval = null;
 let cursorPosition = 0; // Current cursor position in text (0 = start, text.length = end)
+let selectionStart = null; // Start of text selection (null if no selection)
+let selectionEnd = null; // End of text selection (null if no selection)
 
 // Subgraph navigation state
 let subgraphStack = [];  // Array of {parentState, nodeId, nodePath, fileHandle?} objects

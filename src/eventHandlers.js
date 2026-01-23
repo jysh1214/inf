@@ -117,6 +117,8 @@ canvas.addEventListener('mousedown', (e) => {
                 editingNode.editingCell = null;
             }
             editingNode = null;
+            selectionStart = null;
+            selectionEnd = null;
         }
 
         // Special handling for table nodes - detect which cell was clicked
@@ -179,6 +181,8 @@ canvas.addEventListener('mousedown', (e) => {
             editingNode.editingCell = null;
         }
         editingNode = null;
+        selectionStart = null;
+        selectionEnd = null;
         setStatus('Finished editing');
         triggerAutoSave();
     }
@@ -547,6 +551,89 @@ document.addEventListener('keydown', (e) => {
 
     // Handle text editing mode
     if (editingNode) {
+        // Text editing hotkeys (Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V)
+        if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey)) {
+            // Ctrl+A: Select all text
+            const text = getEditingText(editingNode);
+            selectionStart = 0;
+            selectionEnd = text.length;
+            cursorPosition = text.length;
+            startCursorBlink();
+            render();
+            e.preventDefault();
+            return;
+        } else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey)) {
+            // Ctrl+C: Copy selected text (or all text if no selection) to text clipboard
+            const text = getEditingText(editingNode);
+            if (selectionStart !== null && selectionEnd !== null) {
+                const start = Math.min(selectionStart, selectionEnd);
+                const end = Math.max(selectionStart, selectionEnd);
+                textClipboard = text.slice(start, end);
+            } else {
+                textClipboard = text;
+            }
+            setStatus(`Copied text (${textClipboard.length} characters)`);
+            e.preventDefault();
+            return;
+        } else if ((e.key === 'x' || e.key === 'X') && (e.ctrlKey || e.metaKey)) {
+            // Ctrl+X: Cut selected text (or all text if no selection) to text clipboard
+            const text = getEditingText(editingNode);
+            if (selectionStart !== null && selectionEnd !== null) {
+                const start = Math.min(selectionStart, selectionEnd);
+                const end = Math.max(selectionStart, selectionEnd);
+                textClipboard = text.slice(start, end);
+                setEditingText(editingNode, text.slice(0, start) + text.slice(end));
+                cursorPosition = start;
+                selectionStart = null;
+                selectionEnd = null;
+            } else {
+                textClipboard = text;
+                setEditingText(editingNode, '');
+                cursorPosition = 0;
+            }
+            startCursorBlink();
+            render();
+            triggerAutoSave();
+            setStatus(`Cut text (${textClipboard.length} characters)`);
+            e.preventDefault();
+            return;
+        } else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) {
+            // Ctrl+V: Paste text from text clipboard, replacing selection if any
+            if (textClipboard) {
+                const currentText = getEditingText(editingNode);
+                let newText;
+
+                if (selectionStart !== null && selectionEnd !== null) {
+                    // Replace selected text
+                    const start = Math.min(selectionStart, selectionEnd);
+                    const end = Math.max(selectionStart, selectionEnd);
+                    newText = currentText.slice(0, start) + textClipboard + currentText.slice(end);
+                    cursorPosition = start + textClipboard.length;
+                    selectionStart = null;
+                    selectionEnd = null;
+                } else {
+                    // Insert at cursor position
+                    newText = currentText.slice(0, cursorPosition) + textClipboard + currentText.slice(cursorPosition);
+                    cursorPosition += textClipboard.length;
+                }
+
+                // Check if result would exceed max length
+                if (newText.length <= MAX_TEXT_LENGTH) {
+                    setEditingText(editingNode, newText);
+                    startCursorBlink();
+                    render();
+                    triggerAutoSave();
+                    setStatus(`Pasted text (${textClipboard.length} characters)`);
+                } else {
+                    setStatus(`⚠️ Cannot paste - would exceed ${MAX_TEXT_LENGTH} character limit`);
+                }
+            } else {
+                setStatus('Nothing to paste from text clipboard');
+            }
+            e.preventDefault();
+            return;
+        }
+
         if (e.key === 'Enter' && e.shiftKey) {
             // Shift+Enter: Finish editing
             stopCursorBlink();
@@ -555,6 +642,8 @@ document.addEventListener('keydown', (e) => {
                 editingNode.editingCell = null;
             }
             editingNode = null;
+            selectionStart = null;
+            selectionEnd = null;
             setStatus('Finished editing');
             render();
             triggerAutoSave();
@@ -568,6 +657,8 @@ document.addEventListener('keydown', (e) => {
                     editingNode.editingCell = null;
                 }
                 editingNode = null;
+                selectionStart = null;
+                selectionEnd = null;
                 setStatus('Finished editing table cell');
                 render();
                 triggerAutoSave();
@@ -575,10 +666,25 @@ document.addEventListener('keydown', (e) => {
                 return;
             }
 
-            if (getEditingText(editingNode).length < MAX_TEXT_LENGTH) {
-                const text = getEditingText(editingNode);
-                setEditingText(editingNode, text.slice(0, cursorPosition) + '\n' + text.slice(cursorPosition));
+            const text = getEditingText(editingNode);
+            let newText;
+
+            if (selectionStart !== null && selectionEnd !== null) {
+                // Replace selected text with newline
+                const start = Math.min(selectionStart, selectionEnd);
+                const end = Math.max(selectionStart, selectionEnd);
+                newText = text.slice(0, start) + '\n' + text.slice(end);
+                cursorPosition = start + 1;
+                selectionStart = null;
+                selectionEnd = null;
+            } else {
+                // Insert newline at cursor position
+                newText = text.slice(0, cursorPosition) + '\n' + text.slice(cursorPosition);
                 cursorPosition++; // Move cursor past the newline
+            }
+
+            if (newText.length <= MAX_TEXT_LENGTH) {
+                setEditingText(editingNode, newText);
                 // Reset cursor blink on input
                 startCursorBlink();
                 render(); // Immediate render so user sees the change
@@ -588,23 +694,32 @@ document.addEventListener('keydown', (e) => {
             }
             e.preventDefault();
         } else if (e.key === 'Backspace') {
-            // Delete character before cursor
-            if (cursorPosition > 0) {
-                const text = getEditingText(editingNode);
+            // Delete selected text or character before cursor
+            const text = getEditingText(editingNode);
+            if (selectionStart !== null && selectionEnd !== null) {
+                // Delete selected text
+                const start = Math.min(selectionStart, selectionEnd);
+                const end = Math.max(selectionStart, selectionEnd);
+                setEditingText(editingNode, text.slice(0, start) + text.slice(end));
+                cursorPosition = start;
+                selectionStart = null;
+                selectionEnd = null;
+            } else if (cursorPosition > 0) {
+                // Delete character before cursor
                 setEditingText(editingNode, text.slice(0, cursorPosition - 1) + text.slice(cursorPosition));
                 cursorPosition--; // Move cursor back
-                // Reset cursor blink on input
-                startCursorBlink();
-                // Update status to show current length
-                const remaining = MAX_TEXT_LENGTH - getEditingText(editingNode).length;
-                if (editingNode.type === 'table') {
-                    setStatus(`Editing table #${editingNode.id} cell - ${remaining} characters remaining`);
-                } else {
-                    setStatus(`Editing node #${editingNode.id} - ${remaining} characters remaining`);
-                }
-                render(); // Immediate render so user sees the change
-                triggerAutoSave();
             }
+            // Reset cursor blink on input
+            startCursorBlink();
+            // Update status to show current length
+            const remaining = MAX_TEXT_LENGTH - getEditingText(editingNode).length;
+            if (editingNode.type === 'table') {
+                setStatus(`Editing table #${editingNode.id} cell - ${remaining} characters remaining`);
+            } else {
+                setStatus(`Editing node #${editingNode.id} - ${remaining} characters remaining`);
+            }
+            render(); // Immediate render so user sees the change
+            triggerAutoSave();
             e.preventDefault();
         } else if (e.key === 'Escape') {
             // Cancel editing
@@ -613,29 +728,35 @@ document.addEventListener('keydown', (e) => {
                 editingNode.editingCell = null;
             }
             editingNode = null;
+            selectionStart = null;
+            selectionEnd = null;
             setStatus('Cancelled editing');
             render();
             triggerAutoSave();
             e.preventDefault();
         } else if (e.key === 'ArrowLeft') {
-            // Move cursor left
+            // Move cursor left and clear selection
             if (cursorPosition > 0) {
                 cursorPosition--;
+                selectionStart = null;
+                selectionEnd = null;
                 startCursorBlink(); // Reset blink
                 render();
             }
             e.preventDefault();
         } else if (e.key === 'ArrowRight') {
-            // Move cursor right
+            // Move cursor right and clear selection
             const textLength = getEditingText(editingNode).length;
             if (cursorPosition < textLength) {
                 cursorPosition++;
+                selectionStart = null;
+                selectionEnd = null;
                 startCursorBlink(); // Reset blink
                 render();
             }
             e.preventDefault();
         } else if (e.key === 'ArrowUp') {
-            // Move cursor up one line (for multiline text)
+            // Move cursor up one line (for multiline text) and clear selection
             const text = getEditingText(editingNode);
             if (!text) {
                 e.preventDefault();
@@ -666,12 +787,14 @@ document.addEventListener('keydown', (e) => {
                 cursorPosition = prevLineStart + newPosInLine;
                 // Bounds check
                 cursorPosition = Math.max(0, Math.min(cursorPosition, text.length));
+                selectionStart = null;
+                selectionEnd = null;
                 startCursorBlink();
                 render();
             }
             e.preventDefault();
         } else if (e.key === 'ArrowDown') {
-            // Move cursor down one line (for multiline text)
+            // Move cursor down one line (for multiline text) and clear selection
             const text = getEditingText(editingNode);
             if (!text) {
                 e.preventDefault();
@@ -702,21 +825,25 @@ document.addEventListener('keydown', (e) => {
                 cursorPosition = nextLineStart + newPosInLine;
                 // Bounds check
                 cursorPosition = Math.max(0, Math.min(cursorPosition, text.length));
+                selectionStart = null;
+                selectionEnd = null;
                 startCursorBlink();
                 render();
             }
             e.preventDefault();
         } else if (e.key === 'Home') {
-            // Move cursor to start of line
+            // Move cursor to start of line and clear selection
             const text = getEditingText(editingNode);
             const beforeCursor = text.slice(0, cursorPosition);
             const lastNewline = beforeCursor.lastIndexOf('\n');
             cursorPosition = lastNewline + 1;
+            selectionStart = null;
+            selectionEnd = null;
             startCursorBlink();
             render();
             e.preventDefault();
         } else if (e.key === 'End') {
-            // Move cursor to end of line
+            // Move cursor to end of line and clear selection
             const text = getEditingText(editingNode);
             const afterCursor = text.slice(cursorPosition);
             const nextNewline = afterCursor.indexOf('\n');
@@ -725,29 +852,54 @@ document.addEventListener('keydown', (e) => {
             } else {
                 cursorPosition += nextNewline;
             }
+            selectionStart = null;
+            selectionEnd = null;
             startCursorBlink();
             render();
             e.preventDefault();
         } else if (e.key === 'Delete') {
-            // Delete character after cursor
+            // Delete selected text or character after cursor
             const text = getEditingText(editingNode);
-            if (cursorPosition < text.length) {
+            if (selectionStart !== null && selectionEnd !== null) {
+                // Delete selected text
+                const start = Math.min(selectionStart, selectionEnd);
+                const end = Math.max(selectionStart, selectionEnd);
+                setEditingText(editingNode, text.slice(0, start) + text.slice(end));
+                cursorPosition = start;
+                selectionStart = null;
+                selectionEnd = null;
+            } else if (cursorPosition < text.length) {
                 setEditingText(editingNode, text.slice(0, cursorPosition) + text.slice(cursorPosition + 1));
-                startCursorBlink();
-                render();
-                triggerAutoSave();
             }
+            startCursorBlink();
+            render();
+            triggerAutoSave();
             e.preventDefault();
         } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== '\t') {
-            // Add character at cursor position (with max length check)
-            if (getEditingText(editingNode).length < MAX_TEXT_LENGTH) {
-                const text = getEditingText(editingNode);
-                setEditingText(editingNode, text.slice(0, cursorPosition) + e.key + text.slice(cursorPosition));
+            // Add character, replacing selection if any (with max length check)
+            const text = getEditingText(editingNode);
+            let newText;
+
+            if (selectionStart !== null && selectionEnd !== null) {
+                // Replace selected text with new character
+                const start = Math.min(selectionStart, selectionEnd);
+                const end = Math.max(selectionStart, selectionEnd);
+                newText = text.slice(0, start) + e.key + text.slice(end);
+                cursorPosition = start + 1;
+                selectionStart = null;
+                selectionEnd = null;
+            } else {
+                // Insert at cursor position
+                newText = text.slice(0, cursorPosition) + e.key + text.slice(cursorPosition);
                 cursorPosition++; // Move cursor forward
+            }
+
+            if (newText.length <= MAX_TEXT_LENGTH) {
+                setEditingText(editingNode, newText);
                 // Reset cursor blink on input
                 startCursorBlink();
                 // Show remaining characters when getting close to limit
-                const remaining = MAX_TEXT_LENGTH - getEditingText(editingNode).length;
+                const remaining = MAX_TEXT_LENGTH - newText.length;
                 if (remaining <= TEXT_LENGTH_WARNING_THRESHOLD) {
                     if (editingNode.type === 'table') {
                         setStatus(`Editing table #${editingNode.id} cell - ${remaining} characters remaining`);
@@ -762,6 +914,13 @@ document.addEventListener('keydown', (e) => {
             }
             e.preventDefault();
         }
+        return;
+    }
+
+    // Ctrl+S: Save file (works anytime, even while editing)
+    if ((e.key === 's' || e.key === 'S') && (e.ctrlKey || e.metaKey)) {
+        document.getElementById('save-button').click();
+        e.preventDefault();
         return;
     }
 

@@ -233,6 +233,58 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
         return SYNTAX_COLORS.default;
     }
 
+    // Draw selection highlight if text is selected (code nodes)
+    if (isEditing && selectionStart !== null && selectionEnd !== null) {
+        const start = Math.min(selectionStart, selectionEnd);
+        const end = Math.max(selectionStart, selectionEnd);
+
+        ctx.fillStyle = TEXT_SELECTION_COLOR;
+
+        let charCount = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const lineStart = charCount;
+            const lineEnd = charCount + lines[i].length;
+
+            // Check if this line contains any part of the selection
+            if (end >= lineStart && start <= lineEnd) {
+                const selStart = Math.max(0, start - lineStart);
+                const selEnd = Math.min(lines[i].length, end - lineStart);
+
+                const lineY = startY + i * codeLineHeight;
+                const line = lines[i];
+                const beforeSelection = line.substring(0, selStart);
+                const selectedText = line.substring(selStart, selEnd);
+
+                // Calculate selection rectangle dimensions based on alignment
+                let selectionX, selectionWidth;
+                const beforeWidth = ctx.measureText(beforeSelection).width;
+                const selectionTextWidth = ctx.measureText(selectedText).width;
+
+                if (textAlign === 'left') {
+                    selectionX = textX + beforeWidth;
+                    selectionWidth = selectionTextWidth;
+                } else if (textAlign === 'right') {
+                    const fullLineWidth = ctx.measureText(line).width;
+                    selectionX = textX - fullLineWidth + beforeWidth;
+                    selectionWidth = selectionTextWidth;
+                } else {
+                    // Center alignment
+                    const fullLineWidth = ctx.measureText(line).width;
+                    selectionX = textX - fullLineWidth / 2 + beforeWidth;
+                    selectionWidth = selectionTextWidth;
+                }
+
+                // Draw selection background
+                ctx.fillRect(selectionX, lineY - CURSOR_HEIGHT, selectionWidth, CURSOR_HEIGHT * 2);
+            }
+
+            charCount += lines[i].length + 1; // +1 for newline
+        }
+
+        // Reset fill style for text
+        ctx.fillStyle = SYNTAX_COLORS.default;
+    }
+
     // Draw each line - use syntax highlighting only when NOT editing
     if (isEditing) {
         // Plain text while editing for accurate cursor positioning
@@ -391,6 +443,36 @@ function drawTableNode(node, isSelected) {
                     textX = centerX;  // Center
                 }
 
+                // Draw selection highlight if text is selected (table cells)
+                if (isEditingCell && selectionStart !== null && selectionEnd !== null) {
+                    const start = Math.min(selectionStart, selectionEnd);
+                    const end = Math.max(selectionStart, selectionEnd);
+
+                    const beforeSelection = cellText.substring(0, start);
+                    const selectedText = cellText.substring(start, end);
+
+                    ctx.fillStyle = TEXT_SELECTION_COLOR;
+
+                    const beforeWidth = ctx.measureText(beforeSelection).width;
+                    const selectionWidth = ctx.measureText(selectedText).width;
+
+                    let selectionX;
+                    if (cellAlign === 'left') {
+                        selectionX = cellX + TEXT_PADDING + beforeWidth;
+                    } else if (cellAlign === 'right') {
+                        const fullTextWidth = ctx.measureText(cellText).width;
+                        selectionX = cellX + node.cellWidth - TEXT_PADDING - fullTextWidth + beforeWidth;
+                    } else {
+                        const fullTextWidth = ctx.measureText(cellText).width;
+                        selectionX = centerX - fullTextWidth / 2 + beforeWidth;
+                    }
+
+                    ctx.fillRect(selectionX, centerY - CURSOR_HEIGHT, selectionWidth, CURSOR_HEIGHT * 2);
+
+                    // Reset fill style for text
+                    ctx.fillStyle = '#333';
+                }
+
                 // Simple single-line text for table cells
                 ctx.fillText(cellText, textX, centerY);
 
@@ -541,6 +623,54 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
     }
 
     const startY = centerY - (lines.length - 1) * LINE_HEIGHT / 2;
+
+    // Draw selection highlight if text is selected
+    if (isEditing && selectionStart !== null && selectionEnd !== null) {
+        const start = Math.min(selectionStart, selectionEnd);
+        const end = Math.max(selectionStart, selectionEnd);
+
+        ctx.fillStyle = TEXT_SELECTION_COLOR;
+
+        for (let i = 0; i < lines.length; i++) {
+            const lineStart = lineCharStarts[i];
+            const lineEnd = lineStart + lines[i].length;
+
+            // Check if this line contains any part of the selection
+            if (end >= lineStart && start <= lineEnd) {
+                const selStart = Math.max(0, start - lineStart);
+                const selEnd = Math.min(lines[i].length, end - lineStart);
+
+                const lineY = startY + i * LINE_HEIGHT;
+                const beforeSelection = lines[i].substring(0, selStart);
+                const selectedText = lines[i].substring(selStart, selEnd);
+
+                // Calculate selection rectangle dimensions based on alignment
+                let selectionX, selectionWidth;
+                const beforeWidth = ctx.measureText(beforeSelection).width;
+                const selectionTextWidth = ctx.measureText(selectedText).width;
+
+                if (textAlign === 'left') {
+                    selectionX = textX + beforeWidth;
+                    selectionWidth = selectionTextWidth;
+                } else if (textAlign === 'right') {
+                    const fullLineWidth = ctx.measureText(lines[i]).width;
+                    selectionX = textX - fullLineWidth + beforeWidth;
+                    selectionWidth = selectionTextWidth;
+                } else {
+                    // Center alignment
+                    const fullLineWidth = ctx.measureText(lines[i]).width;
+                    selectionX = textX - fullLineWidth / 2 + beforeWidth;
+                    selectionWidth = selectionTextWidth;
+                }
+
+                // Draw selection background
+                ctx.fillRect(selectionX, lineY - CURSOR_HEIGHT, selectionWidth, CURSOR_HEIGHT * 2);
+            }
+        }
+
+        // Reset fill style for text
+        ctx.fillStyle = '#333';
+    }
 
     lines.forEach((line, i) => {
         ctx.fillText(line, textX, startY + i * LINE_HEIGHT);
