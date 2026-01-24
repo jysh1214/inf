@@ -1147,6 +1147,9 @@ function render() {
 
     // Restore transform
     ctx.restore();
+
+    // Update UI button states based on selection
+    updateSubgraphButton();
 }
 
 // Helper function to get mouse coordinates accounting for zoom and scroll

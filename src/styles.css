@@ -223,6 +223,21 @@ button:active {
     transform: translateY(-1px);
 }
 
+.node-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f1f3f5;
+    color: #adb5bd;
+    border-color: #dee2e6;
+}
+
+.node-btn:disabled:hover {
+    transform: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background: #f1f3f5;
+    border-color: #dee2e6;
+}
+
 .text-align-buttons {
     display: flex;
     gap: 8px;
@@ -236,7 +251,7 @@ button:active {
 
 .file-ops-buttons {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
 }
 

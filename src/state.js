@@ -55,4 +55,5 @@ let currentDepth = 0;     // Track nesting depth for breadcrumb display (0 = roo
 let currentPath = [];     // Array of node IDs representing the path: [parentNodeId, childNodeId, ...]
 let fileHandleMap = new Map(); // Map<nodeId, FileSystemFileHandle> for file-based subgraphs
 let currentFileName = null; // Current file name (string for file-based, null for unsaved/root)
+let currentFileHandle = null; // Current file handle for quick save (FileSystemFileHandle or null)
 let workspaceFolderName = null; // Workspace folder name (string when set, null otherwise)

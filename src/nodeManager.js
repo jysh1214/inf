@@ -324,3 +324,79 @@ function confirmCreateGroup() {
     triggerAutoSave();
     setStatus(`✓ Created group "${groupName}" with ${group.nodeIds.length} nodes`);
 }
+
+// Subgraph management functions
+/**
+ * Remove subgraph from selected nodes
+ * Works with both node-level and cell-level subgraphs
+ */
+function removeSubgraphFromSelection() {
+    // Get selected nodes
+    const selectedNodes = Array.from(selectedNodeIds).map(id => nodeMap.get(id)).filter(n => n);
+
+    if (selectedNodes.length === 0) {
+        setStatus('⚠️ No nodes selected');
+        return;
+    }
+
+    let removedCount = 0;
+    let cellCount = 0;
+
+    selectedNodes.forEach(node => {
+        // Handle node-level subgraph
+        if (node.subgraph) {
+            // Clean up file handle if it's a file-based subgraph
+            if (typeof node.subgraph === 'string') {
+                fileHandleMap.delete(node.id);
+                deleteFileHandle(node.id).catch(err =>
+                    console.warn(`Failed to delete file handle ${node.id}:`, err)
+                );
+            }
+
+            delete node.subgraph;
+            removedCount++;
+        }
+
+        // Handle cell-level subgraphs for table nodes
+        if (node.type === 'table' && node.cells) {
+            for (let row = 0; row < node.rows; row++) {
+                for (let col = 0; col < node.cols; col++) {
+                    const cell = node.cells[row][col];
+                    if (cell && cell.subgraph) {
+                        // Clean up file handle if it's a file-based subgraph
+                        if (typeof cell.subgraph === 'string') {
+                            const cellKey = `${node.id}-cell-${row}-${col}`;
+                            fileHandleMap.delete(cellKey);
+                            deleteFileHandle(cellKey).catch(err =>
+                                console.warn(`Failed to delete cell file handle ${cellKey}:`, err)
+                            );
+                        }
+
+                        delete cell.subgraph;
+                        cellCount++;
+                    }
+                }
+            }
+        }
+    });
+
+    if (removedCount > 0 || cellCount > 0) {
+        render();
+        triggerAutoSave();
+
+        let statusMsg = '✓ Removed ';
+        if (removedCount > 0) {
+            statusMsg += `${removedCount} node subgraph${removedCount > 1 ? 's' : ''}`;
+        }
+        if (cellCount > 0) {
+            if (removedCount > 0) statusMsg += ' and ';
+            statusMsg += `${cellCount} cell subgraph${cellCount > 1 ? 's' : ''}`;
+        }
+        setStatus(statusMsg);
+
+        // Update button state
+        updateSubgraphButton();
+    } else {
+        setStatus('⚠️ Selected nodes have no subgraphs to remove');
+    }
+}

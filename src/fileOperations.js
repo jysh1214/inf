@@ -1,4 +1,4 @@
-async function saveToJSON() {
+async function saveToJSON(forceNewFile = false) {
     // Generate default filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
     const defaultFilename = `inf-diagram-${timestamp}`;
@@ -21,19 +21,32 @@ async function saveToJSON() {
     // Use File System Access API if available (Chrome/Edge)
     if ('showSaveFilePicker' in window) {
         try {
-            const fileHandle = await window.showSaveFilePicker({
-                suggestedName: `${defaultFilename}.json`,
-                types: [{
-                    description: 'JSON Files',
-                    accept: { 'application/json': ['.json'] }
-                }]
-            });
+            let fileHandle;
+
+            // Quick save to existing file if available and not forcing new file
+            if (currentFileHandle && !forceNewFile) {
+                fileHandle = currentFileHandle;
+            } else {
+                // Show save picker for new file
+                fileHandle = await window.showSaveFilePicker({
+                    suggestedName: currentFileName || `${defaultFilename}.json`,
+                    types: [{
+                        description: 'JSON Files',
+                        accept: { 'application/json': ['.json'] }
+                    }]
+                });
+
+                // Store the file handle and name for future quick saves
+                currentFileHandle = fileHandle;
+                currentFileName = fileHandle.name;
+                updateFilePathDisplay();
+            }
 
             const writable = await fileHandle.createWritable();
             await writable.write(jsonString);
             await writable.close();
 
-            setStatus(`Diagram saved to ${fileHandle.name}`);
+            setStatus(`✓ Saved to ${fileHandle.name}`);
         } catch (error) {
             // Handle different error types
             if (error.name === 'AbortError') {
@@ -671,8 +684,9 @@ async function selectWorkspaceFolder() {
             currentDepth = 0;
             currentPath = [];
 
-            // Update current filename
+            // Update current filename and file handle
             currentFileName = 'root.json';
+            currentFileHandle = rootHandle;
             updateFilePathDisplay();
 
             // Update UI

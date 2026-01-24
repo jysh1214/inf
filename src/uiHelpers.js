@@ -25,6 +25,42 @@ function updateFilePathDisplay() {
     }
 }
 
+function updateSubgraphButton() {
+    const removeButton = document.getElementById('btn-remove-subgraph');
+    if (!removeButton) return;
+
+    // Check if any selected node has a subgraph (node-level or cell-level)
+    const selectedNodes = Array.from(selectedNodeIds).map(id => nodeMap.get(id)).filter(n => n);
+    let hasSubgraph = false;
+
+    for (const node of selectedNodes) {
+        // Check node-level subgraph
+        if (node.subgraph) {
+            hasSubgraph = true;
+            break;
+        }
+
+        // Check cell-level subgraphs for table nodes
+        if (node.type === 'table' && node.cells) {
+            for (let row = 0; row < node.rows; row++) {
+                for (let col = 0; col < node.cols; col++) {
+                    const cell = node.cells[row][col];
+                    if (cell && cell.subgraph) {
+                        hasSubgraph = true;
+                        break;
+                    }
+                }
+                if (hasSubgraph) break;
+            }
+        }
+
+        if (hasSubgraph) break;
+    }
+
+    // Enable/disable button
+    removeButton.disabled = !hasSubgraph;
+}
+
 function setNodeType(type) {
     currentNodeType = type;
     // Update button states for node type buttons only
@@ -170,8 +206,9 @@ function clearCanvas() {
         connectionMode = false;
         connectionStart = null;
 
-        // Clear filename
+        // Clear filename and file handle
         currentFileName = null;
+        currentFileHandle = null;
         updateFilePathDisplay();
 
         // Clear auto-save
