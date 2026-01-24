@@ -22,6 +22,39 @@ function getEditingCell(node) {
     return node.cells[node.editingCell.row][node.editingCell.col];
 }
 
+// Helper function to paste text into the currently editing node
+function pasteTextIntoNode(pastedText) {
+    if (!editingNode || !pastedText) return;
+
+    const currentText = getEditingText(editingNode);
+    let newText;
+
+    if (selectionStart !== null && selectionEnd !== null) {
+        // Replace selected text
+        const start = Math.min(selectionStart, selectionEnd);
+        const end = Math.max(selectionStart, selectionEnd);
+        newText = currentText.slice(0, start) + pastedText + currentText.slice(end);
+        cursorPosition = start + pastedText.length;
+        selectionStart = null;
+        selectionEnd = null;
+    } else {
+        // Insert at cursor position
+        newText = currentText.slice(0, cursorPosition) + pastedText + currentText.slice(cursorPosition);
+        cursorPosition += pastedText.length;
+    }
+
+    // Check if result would exceed max length
+    if (newText.length <= MAX_TEXT_LENGTH) {
+        setEditingText(editingNode, newText);
+        startCursorBlink();
+        render();
+        triggerAutoSave();
+        setStatus(`Pasted text (${pastedText.length} characters)`);
+    } else {
+        setStatus(`⚠️ Cannot paste - would exceed ${MAX_TEXT_LENGTH} character limit`);
+    }
+}
+
 // Mouse event handlers
 canvas.addEventListener('dblclick', (e) => {
     e.preventDefault();
@@ -563,7 +596,7 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
             return;
         } else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey)) {
-            // Ctrl+C: Copy selected text (or all text if no selection) to text clipboard
+            // Ctrl+C: Copy selected text (or all text if no selection) to clipboard
             const text = getEditingText(editingNode);
             if (selectionStart !== null && selectionEnd !== null) {
                 const start = Math.min(selectionStart, selectionEnd);
@@ -572,11 +605,19 @@ document.addEventListener('keydown', (e) => {
             } else {
                 textClipboard = text;
             }
+
+            // Also copy to system clipboard if available
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textClipboard).catch(err => {
+                    console.warn('Failed to write to system clipboard:', err);
+                });
+            }
+
             setStatus(`Copied text (${textClipboard.length} characters)`);
             e.preventDefault();
             return;
         } else if ((e.key === 'x' || e.key === 'X') && (e.ctrlKey || e.metaKey)) {
-            // Ctrl+X: Cut selected text (or all text if no selection) to text clipboard
+            // Ctrl+X: Cut selected text (or all text if no selection) to clipboard
             const text = getEditingText(editingNode);
             if (selectionStart !== null && selectionEnd !== null) {
                 const start = Math.min(selectionStart, selectionEnd);
@@ -591,6 +632,14 @@ document.addEventListener('keydown', (e) => {
                 setEditingText(editingNode, '');
                 cursorPosition = 0;
             }
+
+            // Also copy to system clipboard if available
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textClipboard).catch(err => {
+                    console.warn('Failed to write to system clipboard:', err);
+                });
+            }
+
             startCursorBlink();
             render();
             triggerAutoSave();
@@ -598,39 +647,39 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
             return;
         } else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) {
-            // Ctrl+V: Paste text from text clipboard, replacing selection if any
-            if (textClipboard) {
-                const currentText = getEditingText(editingNode);
-                let newText;
-
-                if (selectionStart !== null && selectionEnd !== null) {
-                    // Replace selected text
-                    const start = Math.min(selectionStart, selectionEnd);
-                    const end = Math.max(selectionStart, selectionEnd);
-                    newText = currentText.slice(0, start) + textClipboard + currentText.slice(end);
-                    cursorPosition = start + textClipboard.length;
-                    selectionStart = null;
-                    selectionEnd = null;
-                } else {
-                    // Insert at cursor position
-                    newText = currentText.slice(0, cursorPosition) + textClipboard + currentText.slice(cursorPosition);
-                    cursorPosition += textClipboard.length;
-                }
-
-                // Check if result would exceed max length
-                if (newText.length <= MAX_TEXT_LENGTH) {
-                    setEditingText(editingNode, newText);
-                    startCursorBlink();
-                    render();
-                    triggerAutoSave();
-                    setStatus(`Pasted text (${textClipboard.length} characters)`);
-                } else {
-                    setStatus(`⚠️ Cannot paste - would exceed ${MAX_TEXT_LENGTH} character limit`);
-                }
-            } else {
-                setStatus('Nothing to paste from text clipboard');
-            }
+            // Ctrl+V: Paste text from system clipboard or internal clipboard, replacing selection if any
             e.preventDefault();
+
+            // Try to read from system clipboard first
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText()
+                    .then(clipboardText => {
+                        if (clipboardText) {
+                            pasteTextIntoNode(clipboardText);
+                        } else if (textClipboard) {
+                            // Fall back to internal clipboard if system clipboard is empty
+                            pasteTextIntoNode(textClipboard);
+                        } else {
+                            setStatus('Nothing to paste');
+                        }
+                    })
+                    .catch(err => {
+                        console.warn('Failed to read from system clipboard:', err);
+                        // Fall back to internal clipboard on error
+                        if (textClipboard) {
+                            pasteTextIntoNode(textClipboard);
+                        } else {
+                            setStatus('Nothing to paste');
+                        }
+                    });
+            } else {
+                // Browser doesn't support Clipboard API, use internal clipboard
+                if (textClipboard) {
+                    pasteTextIntoNode(textClipboard);
+                } else {
+                    setStatus('Nothing to paste');
+                }
+            }
             return;
         }
 
