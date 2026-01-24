@@ -38,7 +38,7 @@ const SYNTAX_COLORS = {
     default: '#333'          // Default text color
 };
 
-// Multi-language keywords (JavaScript/TypeScript, C/C++, Python)
+// Multi-language keywords (JavaScript/TypeScript, C/C++, Python, Bash)
 const SYNTAX_KEYWORDS = [
     // Shared keywords (common across multiple languages)
     'if', 'else', 'for', 'while', 'return', 'switch', 'case', 'break', 'continue',
@@ -58,7 +58,48 @@ const SYNTAX_KEYWORDS = [
     // Python specific
     'def', 'lambda', 'pass', 'elif', 'as', 'assert', 'global', 'nonlocal',
     'is', 'not', 'and', 'or', 'raise', 'except', 'with',
-    'True', 'False', 'None', 'self', '__init__', '__name__', '__main__'
+    'True', 'False', 'None', 'self', '__init__', '__name__', '__main__',
+    // Bash specific - built-ins and control flow
+    'then', 'fi', 'esac', 'done', 'until', 'select', 'time', 'coproc',
+    'local', 'declare', 'readonly', 'export', 'unset', 'shift', 'source',
+    'alias', 'unalias', 'typeset', 'set', 'shopt', 'enable', 'builtin',
+    'command', 'getopts', 'read', 'test', 'eval', 'exec', 'exit', 'trap',
+    // Bash - common commands
+    'echo', 'printf', 'cd', 'pwd', 'pushd', 'popd', 'dirs',
+    'ls', 'cat', 'grep', 'sed', 'awk', 'find', 'sort', 'uniq', 'cut', 'tr',
+    'head', 'tail', 'wc', 'tee', 'xargs', 'dirname', 'basename', 'which', 'whereis',
+    // Bash - file operations
+    'chmod', 'chown', 'chgrp', 'mkdir', 'rmdir', 'rm', 'cp', 'mv', 'ln', 'touch',
+    'tar', 'gzip', 'gunzip', 'zip', 'unzip', 'bzip2', 'xz', 'unrar',
+    // Bash - network and transfer
+    'curl', 'wget', 'ssh', 'scp', 'rsync', 'sftp', 'ftp', 'nc', 'netcat', 'ping',
+    'traceroute', 'nslookup', 'dig', 'host', 'ip', 'ifconfig', 'netstat', 'ss',
+    // Bash - process management
+    'ps', 'kill', 'killall', 'pkill', 'top', 'htop', 'jobs', 'fg', 'bg', 'nohup',
+    'screen', 'tmux', 'nice', 'renice', 'pgrep', 'pidof', 'lsof', 'strace',
+    // Bash - system administration
+    'sudo', 'su', 'chroot', 'systemctl', 'service', 'journalctl', 'dmesg',
+    'mount', 'umount', 'df', 'du', 'free', 'uptime', 'uname', 'hostname',
+    'useradd', 'userdel', 'usermod', 'groupadd', 'passwd', 'who', 'w', 'last',
+    // Bash - development tools
+    'git', 'svn', 'hg', 'make', 'cmake', 'autoconf', 'configure',
+    'gcc', 'g++', 'clang', 'cc', 'ld', 'ar', 'nm', 'objdump', 'strip',
+    'gdb', 'lldb', 'valgrind', 'strace', 'ltrace',
+    // Bash - interpreters and package managers
+    'python', 'python3', 'pip', 'pip3', 'ruby', 'gem', 'perl', 'node', 'npm', 'yarn',
+    'pnpm', 'npx', 'java', 'javac', 'mvn', 'gradle', 'cargo', 'rustc', 'go',
+    'apt', 'apt-get', 'yum', 'dnf', 'pacman', 'brew', 'snap', 'flatpak',
+    // Bash - container and orchestration tools
+    'docker', 'podman', 'buildah', 'skopeo', 'docker-compose', 'podman-compose',
+    'kubectl', 'k9s', 'helm', 'minikube', 'kind', 'crictl', 'nerdctl',
+    'containerd', 'runc', 'ctr', 'docker-machine', 'docker-swarm',
+    // Bash - cloud and infrastructure
+    'aws', 'gcloud', 'az', 'terraform', 'ansible', 'vagrant', 'packer',
+    // Bash - monitoring and logging
+    'tail', 'less', 'more', 'watch', 'journalctl', 'logrotate', 'syslog',
+    // Bash - text processing and search
+    'vim', 'vi', 'nano', 'emacs', 'diff', 'patch', 'jq', 'yq', 'xmllint',
+    'ack', 'ag', 'rg', 'ripgrep', 'fzf', 'fd'
 ];
 
 // Pre-compiled regex patterns for syntax highlighting (performance optimization)
