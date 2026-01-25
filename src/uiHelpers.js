@@ -235,8 +235,8 @@ function getNodeBounds(node) {
             break;
 
         case 'table':
-            const tableWidth = node.cols * node.cellWidth;
-            const tableHeight = node.rows * node.cellHeight;
+            const tableWidth = getTotalWidth(node);
+            const tableHeight = getTotalHeight(node);
             left = node.x;
             right = node.x + tableWidth;
             top = node.y;
@@ -284,8 +284,8 @@ function setNodePosition(node, alignType, targetValue) {
             break;
 
         case 'table':
-            const tableWidth = node.cols * node.cellWidth;
-            const tableHeight = node.rows * node.cellHeight;
+            const tableWidth = getTotalWidth(node);
+            const tableHeight = getTotalHeight(node);
             if (alignType === 'center-h') {
                 // Align horizontally (same Y)
                 node.y = targetValue - tableHeight / 2;
