@@ -144,3 +144,6 @@ const TEXT_LENGTH_WARNING_THRESHOLD = 50;    // Characters remaining before show
 
 // Code node rendering
 const CODE_LINE_HEIGHT_OFFSET = 4;           // Additional spacing for code lines beyond font size
+
+// URL rendering
+const URL_UNDERLINE_OFFSET = 8;              // Vertical offset for URL underline below text baseline

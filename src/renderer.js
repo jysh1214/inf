@@ -340,8 +340,8 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
                         ctx.strokeStyle = '#2196f3';
                         ctx.lineWidth = 1;
                         ctx.beginPath();
-                        ctx.moveTo(currentX, lineY + 8);
-                        ctx.lineTo(currentX + urlWidth, lineY + 8);
+                        ctx.moveTo(currentX, lineY + URL_UNDERLINE_OFFSET);
+                        ctx.lineTo(currentX + urlWidth, lineY + URL_UNDERLINE_OFFSET);
                         ctx.stroke();
 
                         currentX += urlWidth;
@@ -649,8 +649,8 @@ function drawTextWithURLHighlight(text, x, y, textAlign) {
             ctx.strokeStyle = '#2196f3';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(currentX, y + 8);
-            ctx.lineTo(currentX + urlWidth, y + 8);
+            ctx.moveTo(currentX, y + URL_UNDERLINE_OFFSET);
+            ctx.lineTo(currentX + urlWidth, y + URL_UNDERLINE_OFFSET);
             ctx.stroke();
 
             currentX += urlWidth;
