@@ -294,24 +294,77 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
             ctx.fillText(line, textX, lineY);
         });
     } else {
-        // Syntax highlighting when viewing
+        // Syntax highlighting and URL highlighting when viewing
         lines.forEach((line, i) => {
             const lineY = startY + i * codeLineHeight;
 
             if (line) {
-                // Split line into tokens for syntax highlighting
-                const tokens = line.split(/(\s+|[(){}\[\];,.])/);
+                // Check if line contains URLs
+                const urlPattern = /https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(com|org|net|edu|gov|io|co|dev|app|ai|me|us|uk|ca|de|fr|jp|cn|in|au|br)[^\s]*/gi;
+                const urlMatches = line.match(urlPattern);
+
                 let currentX = textAlign === 'left' ? textX :
                               (textAlign === 'right' ? textX - ctx.measureText(line).width :
                                textX - ctx.measureText(line).width / 2);
 
-                tokens.forEach(token => {
-                    if (!token) return;
+                if (urlMatches && urlMatches.length > 0) {
+                    // Line contains URLs - render with URL highlighting
+                    let lastIndex = 0;
+                    urlPattern.lastIndex = 0;
+                    let match;
 
-                    ctx.fillStyle = getSyntaxColor(token);
-                    ctx.fillText(token, currentX, lineY);
-                    currentX += ctx.measureText(token).width;
-                });
+                    while ((match = urlPattern.exec(line)) !== null) {
+                        // Draw text before URL with syntax highlighting
+                        if (match.index > lastIndex) {
+                            const beforeURL = line.substring(lastIndex, match.index);
+                            const tokens = beforeURL.split(/(\s+|[(){}\[\];,.])/);
+                            tokens.forEach(token => {
+                                if (!token) return;
+                                ctx.fillStyle = getSyntaxColor(token);
+                                ctx.fillText(token, currentX, lineY);
+                                currentX += ctx.measureText(token).width;
+                            });
+                        }
+
+                        // Draw URL in blue with underline
+                        const url = match[0];
+                        ctx.fillStyle = '#2196f3';
+                        ctx.fillText(url, currentX, lineY);
+                        const urlWidth = ctx.measureText(url).width;
+
+                        // Draw underline
+                        ctx.strokeStyle = '#2196f3';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(currentX, lineY + 2);
+                        ctx.lineTo(currentX + urlWidth, lineY + 2);
+                        ctx.stroke();
+
+                        currentX += urlWidth;
+                        lastIndex = match.index + match[0].length;
+                    }
+
+                    // Draw remaining text after last URL
+                    if (lastIndex < line.length) {
+                        const afterURL = line.substring(lastIndex);
+                        const tokens = afterURL.split(/(\s+|[(){}\[\];,.])/);
+                        tokens.forEach(token => {
+                            if (!token) return;
+                            ctx.fillStyle = getSyntaxColor(token);
+                            ctx.fillText(token, currentX, lineY);
+                            currentX += ctx.measureText(token).width;
+                        });
+                    }
+                } else {
+                    // No URLs - use regular syntax highlighting
+                    const tokens = line.split(/(\s+|[(){}\[\];,.])/);
+                    tokens.forEach(token => {
+                        if (!token) return;
+                        ctx.fillStyle = getSyntaxColor(token);
+                        ctx.fillText(token, currentX, lineY);
+                        currentX += ctx.measureText(token).width;
+                    });
+                }
             }
         });
     }
@@ -475,8 +528,14 @@ function drawTableNode(node, isSelected) {
                     ctx.fillStyle = '#333';
                 }
 
-                // Simple single-line text for table cells
-                ctx.fillText(cellText, textX, centerY);
+                // Simple single-line text for table cells with URL highlighting
+                if (isEditingCell) {
+                    // Plain text when editing
+                    ctx.fillText(cellText, textX, centerY);
+                } else {
+                    // Highlight URLs when viewing
+                    drawTextWithURLHighlight(cellText, textX, centerY, cellAlign);
+                }
 
                 // Draw cursor if this cell is being edited
                 if (isEditingCell && cursorVisible) {
@@ -516,6 +575,82 @@ function drawTableNode(node, isSelected) {
         ];
         drawResizeHandles(corners);
     }
+}
+
+// Helper function to draw text with URL highlighting
+function drawTextWithURLHighlight(text, x, y, textAlign) {
+    if (!text) return;
+
+    // URL regex pattern (same as in extractURLsFromText)
+    const urlPattern = /https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(com|org|net|edu|gov|io|co|dev|app|ai|me|us|uk|ca|de|fr|jp|cn|in|au|br)[^\s]*/gi;
+
+    // Split text into parts (URLs and non-URLs)
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    // Reset lastIndex for global regex
+    urlPattern.lastIndex = 0;
+
+    while ((match = urlPattern.exec(text)) !== null) {
+        // Add text before URL
+        if (match.index > lastIndex) {
+            parts.push({ text: text.substring(lastIndex, match.index), isURL: false });
+        }
+        // Add URL
+        parts.push({ text: match[0], isURL: true });
+        lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+        parts.push({ text: text.substring(lastIndex), isURL: false });
+    }
+
+    // If no URLs found, just draw plain text
+    if (parts.length === 0) {
+        ctx.fillText(text, x, y);
+        return;
+    }
+
+    // Calculate starting X position based on alignment
+    let currentX;
+    if (textAlign === 'left') {
+        currentX = x;
+    } else if (textAlign === 'right') {
+        const totalWidth = ctx.measureText(text).width;
+        currentX = x - totalWidth;
+    } else {
+        // center
+        const totalWidth = ctx.measureText(text).width;
+        currentX = x - totalWidth / 2;
+    }
+
+    // Draw each part
+    parts.forEach(part => {
+        if (part.isURL) {
+            // Draw URL in blue with underline
+            ctx.fillStyle = '#2196f3';
+            ctx.fillText(part.text, currentX, y);
+
+            // Draw underline
+            const urlWidth = ctx.measureText(part.text).width;
+            ctx.strokeStyle = '#2196f3';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(currentX, y + 2);
+            ctx.lineTo(currentX + urlWidth, y + 2);
+            ctx.stroke();
+
+            currentX += urlWidth;
+            ctx.fillStyle = '#333'; // Reset to default color
+        } else {
+            // Draw normal text
+            ctx.fillStyle = '#333';
+            ctx.fillText(part.text, currentX, y);
+            currentX += ctx.measureText(part.text).width;
+        }
+    });
 }
 
 function drawNodeText(node, centerX, centerY, maxWidth) {
@@ -674,8 +809,16 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
         ctx.fillStyle = '#333';
     }
 
+    // Draw text with URL highlighting (only when not editing)
     lines.forEach((line, i) => {
-        ctx.fillText(line, textX, startY + i * LINE_HEIGHT);
+        const lineY = startY + i * LINE_HEIGHT;
+        if (isEditing) {
+            // Plain text when editing
+            ctx.fillText(line, textX, lineY);
+        } else {
+            // Highlight URLs when viewing
+            drawTextWithURLHighlight(line, textX, lineY, textAlign);
+        }
     });
 
     // Draw cursor if editing - place at cursor position (with blinking)
