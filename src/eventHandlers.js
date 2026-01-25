@@ -706,39 +706,9 @@ document.addEventListener('keydown', (e) => {
             e.preventDefault();
             return;
         } else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) {
-            // Ctrl+V: Paste text from system clipboard or internal clipboard, replacing selection if any
-            e.preventDefault();
-
-            // Try to read from system clipboard first
-            if (navigator.clipboard && navigator.clipboard.readText) {
-                navigator.clipboard.readText()
-                    .then(clipboardText => {
-                        if (clipboardText) {
-                            pasteTextIntoNode(clipboardText);
-                        } else if (textClipboard) {
-                            // Fall back to internal clipboard if system clipboard is empty
-                            pasteTextIntoNode(textClipboard);
-                        } else {
-                            setStatus('Nothing to paste');
-                        }
-                    })
-                    .catch(err => {
-                        console.warn('Failed to read from system clipboard:', err);
-                        // Fall back to internal clipboard on error
-                        if (textClipboard) {
-                            pasteTextIntoNode(textClipboard);
-                        } else {
-                            setStatus('Nothing to paste');
-                        }
-                    });
-            } else {
-                // Browser doesn't support Clipboard API, use internal clipboard
-                if (textClipboard) {
-                    pasteTextIntoNode(textClipboard);
-                } else {
-                    setStatus('Nothing to paste');
-                }
-            }
+            // Ctrl+V: Paste is handled by native paste event listener below
+            // Just prevent default to let paste event handle it
+            // Note: The paste event will be triggered automatically and will handle the clipboard
             return;
         }
 
@@ -1215,5 +1185,22 @@ canvas.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
         return false;
+    }
+});
+
+// Handle paste events without permission prompts
+document.addEventListener('paste', (e) => {
+    // Only handle paste when editing a node
+    if (!editingNode) return;
+
+    e.preventDefault();
+
+    // Get text from clipboard data (no permission prompt)
+    const pastedText = e.clipboardData?.getData('text/plain');
+
+    if (pastedText) {
+        pasteTextIntoNode(pastedText);
+    } else {
+        setStatus('Nothing to paste');
     }
 });
