@@ -1052,11 +1052,8 @@ document.addEventListener('keydown', (e) => {
             const anchorY = firstNode.y;
 
             // Create all nodes maintaining relative positions
-            const idMapping = {};  // Map old IDs to new IDs for connections
-
             copiedNodes.forEach(copiedNode => {
                 const newNode = JSON.parse(JSON.stringify(copiedNode));
-                const oldId = newNode.id;
                 newNode.id = nextId++;
 
                 // Offset from anchor point
@@ -1068,22 +1065,6 @@ document.addEventListener('keydown', (e) => {
                 nodes.push(newNode);
                 nodeMap.set(newNode.id, newNode);
                 selectedNodeIds.add(newNode.id);
-
-                idMapping[oldId] = newNode.id;
-            });
-
-            // Copy connections between the copied nodes (if any exist)
-            const originalIds = copiedNodes.map(n => n.id);
-            connections.filter(conn =>
-                originalIds.includes(conn.fromId) && originalIds.includes(conn.toId)
-            ).forEach(conn => {
-                const newConn = {
-                    id: nextId++,
-                    fromId: idMapping[conn.fromId],
-                    toId: idMapping[conn.toId],
-                    directed: conn.directed
-                };
-                connections.push(newConn);
             });
 
             setStatus(`Pasted ${copiedNodes.length} node(s)`);
