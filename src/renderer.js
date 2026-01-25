@@ -294,6 +294,10 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
             ctx.fillText(line, textX, lineY);
         });
     } else {
+        // Save current textAlign and set to 'left' for manual positioning
+        const savedTextAlign = ctx.textAlign;
+        ctx.textAlign = 'left';
+
         // Syntax highlighting and URL highlighting when viewing
         lines.forEach((line, i) => {
             const lineY = startY + i * codeLineHeight;
@@ -367,6 +371,9 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
                 }
             }
         });
+
+        // Restore original textAlign
+        ctx.textAlign = savedTextAlign;
     }
 
     // Draw cursor if editing
@@ -613,6 +620,10 @@ function drawTextWithURLHighlight(text, x, y, textAlign) {
         return;
     }
 
+    // Save current textAlign and set to 'left' for manual positioning
+    const savedTextAlign = ctx.textAlign;
+    ctx.textAlign = 'left';
+
     // Calculate starting X position based on alignment
     let currentX;
     if (textAlign === 'left') {
@@ -651,6 +662,9 @@ function drawTextWithURLHighlight(text, x, y, textAlign) {
             currentX += ctx.measureText(part.text).width;
         }
     });
+
+    // Restore original textAlign
+    ctx.textAlign = savedTextAlign;
 }
 
 function drawNodeText(node, centerX, centerY, maxWidth) {
