@@ -505,65 +505,109 @@ function drawTableNode(node, isSelected) {
                     textX = centerX;  // Center
                 }
 
+                // Multi-line text for table cells with URL highlighting
+                const lines = cellText.split('\n');
+                const startY = centerY - (lines.length - 1) * LINE_HEIGHT / 2;
+
                 // Draw selection highlight if text is selected (table cells)
                 if (isEditingCell && selectionStart !== null && selectionEnd !== null) {
                     const start = Math.min(selectionStart, selectionEnd);
                     const end = Math.max(selectionStart, selectionEnd);
 
-                    const beforeSelection = cellText.substring(0, start);
-                    const selectedText = cellText.substring(start, end);
-
                     ctx.fillStyle = TEXT_SELECTION_COLOR;
 
-                    const beforeWidth = ctx.measureText(beforeSelection).width;
-                    const selectionWidth = ctx.measureText(selectedText).width;
+                    let charCount = 0;
+                    for (let i = 0; i < lines.length; i++) {
+                        const lineStart = charCount;
+                        const lineEnd = charCount + lines[i].length;
 
-                    let selectionX;
-                    if (cellAlign === 'left') {
-                        selectionX = cellX + TEXT_PADDING + beforeWidth;
-                    } else if (cellAlign === 'right') {
-                        const fullTextWidth = ctx.measureText(cellText).width;
-                        selectionX = cellX + cellWidth - TEXT_PADDING - fullTextWidth + beforeWidth;
-                    } else {
-                        const fullTextWidth = ctx.measureText(cellText).width;
-                        selectionX = centerX - fullTextWidth / 2 + beforeWidth;
+                        // Check if this line contains any part of the selection
+                        if (end >= lineStart && start <= lineEnd) {
+                            const selStart = Math.max(0, start - lineStart);
+                            const selEnd = Math.min(lines[i].length, end - lineStart);
+
+                            const lineY = startY + i * LINE_HEIGHT;
+                            const beforeSelection = lines[i].substring(0, selStart);
+                            const selectedText = lines[i].substring(selStart, selEnd);
+
+                            const beforeWidth = ctx.measureText(beforeSelection).width;
+                            const selectionWidth = ctx.measureText(selectedText).width;
+
+                            let selectionX;
+                            if (cellAlign === 'left') {
+                                selectionX = cellX + TEXT_PADDING + beforeWidth;
+                            } else if (cellAlign === 'right') {
+                                const fullTextWidth = ctx.measureText(lines[i]).width;
+                                selectionX = cellX + cellWidth - TEXT_PADDING - fullTextWidth + beforeWidth;
+                            } else {
+                                const fullTextWidth = ctx.measureText(lines[i]).width;
+                                selectionX = centerX - fullTextWidth / 2 + beforeWidth;
+                            }
+
+                            ctx.fillRect(selectionX, lineY - CURSOR_HEIGHT, selectionWidth, CURSOR_HEIGHT * 2);
+                        }
+
+                        charCount += lines[i].length + 1; // +1 for newline
                     }
-
-                    ctx.fillRect(selectionX, centerY - CURSOR_HEIGHT, selectionWidth, CURSOR_HEIGHT * 2);
 
                     // Reset fill style for text
                     ctx.fillStyle = '#333';
                 }
 
-                // Simple single-line text for table cells with URL highlighting
-                if (isEditingCell) {
-                    // Plain text when editing
-                    ctx.fillText(cellText, textX, centerY);
-                } else {
-                    // Highlight URLs when viewing
-                    drawTextWithURLHighlight(cellText, textX, centerY, cellAlign);
-                }
+                // Draw text lines
+                lines.forEach((line, i) => {
+                    const lineY = startY + i * LINE_HEIGHT;
+                    if (isEditingCell) {
+                        // Plain text when editing
+                        ctx.fillText(line, textX, lineY);
+                    } else {
+                        // Highlight URLs when viewing
+                        drawTextWithURLHighlight(line, textX, lineY, cellAlign);
+                    }
+                });
 
                 // Draw cursor if this cell is being edited
                 if (isEditingCell && cursorVisible) {
-                    const textWidth = ctx.measureText(cellText.substring(0, cursorPosition)).width;
+                    // Find which line contains the cursor
+                    let charCount = 0;
+                    let cursorLine = 0;
+                    let cursorPosInLine = 0;
+
+                    for (let i = 0; i < lines.length; i++) {
+                        if (charCount + lines[i].length >= cursorPosition) {
+                            cursorLine = i;
+                            cursorPosInLine = cursorPosition - charCount;
+                            break;
+                        }
+                        charCount += lines[i].length + 1; // +1 for newline
+                    }
+
+                    // Handle cursor at very end of text
+                    if (cursorPosition >= cellText.length && lines.length > 0) {
+                        cursorLine = lines.length - 1;
+                        cursorPosInLine = lines[cursorLine].length;
+                    }
+
+                    const cursorLineY = startY + cursorLine * LINE_HEIGHT;
+                    const lineUpToCursor = lines[cursorLine] ? lines[cursorLine].substring(0, cursorPosInLine) : '';
+                    const textWidth = ctx.measureText(lineUpToCursor).width;
 
                     let cursorX;
                     if (cellAlign === 'left') {
                         cursorX = cellX + TEXT_PADDING + textWidth;
                     } else if (cellAlign === 'right') {
-                        const fullTextWidth = ctx.measureText(cellText).width;
+                        const fullTextWidth = ctx.measureText(lines[cursorLine] || '').width;
                         cursorX = cellX + cellWidth - TEXT_PADDING - fullTextWidth + textWidth;
                     } else {
-                        const fullTextWidth = ctx.measureText(cellText).width;
+                        const fullTextWidth = ctx.measureText(lines[cursorLine] || '').width;
                         cursorX = centerX - fullTextWidth / 2 + textWidth;
                     }
 
                     ctx.strokeStyle = '#333';
                     ctx.lineWidth = SELECTED_BORDER_WIDTH;
                     ctx.beginPath();
-                    ctx.moveTo(cursorX + CURSOR_X_OFFSET_TABLE, centerY - CURSOR_HEIGHT);
-                    ctx.lineTo(cursorX + CURSOR_X_OFFSET_TABLE, centerY + CURSOR_HEIGHT);
+                    ctx.moveTo(cursorX + CURSOR_X_OFFSET_TABLE, cursorLineY - CURSOR_HEIGHT);
+                    ctx.lineTo(cursorX + CURSOR_X_OFFSET_TABLE, cursorLineY + CURSOR_HEIGHT);
                     ctx.stroke();
                 }
 

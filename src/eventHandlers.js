@@ -738,23 +738,7 @@ document.addEventListener('keydown', (e) => {
             triggerAutoSave();
             e.preventDefault();
         } else if (e.key === 'Enter') {
-            // Enter: Add new line at cursor position (not for table cells)
-            if (editingNode.type === 'table') {
-                // For table cells, Enter just finishes editing
-                stopCursorBlink();
-                if (editingNode.editingCell) {
-                    editingNode.editingCell = null;
-                }
-                editingNode = null;
-                selectionStart = null;
-                selectionEnd = null;
-                setStatus('Finished editing table cell');
-                render();
-                triggerAutoSave();
-                e.preventDefault();
-                return;
-            }
-
+            // Enter: Add new line at cursor position
             const text = getEditingText(editingNode);
             let newText;
 
