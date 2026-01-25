@@ -172,9 +172,10 @@ function validateDiagramData(data) {
         throw new Error('Invalid file format: groups array contains null or undefined elements');
     }
 
-    // Validate each node
+    // Migrate and validate each node
     const nodeIds = new Set();
     data.nodes.forEach((node, index) => {
+        migrateTableNodeFormat(node);  // Migrate old table format to new format
         validateNode(node, index);
         nodeIds.add(node.id);
     });
@@ -246,6 +247,33 @@ function validateDiagramData(data) {
     }
 }
 
+// Migrate table nodes from old format (cellWidth/cellHeight) to new format (colWidths/rowHeights arrays)
+function migrateTableNodeFormat(node) {
+    if (node.type === 'table') {
+        // Convert old format to new format
+        if (node.cellWidth !== undefined && !node.colWidths) {
+            // Old format detected - migrate to new format
+            node.colWidths = Array(node.cols).fill(node.cellWidth);
+            delete node.cellWidth;  // Remove old property
+        }
+        if (node.cellHeight !== undefined && !node.rowHeights) {
+            // Old format detected - migrate to new format
+            node.rowHeights = Array(node.rows).fill(node.cellHeight);
+            delete node.cellHeight;  // Remove old property
+        }
+
+        // Safety checks - ensure arrays are correct length
+        if (!node.colWidths || !Array.isArray(node.colWidths) || node.colWidths.length !== node.cols) {
+            console.warn(`Table node ${node.id}: colWidths array missing or incorrect length, resetting to default`);
+            node.colWidths = Array(node.cols).fill(DEFAULT_TABLE_CELL_WIDTH);
+        }
+        if (!node.rowHeights || !Array.isArray(node.rowHeights) || node.rowHeights.length !== node.rows) {
+            console.warn(`Table node ${node.id}: rowHeights array missing or incorrect length, resetting to default`);
+            node.rowHeights = Array(node.rows).fill(DEFAULT_TABLE_CELL_HEIGHT);
+        }
+    }
+}
+
 function validateNode(node, index) {
     // Constants for validation
     const MAX_NODE_SIZE = 10000;
@@ -290,12 +318,32 @@ function validateNode(node, index) {
         if (!isValidNumber(node.cols) || node.cols < 1 || node.cols > 20 || node.cols !== Math.floor(node.cols)) {
             throw new Error(`Node ${index} (id: ${node.id}): table 'cols' must be an integer between 1 and 20 (got ${node.cols})`);
         }
-        if (!isValidNumber(node.cellWidth) || node.cellWidth <= MIN_NODE_SIZE || node.cellWidth > MAX_NODE_SIZE) {
-            throw new Error(`Node ${index} (id: ${node.id}): table 'cellWidth' must be a valid number between ${MIN_NODE_SIZE} and ${MAX_NODE_SIZE} (got ${node.cellWidth})`);
+
+        // Validate colWidths array
+        if (!Array.isArray(node.colWidths)) {
+            throw new Error(`Node ${index} (id: ${node.id}): table 'colWidths' must be an array (got ${typeof node.colWidths})`);
         }
-        if (!isValidNumber(node.cellHeight) || node.cellHeight <= MIN_NODE_SIZE || node.cellHeight > MAX_NODE_SIZE) {
-            throw new Error(`Node ${index} (id: ${node.id}): table 'cellHeight' must be a valid number between ${MIN_NODE_SIZE} and ${MAX_NODE_SIZE} (got ${node.cellHeight})`);
+        if (node.colWidths.length !== node.cols) {
+            throw new Error(`Node ${index} (id: ${node.id}): table 'colWidths' array length (${node.colWidths.length}) must match cols (${node.cols})`);
         }
+        node.colWidths.forEach((width, i) => {
+            if (!isValidNumber(width) || width < MIN_NODE_SIZE || width > MAX_NODE_SIZE) {
+                throw new Error(`Node ${index} (id: ${node.id}): table 'colWidths[${i}]' must be a valid number between ${MIN_NODE_SIZE} and ${MAX_NODE_SIZE} (got ${width})`);
+            }
+        });
+
+        // Validate rowHeights array
+        if (!Array.isArray(node.rowHeights)) {
+            throw new Error(`Node ${index} (id: ${node.id}): table 'rowHeights' must be an array (got ${typeof node.rowHeights})`);
+        }
+        if (node.rowHeights.length !== node.rows) {
+            throw new Error(`Node ${index} (id: ${node.id}): table 'rowHeights' array length (${node.rowHeights.length}) must match rows (${node.rows})`);
+        }
+        node.rowHeights.forEach((height, i) => {
+            if (!isValidNumber(height) || height < MIN_NODE_SIZE || height > MAX_NODE_SIZE) {
+                throw new Error(`Node ${index} (id: ${node.id}): table 'rowHeights[${i}]' must be a valid number between ${MIN_NODE_SIZE} and ${MAX_NODE_SIZE} (got ${height})`);
+            }
+        });
 
         // Validate cells array
         if (!Array.isArray(node.cells)) {
@@ -1124,6 +1172,7 @@ async function enterSubgraph(node) {
             isFileBased: typeof node.subgraph === 'string',
             fileName: typeof node.subgraph === 'string' ? node.subgraph : null,
             parentFileName: currentFileName,  // Save parent's filename to restore later
+            parentFileHandle: currentFileHandle,  // Save parent's file handle to restore later
             parentWorkspaceFolderName: workspaceFolderName  // Save workspace folder name to restore later
         };
         subgraphStack.push(currentState);
@@ -1179,11 +1228,14 @@ async function enterSubgraph(node) {
         // Reset alignment buttons
         updateAlignmentButtons(currentTextAlign);
 
-        // Update current filename
+        // Update current filename and file handle
         if (typeof node.subgraph === 'string') {
             currentFileName = node.subgraph;
+            // Get the file handle for this file-based subgraph
+            currentFileHandle = fileHandleMap.get(node.id) || null;
         } else {
             currentFileName = '(embedded)';
+            currentFileHandle = null; // Embedded subgraphs don't have file handles
         }
         updateFilePathDisplay();
 
@@ -1257,6 +1309,7 @@ async function exitSubgraph() {
         const isFileBased = stackEntry.isFileBased;
         const fileName = stackEntry.fileName;
         const parentFileName = stackEntry.parentFileName;
+        const parentFileHandle = stackEntry.parentFileHandle;
         const parentWorkspaceFolderName = stackEntry.parentWorkspaceFolderName;
 
         // Restore parent state
@@ -1450,8 +1503,9 @@ async function exitSubgraph() {
         // Reset alignment buttons
         updateAlignmentButtons(currentTextAlign);
 
-        // Restore parent filename and workspace folder name
+        // Restore parent filename, file handle, and workspace folder name
         currentFileName = parentFileName || null;
+        currentFileHandle = parentFileHandle || null;
         // Use parentWorkspaceFolderName if available, otherwise preserve current workspaceFolderName
         // (fallback for old stack entries created before this field was added)
         if (parentWorkspaceFolderName !== undefined) {
@@ -1835,6 +1889,7 @@ async function enterCellSubgraph(tableNode, row, col) {
             isFileBased: typeof cell.subgraph === 'string',
             fileName: typeof cell.subgraph === 'string' ? cell.subgraph : null,
             parentFileName: currentFileName,  // Save parent's filename to restore later
+            parentFileHandle: currentFileHandle,  // Save parent's file handle to restore later
             parentWorkspaceFolderName: workspaceFolderName  // Save workspace folder name to restore later
         };
         subgraphStack.push(currentState);
@@ -1862,6 +1917,17 @@ async function enterCellSubgraph(tableNode, row, col) {
         editingNode = null;
         connectionMode = false;
         connectionStart = null;
+
+        // Update current filename and file handle
+        if (typeof cell.subgraph === 'string') {
+            currentFileName = cell.subgraph;
+            // Get the file handle for this file-based cell subgraph
+            currentFileHandle = fileHandleMap.get(cellId) || null;
+        } else {
+            currentFileName = '(embedded)';
+            currentFileHandle = null; // Embedded subgraphs don't have file handles
+        }
+        updateFilePathDisplay();
 
         // Update UI and render
         updateBreadcrumb();

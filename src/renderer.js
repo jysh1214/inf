@@ -367,8 +367,8 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
 }
 
 function drawTableNode(node, isSelected) {
-    const totalWidth = node.cols * node.cellWidth;
-    const totalHeight = node.rows * node.cellHeight;
+    const totalWidth = getTotalWidth(node);
+    const totalHeight = getTotalHeight(node);
 
     // Background
     ctx.fillStyle = isSelected ? '#e3f2fd' : '#fff';
@@ -385,8 +385,10 @@ function drawTableNode(node, isSelected) {
 
     for (let row = 0; row < node.rows; row++) {
         for (let col = 0; col < node.cols; col++) {
-            const cellX = node.x + col * node.cellWidth;
-            const cellY = node.y + row * node.cellHeight;
+            const cellX = node.x + getCumulativeColWidth(node, col);
+            const cellY = node.y + getCumulativeRowHeight(node, row);
+            const cellWidth = node.colWidths[col];
+            const cellHeight = node.rowHeights[row];
             const cell = node.cells[row][col];
 
             // Check if this cell is selected
@@ -396,14 +398,14 @@ function drawTableNode(node, isSelected) {
             // Draw cell border
             ctx.strokeStyle = isCellSelected ? '#2196f3' : '#ccc';
             ctx.lineWidth = isCellSelected ? SELECTED_BORDER_WIDTH : 1;
-            ctx.strokeRect(cellX, cellY, node.cellWidth, node.cellHeight);
+            ctx.strokeRect(cellX, cellY, cellWidth, cellHeight);
 
             // Draw dashed border for cells with subgraphs
             if (cell.subgraph) {
                 ctx.strokeStyle = DEFAULT_COLOR;
                 ctx.lineWidth = SELECTED_BORDER_WIDTH;
                 ctx.setLineDash([5, 5]);
-                ctx.strokeRect(cellX + 1, cellY + 1, node.cellWidth - (CELL_PADDING / 2), node.cellHeight - (CELL_PADDING / 2));
+                ctx.strokeRect(cellX + 1, cellY + 1, cellWidth - (CELL_PADDING / 2), cellHeight - (CELL_PADDING / 2));
                 ctx.setLineDash([]); // Reset to solid
             }
 
@@ -411,10 +413,10 @@ function drawTableNode(node, isSelected) {
             const isEditingCell = node.editingCell && node.editingCell.row === row && node.editingCell.col === col;
             if (isEditingCell) {
                 ctx.fillStyle = '#fff9c4';
-                ctx.fillRect(cellX, cellY, node.cellWidth, node.cellHeight);
+                ctx.fillRect(cellX, cellY, cellWidth, cellHeight);
                 ctx.strokeStyle = '#ffa000';
                 ctx.lineWidth = SELECTED_BORDER_WIDTH;
-                ctx.strokeRect(cellX, cellY, node.cellWidth, node.cellHeight);
+                ctx.strokeRect(cellX, cellY, cellWidth, cellHeight);
             }
 
             // Draw cell text
@@ -422,12 +424,12 @@ function drawTableNode(node, isSelected) {
             if (cellText || isEditingCell) {
                 ctx.save();
                 ctx.beginPath();
-                ctx.rect(cellX + CELL_PADDING / 2, cellY + CELL_PADDING / 2, node.cellWidth - CELL_PADDING, node.cellHeight - CELL_PADDING);
+                ctx.rect(cellX + CELL_PADDING / 2, cellY + CELL_PADDING / 2, cellWidth - CELL_PADDING, cellHeight - CELL_PADDING);
                 ctx.clip();
 
                 ctx.fillStyle = '#333';
-                const centerX = cellX + node.cellWidth / 2;
-                const centerY = cellY + node.cellHeight / 2;
+                const centerX = cellX + cellWidth / 2;
+                const centerY = cellY + cellHeight / 2;
 
                 // Use cell's textAlign or fallback to table's default
                 const cellAlign = cell.textAlign || node.textAlign || 'center';
@@ -438,7 +440,7 @@ function drawTableNode(node, isSelected) {
                 if (cellAlign === 'left') {
                     textX = cellX + TEXT_PADDING;  // Left edge with padding
                 } else if (cellAlign === 'right') {
-                    textX = cellX + node.cellWidth - TEXT_PADDING;  // Right edge with padding
+                    textX = cellX + cellWidth - TEXT_PADDING;  // Right edge with padding
                 } else {
                     textX = centerX;  // Center
                 }
@@ -461,7 +463,7 @@ function drawTableNode(node, isSelected) {
                         selectionX = cellX + TEXT_PADDING + beforeWidth;
                     } else if (cellAlign === 'right') {
                         const fullTextWidth = ctx.measureText(cellText).width;
-                        selectionX = cellX + node.cellWidth - TEXT_PADDING - fullTextWidth + beforeWidth;
+                        selectionX = cellX + cellWidth - TEXT_PADDING - fullTextWidth + beforeWidth;
                     } else {
                         const fullTextWidth = ctx.measureText(cellText).width;
                         selectionX = centerX - fullTextWidth / 2 + beforeWidth;
@@ -485,7 +487,7 @@ function drawTableNode(node, isSelected) {
                         cursorX = cellX + TEXT_PADDING + textWidth;
                     } else if (cellAlign === 'right') {
                         const fullTextWidth = ctx.measureText(cellText).width;
-                        cursorX = cellX + node.cellWidth - TEXT_PADDING - fullTextWidth + textWidth;
+                        cursorX = cellX + cellWidth - TEXT_PADDING - fullTextWidth + textWidth;
                     } else {
                         const fullTextWidth = ctx.measureText(cellText).width;
                         cursorX = centerX - fullTextWidth / 2 + textWidth;
@@ -817,8 +819,8 @@ function getNodeEdgePoint(fromX, fromY, toNode) {
 
         case 'table':
             // Calculate table dimensions
-            const tableWidth = toNode.cols * toNode.cellWidth;
-            const tableHeight = toNode.rows * toNode.cellHeight;
+            const tableWidth = getTotalWidth(toNode);
+            const tableHeight = getTotalHeight(toNode);
             const tableLeft = toNode.x;
             const tableRight = toNode.x + tableWidth;
             const tableTop = toNode.y;
@@ -955,8 +957,8 @@ function getNodeCenter(node) {
     if (node.type === 'circle') {
         return { x: node.x, y: node.y };
     } else if (node.type === 'table') {
-        const totalWidth = node.cols * node.cellWidth;
-        const totalHeight = node.rows * node.cellHeight;
+        const totalWidth = getTotalWidth(node);
+        const totalHeight = getTotalHeight(node);
         return {
             x: node.x + totalWidth / 2,
             y: node.y + totalHeight / 2
@@ -1018,8 +1020,8 @@ function getGroupBoundingBox(nodeIds) {
             case 'table':
                 nodeMinX = node.x;
                 nodeMinY = node.y;
-                nodeMaxX = node.x + (node.cols * node.cellWidth);
-                nodeMaxY = node.y + (node.rows * node.cellHeight);
+                nodeMaxX = node.x + getTotalWidth(node);
+                nodeMaxY = node.y + getTotalHeight(node);
                 break;
             default:
                 // Rectangle, diamond, text, code
@@ -1129,9 +1131,9 @@ function render() {
                 ctx.stroke();
                 break;
             case 'table':
-                // Table nodes use cols/rows/cellWidth/cellHeight instead of width/height
-                const totalWidth = hoveredNode.cols * hoveredNode.cellWidth;
-                const totalHeight = hoveredNode.rows * hoveredNode.cellHeight;
+                // Table nodes use colWidths/rowHeights arrays
+                const totalWidth = getTotalWidth(hoveredNode);
+                const totalHeight = getTotalHeight(hoveredNode);
                 ctx.strokeRect(hoveredNode.x - HOVER_OFFSET, hoveredNode.y - HOVER_OFFSET,
                               totalWidth + HOVER_OFFSET * 2, totalHeight + HOVER_OFFSET * 2);
                 break;

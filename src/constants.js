@@ -129,6 +129,7 @@ const SUBGRAPH_BORDER_WIDTH = 4;             // Border thickness for nodes with 
 const SELECTED_BORDER_WIDTH = 2;             // Border thickness for selected nodes
 const EDITING_BORDER_WIDTH = 3;              // Border thickness for editing nodes
 const TABLE_BORDER_DETECT_WIDTH = 10;        // Hit detection area for table borders
+const TABLE_BORDER_RESIZE_TOLERANCE = 5;     // Pixels on each side of border for resize hit detection
 
 // Cursor rendering
 const CURSOR_HEIGHT = 8;                     // Half-height of cursor (above and below line)

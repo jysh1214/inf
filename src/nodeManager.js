@@ -48,10 +48,10 @@ function createNode(x, y, type = 'rectangle') {
             // This creates a default 3x3 table if called directly
             const rows = DEFAULT_TABLE_ROWS;
             const cols = DEFAULT_TABLE_COLS;
-            const cellWidth = DEFAULT_TABLE_CELL_WIDTH;
-            const cellHeight = DEFAULT_TABLE_CELL_HEIGHT;
-            const totalWidth = cols * cellWidth;
-            const totalHeight = rows * cellHeight;
+            const colWidths = Array(cols).fill(DEFAULT_TABLE_CELL_WIDTH);
+            const rowHeights = Array(rows).fill(DEFAULT_TABLE_CELL_HEIGHT);
+            const totalWidth = colWidths.reduce((sum, w) => sum + w, 0);
+            const totalHeight = rowHeights.reduce((sum, h) => sum + h, 0);
 
             // Create cell objects (similar to Text nodes but cannot be resized)
             const cells = Array(rows).fill(null).map(() =>
@@ -68,8 +68,8 @@ function createNode(x, y, type = 'rectangle') {
                 y: y - totalHeight / 2,
                 rows: rows,
                 cols: cols,
-                cellWidth: cellWidth,
-                cellHeight: cellHeight,
+                colWidths: colWidths,
+                rowHeights: rowHeights,
                 cells: cells,  // Array of cell objects, not just text
                 editingCell: null  // {row: number, col: number} when editing a cell
             };
@@ -126,11 +126,92 @@ function createConnection(fromId, toId) {
     };
 }
 
+// Table helper functions for individual row/column sizing
+function getCumulativeColWidth(node, col) {
+    let sum = 0;
+    for (let i = 0; i < col; i++) {
+        sum += node.colWidths[i];
+    }
+    return sum;
+}
+
+function getCumulativeRowHeight(node, row) {
+    let sum = 0;
+    for (let i = 0; i < row; i++) {
+        sum += node.rowHeights[i];
+    }
+    return sum;
+}
+
+function getTotalWidth(node) {
+    return node.colWidths.reduce((sum, w) => sum + w, 0);
+}
+
+function getTotalHeight(node) {
+    return node.rowHeights.reduce((sum, h) => sum + h, 0);
+}
+
+function getTableBorderAtPoint(x, y, node) {
+    if (node.type !== 'table') return null;
+
+    const tolerance = TABLE_BORDER_RESIZE_TOLERANCE / zoom;
+
+    // Check column borders (vertical lines between columns)
+    let currentX = node.x;
+    for (let col = 0; col < node.cols - 1; col++) {
+        currentX += node.colWidths[col];
+        if (Math.abs(x - currentX) <= tolerance &&
+            y >= node.y && y <= node.y + getTotalHeight(node)) {
+            return { type: 'col', index: col };
+        }
+    }
+
+    // Check row borders (horizontal lines between rows)
+    let currentY = node.y;
+    for (let row = 0; row < node.rows - 1; row++) {
+        currentY += node.rowHeights[row];
+        if (Math.abs(y - currentY) <= tolerance &&
+            x >= node.x && x <= node.x + getTotalWidth(node)) {
+            return { type: 'row', index: row };
+        }
+    }
+
+    return null;
+}
+
+function getCellAtPoint(x, y, node) {
+    if (node.type !== 'table') return null;
+
+    // Find column
+    let cellCol = -1;
+    let currentX = node.x;
+    for (let col = 0; col < node.cols; col++) {
+        if (x >= currentX && x < currentX + node.colWidths[col]) {
+            cellCol = col;
+            break;
+        }
+        currentX += node.colWidths[col];
+    }
+
+    // Find row
+    let cellRow = -1;
+    let currentY = node.y;
+    for (let row = 0; row < node.rows; row++) {
+        if (y >= currentY && y < currentY + node.rowHeights[row]) {
+            cellRow = row;
+            break;
+        }
+        currentY += node.rowHeights[row];
+    }
+
+    return (cellRow >= 0 && cellCol >= 0) ? { row: cellRow, col: cellCol } : null;
+}
+
 function isPointOnTableBorder(x, y, node, borderWidth = TABLE_BORDER_DETECT_WIDTH) {
     if (node.type !== 'table') return false;
 
-    const totalWidth = node.cols * node.cellWidth;
-    const totalHeight = node.rows * node.cellHeight;
+    const totalWidth = getTotalWidth(node);
+    const totalHeight = getTotalHeight(node);
 
     // Check if point is within the outer rectangle
     if (x < node.x || x > node.x + totalWidth ||
@@ -185,8 +266,8 @@ function isPointInNode(x, y, node) {
         default:
             // For table nodes, calculate total dimensions
             if (node.type === 'table') {
-                const totalWidth = node.cols * node.cellWidth;
-                const totalHeight = node.rows * node.cellHeight;
+                const totalWidth = getTotalWidth(node);
+                const totalHeight = getTotalHeight(node);
                 return x >= node.x && x <= node.x + totalWidth &&
                        y >= node.y && y <= node.y + totalHeight;
             }
@@ -251,8 +332,8 @@ function getResizeCorner(x, y, node) {
             // 4 corner handles
             let width, height;
             if (node.type === 'table') {
-                width = node.cols * node.cellWidth;
-                height = node.rows * node.cellHeight;
+                width = getTotalWidth(node);
+                height = getTotalHeight(node);
             } else {
                 width = node.width;
                 height = node.height;

@@ -243,10 +243,10 @@ function createTableWithSize() {
     }
 
     // Create the table node
-    const cellWidth = DEFAULT_TABLE_CELL_WIDTH;
-    const cellHeight = DEFAULT_TABLE_CELL_HEIGHT;
-    const totalWidth = cols * cellWidth;
-    const totalHeight = rows * cellHeight;
+    const colWidths = Array(cols).fill(DEFAULT_TABLE_CELL_WIDTH);
+    const rowHeights = Array(rows).fill(DEFAULT_TABLE_CELL_HEIGHT);
+    const totalWidth = colWidths.reduce((sum, w) => sum + w, 0);
+    const totalHeight = rowHeights.reduce((sum, h) => sum + h, 0);
 
     // Create cell objects (similar to Text nodes but cannot be resized)
     const cells = Array(rows).fill(null).map(() =>
@@ -264,8 +264,8 @@ function createTableWithSize() {
         y: pendingTablePosition.y - totalHeight / 2,
         rows: rows,
         cols: cols,
-        cellWidth: cellWidth,
-        cellHeight: cellHeight,
+        colWidths: colWidths,
+        rowHeights: rowHeights,
         cells: cells,  // Array of cell objects, not just text
         editingCell: null,
         textAlign: currentTextAlign  // Default for new cells

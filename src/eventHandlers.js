@@ -81,15 +81,13 @@ canvas.addEventListener('dblclick', (e) => {
 
         // Special handling for table nodes - determine which cell was clicked
         if (clickedNode.type === 'table') {
-            const cellCol = Math.floor((x - clickedNode.x) / clickedNode.cellWidth);
-            const cellRow = Math.floor((y - clickedNode.y) / clickedNode.cellHeight);
+            const cellPos = getCellAtPoint(x, y, clickedNode);
 
-            // Validate cell coordinates
-            if (cellRow >= 0 && cellRow < clickedNode.rows && cellCol >= 0 && cellCol < clickedNode.cols) {
-                clickedNode.editingCell = { row: cellRow, col: cellCol };
-                const cellText = clickedNode.cells[cellRow][cellCol].text || '';
+            if (cellPos) {
+                clickedNode.editingCell = { row: cellPos.row, col: cellPos.col };
+                const cellText = clickedNode.cells[cellPos.row][cellPos.col].text || '';
                 cursorPosition = cellText.length;
-                setStatus(`Editing table #${clickedNode.id} cell (${cellRow + 1}, ${cellCol + 1}) - Click outside, press Esc, or Tab to finish`);
+                setStatus(`Editing table #${clickedNode.id} cell (${cellPos.row + 1}, ${cellPos.col + 1}) - Click outside, press Esc, or Tab to finish`);
             } else {
                 cursorPosition = 0;
             }
@@ -156,19 +154,17 @@ canvas.addEventListener('mousedown', (e) => {
 
         // Special handling for table nodes - detect which cell was clicked
         if (clickedNode.type === 'table') {
-            const cellCol = Math.floor((x - clickedNode.x) / clickedNode.cellWidth);
-            const cellRow = Math.floor((y - clickedNode.y) / clickedNode.cellHeight);
+            const cellPos = getCellAtPoint(x, y, clickedNode);
 
-            // Validate cell coordinates
-            if (cellRow >= 0 && cellRow < clickedNode.rows && cellCol >= 0 && cellCol < clickedNode.cols) {
-                const cell = clickedNode.cells[cellRow][cellCol];
+            if (cellPos) {
+                const cell = clickedNode.cells[cellPos.row][cellPos.col];
 
                 if (cell.subgraph) {
                     // Cell has subgraph - enter it
-                    enterCellSubgraph(clickedNode, cellRow, cellCol);
+                    enterCellSubgraph(clickedNode, cellPos.row, cellPos.col);
                 } else {
                     // Cell has no subgraph - create new one
-                    createCellSubgraph(clickedNode, cellRow, cellCol);
+                    createCellSubgraph(clickedNode, cellPos.row, cellPos.col);
                 }
             }
         } else {
@@ -261,20 +257,36 @@ canvas.addEventListener('mousedown', (e) => {
             return;
         }
 
+        // For tables, check if clicking on a resizable border (PRIORITY: before other interactions)
+        if (clickedNode.type === 'table') {
+            const border = getTableBorderAtPoint(x, y, clickedNode);
+            if (border) {
+                // Start border resize
+                isResizingTableBorder = true;
+                resizingBorder = { ...border, table: clickedNode };
+                resizeBorderStartPos = border.type === 'col' ? x : y;
+                resizeBorderStartSize = border.type === 'col'
+                    ? clickedNode.colWidths[border.index]
+                    : clickedNode.rowHeights[border.index];
+                canvas.style.cursor = border.type === 'col' ? 'col-resize' : 'row-resize';
+                e.preventDefault();
+                return;
+            }
+        }
+
         // For tables, distinguish between border and cell clicks
         if (clickedNode.type === 'table') {
             if (!isPointOnTableBorder(x, y, clickedNode)) {
                 // Clicking inside a cell - select the cell, not the table
-                const cellCol = Math.floor((x - clickedNode.x) / clickedNode.cellWidth);
-                const cellRow = Math.floor((y - clickedNode.y) / clickedNode.cellHeight);
+                const cellPos = getCellAtPoint(x, y, clickedNode);
 
-                if (cellRow >= 0 && cellRow < clickedNode.rows && cellCol >= 0 && cellCol < clickedNode.cols) {
-                    selectedCell = { table: clickedNode, row: cellRow, col: cellCol };
+                if (cellPos) {
+                    selectedCell = { table: clickedNode, row: cellPos.row, col: cellPos.col };
                     selectedNodeIds.clear();
                     selectedConnection = null;
 
                     // Update text alignment buttons to show cell's alignment
-                    const cell = clickedNode.cells[cellRow][cellCol];
+                    const cell = clickedNode.cells[cellPos.row][cellPos.col];
                     const cellAlign = cell.textAlign || clickedNode.textAlign || 'center';
                     updateAlignmentButtons(cellAlign);
 
@@ -412,7 +424,23 @@ canvas.addEventListener('mousemove', (e) => {
     hoveredNode = getNodeAtPoint(x, y);
     const hoveredNodeChanged = previousHoveredNode !== hoveredNode;
 
-    if (isDragging && selectedNodeIds.size > 0) {
+    // Handle table border resizing
+    if (isResizingTableBorder && resizingBorder) {
+        const table = resizingBorder.table;
+
+        if (resizingBorder.type === 'col') {
+            const delta = x - resizeBorderStartPos;
+            const newWidth = Math.max(MIN_NODE_SIZE, resizeBorderStartSize + delta);
+            table.colWidths[resizingBorder.index] = newWidth;
+        } else if (resizingBorder.type === 'row') {
+            const delta = y - resizeBorderStartPos;
+            const newHeight = Math.max(MIN_NODE_SIZE, resizeBorderStartSize + delta);
+            table.rowHeights[resizingBorder.index] = newHeight;
+        }
+
+        render();
+        triggerAutoSave();
+    } else if (isDragging && selectedNodeIds.size > 0) {
         // Calculate delta from drag start
         const dx = x - dragOffset.x;
         const dy = y - dragOffset.y;
@@ -465,35 +493,47 @@ canvas.addEventListener('mousemove', (e) => {
                 selectedNode.width = newWidth;
             }
         } else if (selectedNode.type === 'table') {
-            // Table: resize cells proportionally
-            const currentWidth = selectedNode.cols * selectedNode.cellWidth;
-            const currentHeight = selectedNode.rows * selectedNode.cellHeight;
+            // Table: resize cells proportionally (preserve relative size ratios)
+            const currentWidth = getTotalWidth(selectedNode);
+            const currentHeight = getTotalHeight(selectedNode);
+
+            let newTotalWidth, newTotalHeight;
+            let newX = selectedNode.x;
+            let newY = selectedNode.y;
 
             if (resizeCorner === 'se') {
-                const newWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, x - selectedNode.x);
-                const newHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, y - selectedNode.y);
-                selectedNode.cellWidth = newWidth / selectedNode.cols;
-                selectedNode.cellHeight = newHeight / selectedNode.rows;
+                newTotalWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, x - selectedNode.x);
+                newTotalHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, y - selectedNode.y);
             } else if (resizeCorner === 'sw') {
-                const newWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, selectedNode.x + currentWidth - x);
-                const newHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, y - selectedNode.y);
-                selectedNode.x = selectedNode.x + currentWidth - newWidth;
-                selectedNode.cellWidth = newWidth / selectedNode.cols;
-                selectedNode.cellHeight = newHeight / selectedNode.rows;
+                newTotalWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, selectedNode.x + currentWidth - x);
+                newTotalHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, y - selectedNode.y);
+                newX = selectedNode.x + currentWidth - newTotalWidth;
             } else if (resizeCorner === 'ne') {
-                const newWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, x - selectedNode.x);
-                const newHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, selectedNode.y + currentHeight - y);
-                selectedNode.y = selectedNode.y + currentHeight - newHeight;
-                selectedNode.cellWidth = newWidth / selectedNode.cols;
-                selectedNode.cellHeight = newHeight / selectedNode.rows;
+                newTotalWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, x - selectedNode.x);
+                newTotalHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, selectedNode.y + currentHeight - y);
+                newY = selectedNode.y + currentHeight - newTotalHeight;
             } else if (resizeCorner === 'nw') {
-                const newWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, selectedNode.x + currentWidth - x);
-                const newHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, selectedNode.y + currentHeight - y);
-                selectedNode.x = selectedNode.x + currentWidth - newWidth;
-                selectedNode.y = selectedNode.y + currentHeight - newHeight;
-                selectedNode.cellWidth = newWidth / selectedNode.cols;
-                selectedNode.cellHeight = newHeight / selectedNode.rows;
+                newTotalWidth = Math.max(MIN_NODE_SIZE * selectedNode.cols, selectedNode.x + currentWidth - x);
+                newTotalHeight = Math.max(MIN_NODE_SIZE * selectedNode.rows, selectedNode.y + currentHeight - y);
+                newX = selectedNode.x + currentWidth - newTotalWidth;
+                newY = selectedNode.y + currentHeight - newTotalHeight;
             }
+
+            // Scale all column widths proportionally
+            const widthScale = newTotalWidth / currentWidth;
+            for (let i = 0; i < selectedNode.cols; i++) {
+                selectedNode.colWidths[i] = selectedNode.colWidths[i] * widthScale;
+            }
+
+            // Scale all row heights proportionally
+            const heightScale = newTotalHeight / currentHeight;
+            for (let i = 0; i < selectedNode.rows; i++) {
+                selectedNode.rowHeights[i] = selectedNode.rowHeights[i] * heightScale;
+            }
+
+            // Update position if needed
+            selectedNode.x = newX;
+            selectedNode.y = newY;
         } else {
             // Rectangle, text, and code: existing corner-drag logic
             if (resizeCorner === 'se') {
@@ -522,6 +562,19 @@ canvas.addEventListener('mousemove', (e) => {
     } else {
         // Update cursor based on hover state
         if (hoveredNode && !connectionMode) {
+            // Check for table border hover first (priority)
+            if (hoveredNode.type === 'table') {
+                const border = getTableBorderAtPoint(x, y, hoveredNode);
+                if (border) {
+                    canvas.style.cursor = border.type === 'col' ? 'col-resize' : 'row-resize';
+                    // Render to show hover effect
+                    if (hoveredNodeChanged) {
+                        render();
+                    }
+                    return; // Skip other cursor checks
+                }
+            }
+
             const corner = getResizeCorner(x, y, hoveredNode);
             if (corner) {
                 // Set cursor for resize - handle different node types
@@ -564,8 +617,14 @@ canvas.addEventListener('mouseup', (e) => {
     }
 
     // Trigger auto-save if we were dragging or resizing
-    if (isDragging || isResizing) {
+    if (isDragging || isResizing || isResizingTableBorder) {
         triggerAutoSave();
+    }
+
+    // End table border resizing
+    if (isResizingTableBorder) {
+        isResizingTableBorder = false;
+        resizingBorder = null;
     }
 
     isDragging = false;

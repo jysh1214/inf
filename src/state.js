@@ -29,6 +29,12 @@ let isResizing = false;
 let resizeCorner = null;
 let dragOffset = { x: 0, y: 0 };
 
+// Table cell border resizing state
+let isResizingTableBorder = false;
+let resizingBorder = null;  // { type: 'col'|'row', index: number, table: node }
+let resizeBorderStartPos = 0;  // Starting mouse position (x for col, y for row)
+let resizeBorderStartSize = 0;  // Original size of the row/column being resized
+
 // Canvas panning state
 let isPanning = false;
 let panStart = { x: 0, y: 0 };
