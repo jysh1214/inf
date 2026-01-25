@@ -19,6 +19,7 @@ let connectionStart = null;
 let directedMode = true;
 let currentNodeType = 'rectangle';
 let currentTextAlign = 'center';
+let currentFontFamily = 'sans-serif';
 let editingNode = null;
 let copiedNodes = [];  // Array of copied nodes for multi-select copy/paste
 let textClipboard = '';  // Text clipboard for cut/copy/paste operations within text editing

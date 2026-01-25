@@ -109,6 +109,32 @@ function setTextAlign(align) {
     }
 }
 
+function setFontFamily(font) {
+    currentFontFamily = font;
+
+    // If a cell is selected, update its font
+    if (selectedCell) {
+        const cell = selectedCell.table.cells[selectedCell.row][selectedCell.col];
+        cell.fontFamily = font;
+        render();
+        setStatus(`Cell font: ${font}`);
+        triggerAutoSave();
+    } else if (selectedNodeIds.size > 0) {
+        // If nodes are selected, update their font
+        selectedNodeIds.forEach(nodeId => {
+            const node = nodeMap.get(nodeId);
+            if (node) {
+                node.fontFamily = font;
+            }
+        });
+        render();
+        setStatus(`Font family: ${font} (${selectedNodeIds.size} node(s))`);
+        triggerAutoSave();
+    } else {
+        setStatus(`Default font family: ${font}`);
+    }
+}
+
 function increaseCanvasSize() {
     const newWidth = Math.min(MAX_CANVAS_SIZE, canvasWidth + CANVAS_SIZE_STEP);
     const newHeight = Math.min(MAX_CANVAS_SIZE, canvasHeight + CANVAS_SIZE_STEP);

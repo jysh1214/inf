@@ -249,6 +249,30 @@ button:active {
     font-size: 14px;
 }
 
+.font-selector {
+    width: 100%;
+    background: white;
+    color: #495057;
+    border: 2px solid #e9ecef;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.font-selector:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.font-selector:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 .file-ops-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
