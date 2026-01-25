@@ -134,6 +134,17 @@ canvas.addEventListener('mousedown', (e) => {
 
     const clickedNode = getNodeAtPoint(x, y);
 
+    // Ctrl+Click behavior for opening URLs (without Shift)
+    if (clickedNode && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        // Try to open URL first, before multi-select
+        const urlOpened = openURLFromNode(clickedNode);
+        if (urlOpened) {
+            e.preventDefault();
+            return false; // URL was opened, don't continue with other behaviors
+        }
+        // If no URL found, fall through to multi-select behavior below
+    }
+
     // Ctrl+Shift+Click behavior for subgraphs (moved from Ctrl+Click alone)
     if (clickedNode && (e.ctrlKey || e.metaKey) && e.shiftKey) {
         e.preventDefault();

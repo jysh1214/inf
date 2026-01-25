@@ -481,3 +481,68 @@ function removeSubgraphFromSelection() {
         setStatus('⚠️ Selected nodes have no subgraphs to remove');
     }
 }
+
+// URL detection and opening
+function extractURLsFromText(text) {
+    if (!text) return [];
+
+    // Regex pattern to match URLs:
+    // - https://... or http://...
+    // - www....
+    // - domain.com patterns (simple TLDs)
+    const urlPattern = /https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(com|org|net|edu|gov|io|co|dev|app|ai|me|us|uk|ca|de|fr|jp|cn|in|au|br)[^\s]*/gi;
+
+    const matches = text.match(urlPattern);
+    return matches || [];
+}
+
+function openURLFromNode(node) {
+    if (!node) return false;
+
+    let text = '';
+
+    // Get text based on node type
+    if (node.type === 'table' && node.editingCell) {
+        const cell = node.cells[node.editingCell.row][node.editingCell.col];
+        text = cell.text || '';
+    } else if (node.type === 'table') {
+        // For table without editing cell, collect all cell texts
+        let allTexts = [];
+        for (let row = 0; row < node.rows; row++) {
+            for (let col = 0; col < node.cols; col++) {
+                const cellText = node.cells[row][col].text || '';
+                if (cellText) allTexts.push(cellText);
+            }
+        }
+        text = allTexts.join(' ');
+    } else {
+        text = node.text || '';
+    }
+
+    const urls = extractURLsFromText(text);
+
+    if (urls.length === 0) {
+        return false;
+    }
+
+    // If exactly one URL, open it
+    if (urls.length === 1) {
+        let url = urls[0];
+        // Add protocol if missing
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+        window.open(url, '_blank', 'noopener,noreferrer');
+        setStatus(`✓ Opened URL: ${urls[0]}`);
+        return true;
+    }
+
+    // If multiple URLs, open the first one (could enhance to show selection modal later)
+    let url = urls[0];
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setStatus(`✓ Opened URL: ${urls[0]} (${urls.length} URLs found)`);
+    return true;
+}
