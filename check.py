@@ -189,8 +189,6 @@ def check_key_functions(content):
         'function saveToJSON(',
         'function loadFromJSON(',
         'function exportToPNG(',
-        'function autoSave(',
-        'function autoLoad(',
         'function triggerAutoSave(',
         'function getMousePos(',
         'function setStatus(',

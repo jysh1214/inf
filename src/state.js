@@ -43,11 +43,6 @@ let scrollStart = { x: 0, y: 0 };
 // Node lookup map for performance
 let nodeMap = new Map();
 
-// Auto-save timer
-let autoSaveTimer = null;
-const AUTO_SAVE_DELAY = 1000; // Save 1 second after last change
-let autoSaveStatusTimer = null;
-
 // Cursor blink state for text editing
 let cursorVisible = true;
 let cursorBlinkInterval = null;

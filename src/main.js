@@ -15,26 +15,20 @@ if (typeof cursorBlinkInterval !== 'undefined' && cursorBlinkInterval) {
     cursorBlinkInterval = null;
 }
 
-// Initial render and auto-load
+// Initial render
 document.title = `Inf - v${VERSION}`;
 document.getElementById('app-title').textContent = `Inf - v${VERSION}`;
 updateFilePathDisplay(); // Initialize file path display (hidden initially)
-const loaded = autoLoad();
-if (!loaded) {
-    setStatus('Double-click to create nodes');
-}
+setStatus('Double-click to create nodes');
 render();
 
-// Restore workspace folder name from IndexedDB (only if not already set by autoLoad)
+// Restore workspace folder name from IndexedDB
 (async function restoreWorkspaceInfo() {
     try {
-        // Only restore from IndexedDB if workspaceFolderName wasn't restored from localStorage
-        if (!workspaceFolderName) {
-            const dirHandle = await getDirectoryHandle();
-            if (dirHandle) {
-                workspaceFolderName = dirHandle.name;
-                updateFilePathDisplay();
-            }
+        const dirHandle = await getDirectoryHandle();
+        if (dirHandle) {
+            workspaceFolderName = dirHandle.name;
+            updateFilePathDisplay();
         }
     } catch (error) {
         console.warn('Failed to restore workspace info:', error);
