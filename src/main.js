@@ -19,6 +19,21 @@ if (typeof cursorBlinkInterval !== 'undefined' && cursorBlinkInterval) {
 document.title = `Inf - v${VERSION}`;
 document.getElementById('app-title').textContent = `Inf - v${VERSION}`;
 updateFilePathDisplay(); // Initialize file path display (hidden initially)
+
+// Populate font selector from AVAILABLE_FONTS constant
+const fontSelector = document.getElementById('font-selector');
+if (fontSelector) {
+    AVAILABLE_FONTS.forEach(font => {
+        const option = document.createElement('option');
+        option.value = font;
+        option.textContent = font;
+        if (font === currentFontFamily) {
+            option.selected = true;
+        }
+        fontSelector.appendChild(option);
+    });
+}
+
 setStatus('Loading...');
 render();
 
