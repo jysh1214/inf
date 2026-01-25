@@ -248,15 +248,16 @@ Call `render()` after any state change that affects visual output. Call `trigger
 
 **Variable naming consistency:**
 - The multi-select clipboard is `copiedNodes` (plural array), NOT `copiedNode`
-- Always use `copiedNodes = []` to reset clipboard
 - Common mistake: `copiedNode = null` creates undefined variable pollution
 
 **State reset in subgraph navigation:**
 - When entering/exiting subgraphs, reset all interaction state including:
-  - `copiedNodes = []` (clipboard)
   - `selectedNodeIds.clear()` (multi-select)
   - `editingNode = null`, `connectionMode = false`
   - All drag/resize/pan state variables
+- **NOTE:** `copiedNodes` is NOT reset to enable cross-graph copy/paste (v2.4+)
+  - Users can copy nodes from any graph and paste into any other graph
+  - Clipboard persists across all navigation operations
 
 ## Text Editing & Cursor System
 
@@ -414,8 +415,9 @@ Multiple keydown listeners exist on `document`. When adding new global keyboard 
 2. Press Ctrl+C to copy all selected nodes
 3. Press Ctrl+V to paste with relative positioning preserved
 4. Pasted nodes maintain spatial relationships
-5. Connections between pasted nodes are preserved
-6. New IDs assigned to pasted nodes and connections
+5. New IDs assigned to pasted nodes
+6. **Cross-graph support:** Copy from any graph, paste into any other graph (v2.4+)
+7. **Note:** Connections between nodes are NOT copied - only the nodes themselves
 
 ## Common Issues and Solutions
 
