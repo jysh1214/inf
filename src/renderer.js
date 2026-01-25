@@ -189,9 +189,8 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
     const isEditing = node === editingNode;
     const displayText = node.text || (isEditing ? '' : '');
     const textAlign = node.textAlign || 'left';
-    const fontFamily = node.fontFamily || CODE_FONT_FAMILY;
 
-    ctx.font = `${CODE_FONT_SIZE}px ${fontFamily}`;
+    ctx.font = `${CODE_FONT_SIZE}px ${currentFontFamily}`;
     ctx.textAlign = textAlign;
     ctx.textBaseline = 'middle';
 
@@ -495,10 +494,7 @@ function drawTableNode(node, isSelected) {
                 // Use cell's textAlign or fallback to table's default
                 const cellAlign = cell.textAlign || node.textAlign || 'center';
                 ctx.textAlign = cellAlign;
-
-                // Use cell's fontFamily or fallback to table/node font or default
-                const cellFontFamily = cell.fontFamily || node.fontFamily || FONT_FAMILY;
-                ctx.font = `${FONT_SIZE}px ${cellFontFamily}`;
+                ctx.font = `${FONT_SIZE}px ${currentFontFamily}`;
 
                 // Calculate text X position based on alignment
                 let textX;
@@ -720,10 +716,9 @@ function drawNodeText(node, centerX, centerY, maxWidth) {
     const isEditing = node === editingNode;
     const displayText = node.text || (isEditing ? '' : '');
     const textAlign = node.textAlign || 'center';
-    const fontFamily = node.fontFamily || FONT_FAMILY;
 
     ctx.fillStyle = '#333';
-    ctx.font = `${FONT_SIZE}px ${fontFamily}`;
+    ctx.font = `${FONT_SIZE}px ${currentFontFamily}`;
     ctx.textAlign = textAlign;
     ctx.textBaseline = 'middle';
 

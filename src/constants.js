@@ -19,7 +19,7 @@ const ARROWHEAD_OFFSET = 0;
 const MAX_TEXT_LENGTH = 1000;
 const CURSOR_BLINK_RATE = 500;
 const LINE_HEIGHT = 18;
-const FONT_FAMILY = 'sans-serif';
+const FONT_FAMILY = 'Maple Mono';
 const FONT_SIZE = 14;
 const CODE_FONT_FAMILY = 'Monaco, Menlo, "Courier New", monospace';
 const CODE_FONT_SIZE = 13;
@@ -35,7 +35,8 @@ const AVAILABLE_FONTS = [
     'Courier New',
     'Verdana',
     'Trebuchet MS',
-    'Comic Sans MS'
+    'Comic Sans MS',
+    'Maple Mono',
 ];
 
 // Color constants
