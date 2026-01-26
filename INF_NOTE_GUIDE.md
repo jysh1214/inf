@@ -34,7 +34,7 @@ Every Inf diagram JSON file has the following top-level fields:
 
 ```json
 {
-  "version": "2.3",
+  "version": "2.4",
   "nodes": [],
   "connections": [],
   "groups": [],
@@ -84,6 +84,35 @@ All nodes must have:
 | `text` | string | Yes | Any string (max 1000 chars) | Node label/content |
 | `textAlign` | string | Yes | "left", "center", "right" | Text alignment |
 | `subgraph` | object/string | No | Object or filename | Optional subgraph data |
+
+### URL Highlighting
+
+URLs in node text are automatically detected and highlighted:
+- **Visual appearance**: URLs render in blue (#2196f3) with underline
+- **Clickable**: Ctrl+Click (or Cmd+Click on Mac) on any node containing a URL to open it in a new browser tab
+- **Supported patterns**:
+  - `https://example.com`
+  - `http://example.com`
+  - `www.example.com`
+  - `example.com` (common TLDs like .com, .org, .net, .io, etc.)
+- **Works in all node types**: Regular nodes, code nodes, table cells, and text nodes
+- **Multiple URLs**: If a node contains multiple URLs, Ctrl+Click opens the first one
+
+Example:
+```json
+{
+  "id": 1,
+  "type": "text",
+  "text": "See documentation at https://docs.example.com for details",
+  "textAlign": "left",
+  "x": 100,
+  "y": 100,
+  "width": 300,
+  "height": 60
+}
+```
+
+The URL will be highlighted in blue with an underline, and Ctrl+Click on the node will open the link.
 
 ### Rectangle Nodes
 
@@ -199,16 +228,18 @@ Text nodes have no visible border, only text.
 **Position:** `(x, y)` is the **top-left corner**
 
 Code nodes display code with monospace font and syntax highlighting. Features:
-- Monospace font (Monaco, Menlo, Courier New)
-- Syntax highlighting for JavaScript/TypeScript, C/C++, and Python keywords
+- **Separate font control**: Code nodes use the "Code Font Family" selector (default: monospace)
+- Regular nodes use the "Font Family" selector - both can be changed independently in the toolbar
+- Syntax highlighting for JavaScript/TypeScript, C/C++, Python, and Bash keywords
 - No word wrapping (preserves code formatting)
 - Light gray background (#f5f5f5) with visible border
+- URLs in code are highlighted in blue and clickable with Ctrl+Click
 
 **Syntax Highlighting:**
-- Keywords highlighted in blue (if, for, function, class, def, int, template, etc.)
+- Keywords highlighted in blue (if, for, function, class, def, int, template, docker, git, etc.)
 - Strings highlighted in green (starting with ", ', or `)
 - Numbers highlighted in dark green
-- Comments highlighted in gray (// for JS/C++, # for Python)
+- Comments highlighted in gray (// for JS/C++, # for Python/Bash)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -229,8 +260,8 @@ Code nodes display code with monospace font and syntax highlighting. Features:
   "y": 300,
   "rows": 3,
   "cols": 3,
-  "cellWidth": 100,
-  "cellHeight": 40,
+  "colWidths": [100, 100, 100],
+  "rowHeights": [40, 40, 40],
   "cells": [
     [
       {"text": "Header 1", "textAlign": "center"},
@@ -256,14 +287,21 @@ Code nodes display code with monospace font and syntax highlighting. Features:
 
 Table nodes are grids of cells for presenting structured data and comparisons. Each cell behaves like a Text node with independent text, alignment, and optional subgraphs.
 
+**Individual Row/Column Sizing:**
+- Each column can have a different width (stored in `colWidths` array)
+- Each row can have a different height (stored in `rowHeights` array)
+- Drag column borders (vertical lines) to resize individual columns
+- Drag row borders (horizontal lines) to resize individual rows
+- Corner resize scales all cells proportionally (preserves relative size ratios)
+
 | Property | Type | Description |
 |----------|------|-------------|
 | `x` | number | X coordinate of top-left corner |
 | `y` | number | Y coordinate of top-left corner |
 | `rows` | number | Number of rows (1-20) |
 | `cols` | number | Number of columns (1-20) |
-| `cellWidth` | number | Width of each cell in pixels (default: 100) |
-| `cellHeight` | number | Height of each cell in pixels (default: 40) |
+| `colWidths` | array | Array of column widths in pixels (one per column, min: 40) |
+| `rowHeights` | array | Array of row heights in pixels (one per row, min: 40) |
 | `cells` | array | 2D array of cell objects |
 | `editingCell` | object/null | Internal: {row, col} when editing a cell |
 
@@ -280,9 +318,22 @@ Each cell in the `cells` array is an object with:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `text` | string | Yes | Cell content (max 1000 chars) |
+| `text` | string | Yes | Cell content (max 1000 chars), supports multiline with `\n` |
 | `textAlign` | string | Yes | "left", "center", or "right" |
 | `subgraph` | object/string | No | Optional subgraph (embedded or file-based) |
+
+**Multiline Cell Content:**
+
+Table cells support multiline text. When editing a cell, press Enter to insert a newline character (`\n`):
+
+```json
+{
+  "text": "Line 1\nLine 2\nLine 3",
+  "textAlign": "left"
+}
+```
+
+This allows for rich, formatted content within individual cells. Press Shift+Enter or Escape to exit cell editing mode.
 
 **Selection Behavior:**
 
@@ -295,12 +346,18 @@ Selected cells are highlighted with a blue border. Only one cell or table can be
 
 **Resizing:**
 
-When resizing a table node, all cells resize proportionally:
-- Total table width = `cols × cellWidth`
-- Total table height = `rows × cellHeight`
-- Dragging resize handles adjusts `cellWidth` and `cellHeight` uniformly
+Table nodes support two types of resizing:
 
-Individual cells cannot be resized independently.
+1. **Individual border resizing** - Drag column or row borders to resize specific columns/rows:
+   - Hover over internal vertical borders to resize columns (cursor changes to col-resize)
+   - Hover over internal horizontal borders to resize rows (cursor changes to row-resize)
+   - Only internal borders are resizable (not outer edges)
+   - Minimum size: 40 pixels per row/column
+
+2. **Corner handle resizing** - Drag corner handles to resize entire table:
+   - All cells scale proportionally
+   - Preserves relative size ratios between rows and columns
+   - Example: If column 1 is 200px and column 2 is 100px (2:1 ratio), scaling preserves this ratio
 
 **Use Cases:**
 
@@ -322,8 +379,8 @@ Use table nodes for:
   "y": 100,
   "rows": 2,
   "cols": 2,
-  "cellWidth": 120,
-  "cellHeight": 50,
+  "colWidths": [120, 120],
+  "rowHeights": [50, 50],
   "cells": [
     [
       {"text": "Feature A", "textAlign": "left"},
@@ -331,7 +388,7 @@ Use table nodes for:
         "text": "Details",
         "textAlign": "center",
         "subgraph": {
-          "version": "2.3",
+          "version": "2.4",
           "nodes": [
             {
               "id": 1,
@@ -365,6 +422,26 @@ In this example:
 - Cell [0][1] has an embedded subgraph with detailed explanation
 - Cell [1][1] references a file-based subgraph for Feature B details
 - Users can Ctrl+Click any cell to enter/create its subgraph
+
+**Backwards Compatibility:**
+
+Older table nodes may use the deprecated `cellWidth` and `cellHeight` single values:
+```json
+{
+  "cellWidth": 100,
+  "cellHeight": 40
+}
+```
+
+When loading these files, the application automatically migrates them to the new array format:
+```json
+{
+  "colWidths": [100, 100, 100],  // Uniform widths based on cellWidth
+  "rowHeights": [40, 40, 40]      // Uniform heights based on cellHeight
+}
+```
+
+The migration is automatic and transparent. After migration, individual rows and columns can be resized independently. Always save files after migration to persist the new format.
 
 ---
 
@@ -445,7 +522,7 @@ Groups are **graph-specific**:
 
 ```json
 {
-  "version": "2.3",
+  "version": "2.4",
   "nodes": [
     {"id": 1, "type": "rectangle", "text": "Login", "textAlign": "center", "x": 100, "y": 100, "width": 120, "height": 80},
     {"id": 2, "type": "rectangle", "text": "Signup", "textAlign": "center", "x": 250, "y": 100, "width": 120, "height": 80},
@@ -493,7 +570,7 @@ Store complete diagram data inside the node's `subgraph` property:
   "width": 120,
   "height": 80,
   "subgraph": {
-    "version": "2.3",
+    "version": "2.4",
     "nodes": [
       {
         "id": 1,
@@ -592,7 +669,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "2.3",
+  "version": "2.4",
   "nodes": [],
   "connections": [],
   "nextId": 1,
@@ -606,7 +683,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "2.3",
+  "version": "2.4",
   "nodes": [
     {
       "id": 1,
@@ -678,7 +755,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "2.3",
+  "version": "2.4",
   "nodes": [
     {
       "id": 1,
@@ -690,7 +767,7 @@ The application validates and prevents circular references at runtime.
       "width": 120,
       "height": 80,
       "subgraph": {
-        "version": "2.3",
+        "version": "2.4",
         "nodes": [
           {
             "id": 1,
@@ -780,7 +857,11 @@ The application validates JSON files when loading. Here are the key rules:
 - `textAlign` is one of: "left", "center", "right"
 - Type-specific properties match the node type
 - All dimension values are numbers ≥ minimum sizes
-- For table nodes: `cells` is a 2D array with valid cell objects, `rows` and `cols` match array dimensions
+- For table nodes:
+  - `cells` is a 2D array with valid cell objects
+  - `rows` and `cols` match array dimensions
+  - `colWidths` is an array with length = `cols`, all values ≥ 40
+  - `rowHeights` is an array with length = `rows`, all values ≥ 40
 
 ❌ **Invalid:**
 - Duplicate node IDs
@@ -788,7 +869,11 @@ The application validates JSON files when loading. Here are the key rules:
 - Unknown node types
 - Negative coordinates or dimensions
 - Text longer than 1000 characters
-- For table nodes: missing `cells`, `rows`, `cols`, or cell objects with invalid structure
+- For table nodes:
+  - Missing `cells`, `rows`, `cols`, `colWidths`, or `rowHeights`
+  - Array lengths don't match `rows`/`cols`
+  - Cell objects with invalid structure
+  - Row/column sizes below minimum (40px)
 
 ### Connection Validation
 
@@ -833,6 +918,51 @@ The application validates JSON files when loading. Here are the key rules:
 - String not ending with `.json`
 - Object missing required diagram fields
 - Circular references (detected at runtime)
+
+---
+
+## Keyboard Shortcuts & Interactions
+
+### Mouse Interactions
+
+**Ctrl+Click (Cmd+Click on Mac):**
+- **On nodes with URLs**: Opens the first URL found in the node text in a new browser tab
+- **On regular nodes (without Shift)**: Toggles multi-select (add/remove node from selection)
+- **On table cells (with Shift)**: Creates or enters cell-level subgraph
+
+**Double-Click:**
+- On canvas: Creates a new node at that position
+- On node: Enters text editing mode
+- On table cell: Enters cell text editing mode
+
+**Click and Drag:**
+- On node: Moves the node
+- On resize handle (corner): Resizes the node
+- On canvas (middle mouse or spacebar): Pans the canvas
+- On table border: Resizes individual row or column
+
+**Right-Click:**
+- On connection: Selects the connection for deletion (press Delete key)
+
+### Keyboard Shortcuts
+
+**Text Editing:**
+- **Enter**: Insert newline (in all node types including table cells)
+- **Shift+Enter** or **Escape**: Exit edit mode
+- **Arrow keys**: Navigate cursor within text
+- **Ctrl+C / Cmd+C**: Copy selected nodes
+- **Ctrl+V / Cmd+V**: Paste nodes (preserves relative positions)
+- **Ctrl+X / Cmd+X**: Cut text within editing mode
+- **Delete** or **Backspace**: Delete selected nodes or connections
+
+**Navigation:**
+- **Escape**: Exit subgraph to parent (when in subgraph and not editing)
+- **Escape**: Cancel connection mode
+- **Escape**: Exit text editing mode
+
+**Zoom:**
+- Mouse wheel: Zoom in/out at cursor position
+- Toolbar buttons: Zoom In (+), Zoom Out (−)
 
 ---
 
@@ -882,6 +1012,39 @@ Example:
 - Keep labels concise (max 1000 characters)
 - Use `\n` for line breaks if needed
 - Text nodes are great for annotations and free-form notes
+- URLs are automatically highlighted - include links for reference documentation
+
+### Font Configuration
+
+Inf provides two independent font selectors in the toolbar:
+
+**Font Family:**
+- Applies to all regular nodes (rectangle, circle, diamond, text, table cells)
+- Default: 'Maple Mono' (configurable in constants.js)
+- Changes apply immediately to the entire diagram
+
+**Code Font Family:**
+- Applies only to code nodes
+- Default: 'monospace' (configurable in constants.js)
+- Allows monospace fonts for code while using different fonts for other content
+- Changes apply immediately to all code nodes
+
+**Available fonts:**
+- sans-serif, serif, monospace
+- Arial, Georgia, Times New Roman, Courier New
+- Verdana, Trebuchet MS, Comic Sans MS
+- Maple Mono (default for regular nodes)
+
+Font selection is an application-wide setting and is **not saved to JSON files**. Each user can customize their preferred fonts without affecting the diagram data.
+
+### Copy/Paste Across Subgraphs
+
+The clipboard (`copiedNodes`) persists across subgraph navigation:
+- Copy nodes in root graph → Enter subgraph → Paste (works!)
+- Copy nodes in subgraph → Exit to parent → Paste (works!)
+- Paste in any graph level, clipboard is preserved
+- **Note:** Connections between copied nodes are NOT preserved when pasting
+- Only the nodes themselves are copied with their positions and properties
 
 ### Subgraph Strategy
 
