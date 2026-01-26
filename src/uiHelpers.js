@@ -115,6 +115,12 @@ function setFontFamily(font) {
     setStatus(`Font family: ${font} (applied to all nodes)`);
 }
 
+function setCodeFontFamily(font) {
+    currentCodeFontFamily = font;
+    render();
+    setStatus(`Code font family: ${font} (applied to code nodes only)`);
+}
+
 function increaseCanvasSize() {
     const newWidth = Math.min(MAX_CANVAS_SIZE, canvasWidth + CANVAS_SIZE_STEP);
     const newHeight = Math.min(MAX_CANVAS_SIZE, canvasHeight + CANVAS_SIZE_STEP);

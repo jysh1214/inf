@@ -47,6 +47,13 @@
         </div>
 
         <div class="node-types">
+            <h4>Code Font Family</h4>
+            <select id="code-font-selector" onchange="setCodeFontFamily(this.value)" class="font-selector">
+                <!-- Options populated dynamically from AVAILABLE_FONTS constant -->
+            </select>
+        </div>
+
+        <div class="node-types">
             <h4>Canvas Size</h4>
             <div class="node-type-buttons">
                 <button onclick="increaseCanvasSize()" class="node-btn">Larger +</button>

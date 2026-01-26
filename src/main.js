@@ -34,6 +34,20 @@ if (fontSelector) {
     });
 }
 
+// Populate code font selector from AVAILABLE_FONTS constant
+const codeFontSelector = document.getElementById('code-font-selector');
+if (codeFontSelector) {
+    AVAILABLE_FONTS.forEach(font => {
+        const option = document.createElement('option');
+        option.value = font;
+        option.textContent = font;
+        if (font === currentCodeFontFamily) {
+            option.selected = true;
+        }
+        codeFontSelector.appendChild(option);
+    });
+}
+
 setStatus('Loading...');
 render();
 

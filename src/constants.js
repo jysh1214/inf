@@ -21,7 +21,7 @@ const CURSOR_BLINK_RATE = 500;
 const LINE_HEIGHT = 18;
 const FONT_FAMILY = 'Monaco';
 const FONT_SIZE = 14;
-const CODE_FONT_FAMILY = 'Monaco, Menlo, "Courier New", monospace';
+const CODE_FONT_FAMILY = 'monospace';
 const CODE_FONT_SIZE = 13;
 
 // Available font families for font selector

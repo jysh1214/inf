@@ -20,6 +20,7 @@ let directedMode = true;
 let currentNodeType = 'rectangle';
 let currentTextAlign = 'center';
 let currentFontFamily = FONT_FAMILY;  // Use the default font from constants
+let currentCodeFontFamily = CODE_FONT_FAMILY;  // Use the default code font from constants
 let editingNode = null;
 let copiedNodes = [];  // Array of copied nodes for multi-select copy/paste
 let textClipboard = '';  // Text clipboard for cut/copy/paste operations within text editing

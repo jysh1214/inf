@@ -190,7 +190,7 @@ function drawCodeText(node, centerX, centerY, maxWidth) {
     const displayText = node.text || (isEditing ? '' : '');
     const textAlign = node.textAlign || 'left';
 
-    ctx.font = `${CODE_FONT_SIZE}px ${currentFontFamily}`;
+    ctx.font = `${CODE_FONT_SIZE}px ${currentCodeFontFamily}`;
     ctx.textAlign = textAlign;
     ctx.textBaseline = 'middle';
 
