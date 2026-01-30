@@ -825,10 +825,11 @@ async function createNewSubgraph(node) {
                 await writable.write(JSON.stringify(subgraphData, null, 2));
                 await writable.close();
 
-                // Store file handle in memory and IndexedDB
-                fileHandleMap.set(node.id, fileHandle);
+                // Store file handle in memory and IndexedDB (using path-based key)
+                const handleKey = getFileHandleKey(node.id);
+                fileHandleMap.set(handleKey, fileHandle);
                 try {
-                    await storeFileHandle(node.id, fileHandle);
+                    await storeFileHandle(handleKey, fileHandle);
                 } catch (storeError) {
                     console.warn('Failed to persist file handle to IndexedDB:', storeError);
                     // Continue anyway - handle is in memory cache
@@ -888,10 +889,11 @@ async function createNewSubgraph(node) {
                     // Validate subgraph structure
                     validateSubgraph(subgraphData, node.id, null);
 
-                    // Validation passed - store file handle in memory and IndexedDB
-                    fileHandleMap.set(node.id, fileHandle);
+                    // Validation passed - store file handle in memory and IndexedDB (using path-based key)
+                    const handleKey = getFileHandleKey(node.id);
+                    fileHandleMap.set(handleKey, fileHandle);
                     try {
-                        await storeFileHandle(node.id, fileHandle);
+                        await storeFileHandle(handleKey, fileHandle);
                     } catch (storeError) {
                         console.warn('Failed to persist file handle to IndexedDB:', storeError);
                         // Continue anyway - handle is in memory cache
@@ -924,13 +926,16 @@ async function createNewSubgraph(node) {
 
 async function loadSubgraphFromFile(filePath, nodeId) {
     try {
+        // Generate path-based key to prevent ID collisions in nested subgraphs
+        const handleKey = getFileHandleKey(nodeId);
+
         // Check if we already have a file handle for this node (memory cache)
-        let fileHandle = fileHandleMap.get(nodeId);
+        let fileHandle = fileHandleMap.get(handleKey);
         let fileHandleSource = fileHandle ? 'memory' : null;
 
         // If not in memory, try IndexedDB (persistent storage)
         if (!fileHandle) {
-            fileHandle = await getFileHandle(nodeId);
+            fileHandle = await getFileHandle(handleKey);
 
             // If found in IndexedDB, verify we still have permission
             if (fileHandle) {
@@ -940,7 +945,7 @@ async function loadSubgraphFromFile(filePath, nodeId) {
                     fileHandle = null;
                 } else {
                     // Store in memory cache for faster access
-                    fileHandleMap.set(nodeId, fileHandle);
+                    fileHandleMap.set(handleKey, fileHandle);
                     fileHandleSource = 'indexeddb';
                 }
             }
@@ -958,8 +963,8 @@ async function loadSubgraphFromFile(filePath, nodeId) {
                 console.warn(`File handle from ${fileHandleSource} is stale:`, error);
                 fileHandle = null;
                 file = null;
-                fileHandleMap.delete(nodeId);
-                await deleteFileHandle(nodeId);
+                fileHandleMap.delete(handleKey);
+                await deleteFileHandle(handleKey);
             }
         }
 
@@ -973,9 +978,9 @@ async function loadSubgraphFromFile(filePath, nodeId) {
 
             if (fileHandle) {
                 // Found in directory! Store for future use
-                fileHandleMap.set(nodeId, fileHandle);
+                fileHandleMap.set(handleKey, fileHandle);
                 try {
-                    await storeFileHandle(nodeId, fileHandle);
+                    await storeFileHandle(handleKey, fileHandle);
                 } catch (storeError) {
                     console.warn('Failed to persist file handle to IndexedDB:', storeError);
                     // Continue anyway - handle is in memory cache
@@ -997,9 +1002,9 @@ async function loadSubgraphFromFile(filePath, nodeId) {
                 fileHandle = handles[0];
 
                 // Store in both memory and IndexedDB
-                fileHandleMap.set(nodeId, fileHandle);
+                fileHandleMap.set(handleKey, fileHandle);
                 try {
-                    await storeFileHandle(nodeId, fileHandle);
+                    await storeFileHandle(handleKey, fileHandle);
                 } catch (storeError) {
                     console.warn('Failed to persist file handle to IndexedDB:', storeError);
                     // Continue anyway - handle is in memory cache
@@ -1230,8 +1235,9 @@ async function enterSubgraph(node) {
         // Update current filename and file handle
         if (typeof node.subgraph === 'string') {
             currentFileName = node.subgraph;
-            // Get the file handle for this file-based subgraph
-            currentFileHandle = fileHandleMap.get(node.id) || null;
+            // Get the file handle for this file-based subgraph (using path-based key)
+            const handleKey = getFileHandleKey(node.id);
+            currentFileHandle = fileHandleMap.get(handleKey) || null;
         } else {
             currentFileName = '(embedded)';
             currentFileHandle = null; // Embedded subgraphs don't have file handles
@@ -1341,16 +1347,17 @@ async function exitSubgraph() {
                 } else if (isFileBased && fileName) {
                     // File-based subgraph - save to file
                     const cellKey = `${parentNodeId}-cell-${row}-${col}`;
-                    let fileHandle = fileHandleMap.get(cellKey);
+                    const handleKey = getFileHandleKey(cellKey);
+                    let fileHandle = fileHandleMap.get(handleKey);
 
                     // If not in memory, try IndexedDB and workspace folder before prompting
                     if (!fileHandle) {
                         // Try IndexedDB
-                        fileHandle = await getFileHandle(cellKey);
+                        fileHandle = await getFileHandle(handleKey);
                         if (fileHandle) {
                             const hasPermission = await verifyPermission(fileHandle);
                             if (hasPermission) {
-                                fileHandleMap.set(cellKey, fileHandle);
+                                fileHandleMap.set(handleKey, fileHandle);
                             } else {
                                 fileHandle = null;
                             }
@@ -1360,8 +1367,8 @@ async function exitSubgraph() {
                         if (!fileHandle && fileName) {
                             fileHandle = await findFileInDirectory(fileName);
                             if (fileHandle) {
-                                fileHandleMap.set(cellKey, fileHandle);
-                                await storeFileHandle(cellKey, fileHandle);
+                                fileHandleMap.set(handleKey, fileHandle);
+                                await storeFileHandle(handleKey, fileHandle);
                             }
                         }
 
@@ -1377,8 +1384,8 @@ async function exitSubgraph() {
                                     multiple: false
                                 });
                                 fileHandle = handles[0];
-                                fileHandleMap.set(cellKey, fileHandle);
-                                await storeFileHandle(cellKey, fileHandle);
+                                fileHandleMap.set(handleKey, fileHandle);
+                                await storeFileHandle(handleKey, fileHandle);
                             } catch (error) {
                                 if (error.name === 'AbortError') {
                                     setStatus('⚠️ File selection cancelled - cell subgraph changes not saved to file');
@@ -1411,16 +1418,17 @@ async function exitSubgraph() {
                     parentNode.subgraph = currentSubgraphData;
                 } else if (isFileBased && fileName) {
                     // File-based subgraph - save to file
-                    let fileHandle = fileHandleMap.get(parentNodeId);
+                    const handleKey = getFileHandleKey(parentNodeId);
+                    let fileHandle = fileHandleMap.get(handleKey);
 
                     // If not in memory, try IndexedDB and workspace folder before prompting
                     if (!fileHandle) {
                         // Try IndexedDB
-                        fileHandle = await getFileHandle(parentNodeId);
+                        fileHandle = await getFileHandle(handleKey);
                         if (fileHandle) {
                             const hasPermission = await verifyPermission(fileHandle);
                             if (hasPermission) {
-                                fileHandleMap.set(parentNodeId, fileHandle);
+                                fileHandleMap.set(handleKey, fileHandle);
                             } else {
                                 fileHandle = null;
                             }
@@ -1430,8 +1438,8 @@ async function exitSubgraph() {
                         if (!fileHandle && fileName) {
                             fileHandle = await findFileInDirectory(fileName);
                             if (fileHandle) {
-                                fileHandleMap.set(parentNodeId, fileHandle);
-                                await storeFileHandle(parentNodeId, fileHandle);
+                                fileHandleMap.set(handleKey, fileHandle);
+                                await storeFileHandle(handleKey, fileHandle);
                             }
                         }
 
@@ -1447,8 +1455,8 @@ async function exitSubgraph() {
                                     multiple: false
                                 });
                                 fileHandle = handles[0];
-                                fileHandleMap.set(parentNodeId, fileHandle);
-                                await storeFileHandle(parentNodeId, fileHandle);
+                                fileHandleMap.set(handleKey, fileHandle);
+                                await storeFileHandle(handleKey, fileHandle);
                             } catch (error) {
                                 if (error.name === 'AbortError') {
                                     setStatus('⚠️ File selection cancelled - subgraph changes not saved to file');
@@ -1919,8 +1927,9 @@ async function enterCellSubgraph(tableNode, row, col) {
         // Update current filename and file handle
         if (typeof cell.subgraph === 'string') {
             currentFileName = cell.subgraph;
-            // Get the file handle for this file-based cell subgraph
-            currentFileHandle = fileHandleMap.get(cellId) || null;
+            // Get the file handle for this file-based cell subgraph (using path-based key)
+            const handleKey = getFileHandleKey(cellId);
+            currentFileHandle = fileHandleMap.get(handleKey) || null;
         } else {
             currentFileName = '(embedded)';
             currentFileHandle = null; // Embedded subgraphs don't have file handles

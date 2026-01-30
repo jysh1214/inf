@@ -3,6 +3,27 @@ function setStatus(text) {
     document.getElementById('status').textContent = text;
 }
 
+/**
+ * Generate a unique key for file handle storage that includes the full navigation path.
+ * This prevents ID collisions when navigating into nested subgraphs.
+ *
+ * @param {number|string} nodeOrCellId - Node ID or cell ID (e.g., "5-cell-2-3")
+ * @returns {string} Path-based key in format: "path/to/node" or "path/to/cellId"
+ *
+ * Examples:
+ *   - Root level node 5: "5"
+ *   - Node 5 at path [10]: "10/5"
+ *   - Node 5 at path [10, 20]: "10/20/5"
+ *   - Table cell "5-cell-2-3" at path [10]: "10/5-cell-2-3"
+ */
+function getFileHandleKey(nodeOrCellId) {
+    // Build path-based key: currentPath + nodeOrCellId
+    if (currentPath.length > 0) {
+        return currentPath.join('/') + '/' + nodeOrCellId;
+    }
+    return String(nodeOrCellId);
+}
+
 function updateFilePathDisplay() {
     const workspaceFolderElement = document.getElementById('workspace-folder');
     const filePathElement = document.getElementById('current-file-path');

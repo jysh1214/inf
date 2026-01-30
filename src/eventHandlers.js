@@ -1101,9 +1101,10 @@ document.addEventListener('keydown', (e) => {
                             // If cell has a file-based subgraph, clean up its file handle
                             if (cell && typeof cell.subgraph === 'string') {
                                 const cellKey = `${id}-cell-${row}-${col}`;
-                                fileHandleMap.delete(cellKey);
-                                deleteFileHandle(cellKey).catch(err =>
-                                    console.warn(`Failed to delete cell file handle ${cellKey}:`, err)
+                                const handleKey = getFileHandleKey(cellKey);
+                                fileHandleMap.delete(handleKey);
+                                deleteFileHandle(handleKey).catch(err =>
+                                    console.warn(`Failed to delete cell file handle ${handleKey}:`, err)
                                 );
                             }
                         }
@@ -1111,9 +1112,11 @@ document.addEventListener('keydown', (e) => {
                 }
 
                 nodeMap.delete(id);
-                fileHandleMap.delete(id);  // Clean up file handle from memory
+                // Clean up file handle from memory (using path-based key)
+                const handleKey = getFileHandleKey(id);
+                fileHandleMap.delete(handleKey);
                 // Clean up file handle from IndexedDB (async, with error handling)
-                deleteFileHandle(id).catch(err => console.warn(`Failed to delete file handle ${id}:`, err));
+                deleteFileHandle(handleKey).catch(err => console.warn(`Failed to delete file handle ${handleKey}:`, err));
             });
 
             // Clear editingNode if deleting the node being edited

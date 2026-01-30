@@ -485,11 +485,12 @@ function removeSubgraphFromSelection() {
     selectedNodes.forEach(node => {
         // Handle node-level subgraph
         if (node.subgraph) {
-            // Clean up file handle if it's a file-based subgraph
+            // Clean up file handle if it's a file-based subgraph (using path-based key)
             if (typeof node.subgraph === 'string') {
-                fileHandleMap.delete(node.id);
-                deleteFileHandle(node.id).catch(err =>
-                    console.warn(`Failed to delete file handle ${node.id}:`, err)
+                const handleKey = getFileHandleKey(node.id);
+                fileHandleMap.delete(handleKey);
+                deleteFileHandle(handleKey).catch(err =>
+                    console.warn(`Failed to delete file handle ${handleKey}:`, err)
                 );
             }
 
@@ -503,12 +504,13 @@ function removeSubgraphFromSelection() {
                 for (let col = 0; col < node.cols; col++) {
                     const cell = node.cells[row][col];
                     if (cell && cell.subgraph) {
-                        // Clean up file handle if it's a file-based subgraph
+                        // Clean up file handle if it's a file-based subgraph (using path-based key)
                         if (typeof cell.subgraph === 'string') {
                             const cellKey = `${node.id}-cell-${row}-${col}`;
-                            fileHandleMap.delete(cellKey);
-                            deleteFileHandle(cellKey).catch(err =>
-                                console.warn(`Failed to delete cell file handle ${cellKey}:`, err)
+                            const handleKey = getFileHandleKey(cellKey);
+                            fileHandleMap.delete(handleKey);
+                            deleteFileHandle(handleKey).catch(err =>
+                                console.warn(`Failed to delete cell file handle ${handleKey}:`, err)
                             );
                         }
 
