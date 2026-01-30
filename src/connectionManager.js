@@ -1,4 +1,13 @@
 function distanceToLineSegment(px, py, x1, y1, x2, y2) {
+    // Input validation
+    const inputs = [px, py, x1, y1, x2, y2];
+    for (let i = 0; i < inputs.length; i++) {
+        if (typeof inputs[i] !== 'number' || !isFinite(inputs[i])) {
+            console.error(`distanceToLineSegment: invalid parameter at position ${i} (got ${inputs[i]})`);
+            return Infinity; // Return large distance for invalid input
+        }
+    }
+
     const dx = x2 - x1;
     const dy = y2 - y1;
     const lengthSquared = dx * dx + dy * dy;
@@ -25,6 +34,14 @@ function distanceToLineSegment(px, py, x1, y1, x2, y2) {
 }
 
 function getConnectionAtPoint(x, y) {
+    // Input validation
+    if (typeof x !== 'number' || !isFinite(x)) {
+        return null;
+    }
+    if (typeof y !== 'number' || !isFinite(y)) {
+        return null;
+    }
+
     for (let i = connections.length - 1; i >= 0; i--) {
         const conn = connections[i];
         const fromNode = nodeMap.get(conn.fromId);

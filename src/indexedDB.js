@@ -94,6 +94,17 @@ async function initDB() {
             dbInitFailedTimer = null;
         }, 2000);
 
+        // Detect private browsing mode and show helpful message
+        if (error.name === 'SecurityError' || error.message.includes('private browsing')) {
+            console.warn('IndexedDB unavailable - likely in private browsing mode');
+            // Show error modal to user
+            if (typeof showErrorModal === 'function') {
+                showErrorModal('IndexedDB is not available in private browsing mode.\n\nFile handles will not persist between sessions. You can still use the app, but you\'ll need to re-select files after refreshing the page.');
+            }
+        } else {
+            console.error('IndexedDB initialization failed:', error);
+        }
+
         throw error;
     }
 }

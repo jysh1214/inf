@@ -1280,77 +1280,83 @@ function render() {
 
     // Apply zoom transform
     ctx.save();
-    ctx.scale(zoom, zoom);
 
-    // Draw connections first (behind nodes)
-    connections.forEach(conn => drawConnection(conn));
+    try {
+        ctx.scale(zoom, zoom);
 
-    // Draw connection preview
-    if (connectionMode && connectionStart && hoveredNode) {
-        const startCenter = getNodeCenter(connectionStart);
-        const endCenter = getNodeCenter(hoveredNode);
+        // Draw connections first (behind nodes)
+        connections.forEach(conn => drawConnection(conn));
 
-        const startPoint = getNodeEdgePoint(endCenter.x, endCenter.y, connectionStart);
-        const endPoint = getNodeEdgePoint(startCenter.x, startCenter.y, hoveredNode);
+        // Draw connection preview
+        if (connectionMode && connectionStart && hoveredNode) {
+            const startCenter = getNodeCenter(connectionStart);
+            const endCenter = getNodeCenter(hoveredNode);
 
-        ctx.strokeStyle = '#4caf50';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(startPoint.x, startPoint.y);
-        ctx.lineTo(endPoint.x, endPoint.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-    }
+            const startPoint = getNodeEdgePoint(endCenter.x, endCenter.y, connectionStart);
+            const endPoint = getNodeEdgePoint(startCenter.x, startCenter.y, hoveredNode);
 
-    // Draw groups (behind nodes)
-    groups.forEach(group => drawGroup(group));
-
-    // Draw nodes
-    nodes.forEach(node => drawNode(node));
-
-    // Draw hover effect
-    if (hoveredNode && !selectedNodeIds.has(hoveredNode.id) && !isDragging) {
-        ctx.strokeStyle = connectionMode ? '#4caf50' : '#2196f3';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-
-        switch (hoveredNode.type) {
-            case 'circle':
-                ctx.beginPath();
-                ctx.arc(hoveredNode.x, hoveredNode.y, hoveredNode.radius + HOVER_OFFSET, 0, Math.PI * 2);
-                ctx.stroke();
-                break;
-            case 'diamond':
-                const centerX = hoveredNode.x + hoveredNode.width / 2;
-                const centerY = hoveredNode.y + hoveredNode.height / 2;
-                ctx.beginPath();
-                ctx.moveTo(centerX, hoveredNode.y - HOVER_OFFSET);
-                ctx.lineTo(hoveredNode.x + hoveredNode.width + HOVER_OFFSET, centerY);
-                ctx.lineTo(centerX, hoveredNode.y + hoveredNode.height + HOVER_OFFSET);
-                ctx.lineTo(hoveredNode.x - HOVER_OFFSET, centerY);
-                ctx.closePath();
-                ctx.stroke();
-                break;
-            case 'table':
-                // Table nodes use colWidths/rowHeights arrays
-                const totalWidth = getTotalWidth(hoveredNode);
-                const totalHeight = getTotalHeight(hoveredNode);
-                ctx.strokeRect(hoveredNode.x - HOVER_OFFSET, hoveredNode.y - HOVER_OFFSET,
-                              totalWidth + HOVER_OFFSET * 2, totalHeight + HOVER_OFFSET * 2);
-                break;
-            default:
-                // Rectangle, text, and code
-                ctx.strokeRect(hoveredNode.x - HOVER_OFFSET, hoveredNode.y - HOVER_OFFSET,
-                              hoveredNode.width + HOVER_OFFSET * 2, hoveredNode.height + HOVER_OFFSET * 2);
-                break;
+            ctx.strokeStyle = '#4caf50';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(startPoint.x, startPoint.y);
+            ctx.lineTo(endPoint.x, endPoint.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
         }
 
-        ctx.setLineDash([]);
-    }
+        // Draw groups (behind nodes)
+        groups.forEach(group => drawGroup(group));
 
-    // Restore transform
-    ctx.restore();
+        // Draw nodes
+        nodes.forEach(node => drawNode(node));
+
+        // Draw hover effect
+        if (hoveredNode && !selectedNodeIds.has(hoveredNode.id) && !isDragging) {
+            ctx.strokeStyle = connectionMode ? '#4caf50' : '#2196f3';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+
+            switch (hoveredNode.type) {
+                case 'circle':
+                    ctx.beginPath();
+                    ctx.arc(hoveredNode.x, hoveredNode.y, hoveredNode.radius + HOVER_OFFSET, 0, Math.PI * 2);
+                    ctx.stroke();
+                    break;
+                case 'diamond':
+                    const centerX = hoveredNode.x + hoveredNode.width / 2;
+                    const centerY = hoveredNode.y + hoveredNode.height / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, hoveredNode.y - HOVER_OFFSET);
+                    ctx.lineTo(hoveredNode.x + hoveredNode.width + HOVER_OFFSET, centerY);
+                    ctx.lineTo(centerX, hoveredNode.y + hoveredNode.height + HOVER_OFFSET);
+                    ctx.lineTo(hoveredNode.x - HOVER_OFFSET, centerY);
+                    ctx.closePath();
+                    ctx.stroke();
+                    break;
+                case 'table':
+                    // Table nodes use colWidths/rowHeights arrays
+                    const totalWidth = getTotalWidth(hoveredNode);
+                    const totalHeight = getTotalHeight(hoveredNode);
+                    ctx.strokeRect(hoveredNode.x - HOVER_OFFSET, hoveredNode.y - HOVER_OFFSET,
+                                  totalWidth + HOVER_OFFSET * 2, totalHeight + HOVER_OFFSET * 2);
+                    break;
+                default:
+                    // Rectangle, text, and code
+                    ctx.strokeRect(hoveredNode.x - HOVER_OFFSET, hoveredNode.y - HOVER_OFFSET,
+                                  hoveredNode.width + HOVER_OFFSET * 2, hoveredNode.height + HOVER_OFFSET * 2);
+                    break;
+            }
+
+            ctx.setLineDash([]);
+        }
+    } catch (error) {
+        // Log rendering errors but don't crash the app
+        console.error('Render error:', error);
+    } finally {
+        // Always restore transform, even if rendering fails
+        ctx.restore();
+    }
 
     // Update UI button states based on selection
     updateSubgraphButton();
@@ -1358,6 +1364,16 @@ function render() {
 
 // Helper function to get mouse coordinates accounting for zoom and scroll
 function getMousePos(e) {
+    // Input validation
+    if (!e || typeof e !== 'object') {
+        console.error('getMousePos: invalid event object');
+        return { x: 0, y: 0 };
+    }
+    if (typeof e.clientX !== 'number' || typeof e.clientY !== 'number') {
+        console.error('getMousePos: event missing clientX or clientY');
+        return { x: 0, y: 0 };
+    }
+
     const rect = canvas.getBoundingClientRect();
     return {
         x: (e.clientX - rect.left) / zoom,

@@ -83,6 +83,13 @@ function updateAlignmentButtons(align) {
 }
 
 function setTextAlign(align) {
+    // Input validation
+    const validAlignments = ['left', 'center', 'right'];
+    if (typeof align !== 'string' || !validAlignments.includes(align)) {
+        console.error(`setTextAlign: invalid alignment (got ${align}), must be one of [${validAlignments.join(', ')}]`);
+        return;
+    }
+
     currentTextAlign = align;
     updateAlignmentButtons(align);
 
@@ -110,12 +117,24 @@ function setTextAlign(align) {
 }
 
 function setFontFamily(font) {
+    // Input validation
+    if (typeof font !== 'string' || font.trim().length === 0) {
+        console.error(`setFontFamily: invalid font (got ${font}), must be a non-empty string`);
+        return;
+    }
+
     currentFontFamily = font;
     render();
     setStatus(`Font family: ${font} (applied to all nodes)`);
 }
 
 function setCodeFontFamily(font) {
+    // Input validation
+    if (typeof font !== 'string' || font.trim().length === 0) {
+        console.error(`setCodeFontFamily: invalid font (got ${font}), must be a non-empty string`);
+        return;
+    }
+
     currentCodeFontFamily = font;
     render();
     setStatus(`Code font family: ${font} (applied to code nodes only)`);
@@ -340,6 +359,14 @@ function setNodePosition(node, alignType, targetValue) {
 }
 
 function alignNodes(alignType) {
+    // Input validation
+    const validAlignTypes = ['top', 'bottom', 'left', 'right', 'center-h', 'center-v'];
+    if (typeof alignType !== 'string' || !validAlignTypes.includes(alignType)) {
+        console.error(`alignNodes: invalid alignType (got ${alignType}), must be one of [${validAlignTypes.join(', ')}]`);
+        setStatus(`⚠️ Invalid alignment type: ${alignType}`);
+        return;
+    }
+
     // Only align when 2 or more nodes are selected
     if (selectedNodeIds.size < 2) {
         setStatus('Select 2 or more nodes to align');

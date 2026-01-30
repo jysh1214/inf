@@ -1,4 +1,17 @@
 function createNode(x, y, type = 'rectangle') {
+    // Input validation
+    if (typeof x !== 'number' || !isFinite(x) || isNaN(x)) {
+        throw new TypeError(`createNode: x must be a valid number (got ${x})`);
+    }
+    if (typeof y !== 'number' || !isFinite(y) || isNaN(y)) {
+        throw new TypeError(`createNode: y must be a valid number (got ${y})`);
+    }
+
+    const validTypes = ['rectangle', 'circle', 'diamond', 'text', 'code', 'table'];
+    if (typeof type !== 'string' || !validTypes.includes(type)) {
+        throw new TypeError(`createNode: type must be one of [${validTypes.join(', ')}] (got ${type})`);
+    }
+
     const baseNode = {
         id: nextId++,
         type: type,
@@ -91,6 +104,22 @@ function createNode(x, y, type = 'rectangle') {
 }
 
 function createConnection(fromId, toId) {
+    // Input validation
+    if (!Number.isInteger(fromId) || fromId <= 0) {
+        throw new TypeError(`createConnection: fromId must be a positive integer (got ${fromId})`);
+    }
+    if (!Number.isInteger(toId) || toId <= 0) {
+        throw new TypeError(`createConnection: toId must be a positive integer (got ${toId})`);
+    }
+
+    // Validate that nodes exist
+    if (!nodeMap.has(fromId)) {
+        throw new Error(`createConnection: node with id ${fromId} does not exist`);
+    }
+    if (!nodeMap.has(toId)) {
+        throw new Error(`createConnection: node with id ${toId} does not exist`);
+    }
+
     // Prevent self-connections
     if (fromId === toId) {
         return null;
@@ -180,6 +209,16 @@ function getTableBorderAtPoint(x, y, node) {
 }
 
 function getCellAtPoint(x, y, node) {
+    // Input validation
+    if (typeof x !== 'number' || !isFinite(x)) {
+        return null;
+    }
+    if (typeof y !== 'number' || !isFinite(y)) {
+        return null;
+    }
+    if (!node || typeof node !== 'object') {
+        return null;
+    }
     if (node.type !== 'table') return null;
 
     // Find column
@@ -229,6 +268,17 @@ function isPointOnTableBorder(x, y, node, borderWidth = TABLE_BORDER_DETECT_WIDT
 }
 
 function isPointInNode(x, y, node) {
+    // Input validation
+    if (typeof x !== 'number' || !isFinite(x)) {
+        return false;
+    }
+    if (typeof y !== 'number' || !isFinite(y)) {
+        return false;
+    }
+    if (!node || typeof node !== 'object') {
+        return false;
+    }
+
     switch (node.type) {
         case 'circle':
             const dx = x - node.x;
@@ -287,7 +337,16 @@ function getNodeAtPoint(x, y) {
 }
 
 function getResizeCorner(x, y, node) {
-    if (!node) return null;
+    // Input validation
+    if (typeof x !== 'number' || !isFinite(x)) {
+        return null;
+    }
+    if (typeof y !== 'number' || !isFinite(y)) {
+        return null;
+    }
+    if (!node || typeof node !== 'object') {
+        return null;
+    }
 
     switch (node.type) {
         case 'circle':
