@@ -179,7 +179,16 @@ def graphviz_to_inf_coords(gv_x: float, gv_y: float, canvas_height: int) -> Tupl
 
 def calculate_canvas_bounds(positions: Dict[str, Tuple[int, int]],
                            nodes_yaml: List[Dict]) -> Tuple[int, int]:
-    """Calculate required canvas size based on node positions and sizes."""
+    """
+    Calculate required canvas size based on node positions and sizes.
+
+    Args:
+        positions: Dict of node text to (x, y) in screen coordinates (pixels, top-left origin)
+        nodes_yaml: List of YAML node definitions
+
+    Returns:
+        (canvas_width, canvas_height) in pixels
+    """
     if not positions:
         return (DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT)
 
@@ -199,15 +208,31 @@ def calculate_canvas_bounds(positions: Dict[str, Tuple[int, int]],
                 cols = table_data.get('cols', 3)
                 width = cols * TABLE_CELL_WIDTH
                 height = rows * TABLE_CELL_HEIGHT
+            elif node_type == 'circle':
+                # For circles, width/height is the radius
+                radius, _ = calculate_text_dimensions(node.get('text', ''), node_type)
+                width = height = radius * 2  # Diameter
+            elif node_type == 'diamond':
+                # Diamond uses width/height directly
+                width, height = calculate_text_dimensions(node.get('text', ''), node_type)
             else:
                 width, height = calculate_text_dimensions(node.get('text', ''), node_type)
 
-            min_x = min(min_x, x - width // 2)
-            max_x = max(max_x, x + width // 2)
-            min_y = min(min_y, y - height // 2)
-            max_y = max(max_y, y + height // 2)
+            # For rectangles, x/y is top-left; for circles, x/y is center
+            if node_type == 'circle':
+                # Circle: x, y is center
+                min_x = min(min_x, x - width // 2)
+                max_x = max(max_x, x + width // 2)
+                min_y = min(min_y, y - height // 2)
+                max_y = max(max_y, y + height // 2)
+            else:
+                # Rectangle, diamond, table, text, code: x, y is top-left
+                min_x = min(min_x, x)
+                max_x = max(max_x, x + width)
+                min_y = min(min_y, y)
+                max_y = max(max_y, y + height)
 
-    # Add padding
+    # Add padding around all nodes
     padding = 100
     canvas_width = int(max_x - min_x + padding * 2)
     canvas_height = int(max_y - min_y + padding * 2)
@@ -215,6 +240,8 @@ def calculate_canvas_bounds(positions: Dict[str, Tuple[int, int]],
     # Enforce minimums and maximums
     canvas_width = max(1000, min(canvas_width, 20000))
     canvas_height = max(1000, min(canvas_height, 20000))
+
+    logger.debug(f"Canvas bounds: {canvas_width}x{canvas_height} (min: {min_x},{min_y} max: {max_x},{max_y})")
 
     return (canvas_width, canvas_height)
 
@@ -241,29 +268,85 @@ def apply_layout(inf_json: Dict, yaml_data: Dict, layout_config: Dict) -> Dict:
     nodes_yaml = yaml_data.get('nodes', [])
     connections_yaml = yaml_data.get('connections', [])
 
-    # Create Graphviz layout
+    # Create Graphviz layout (returns positions in points, bottom-left origin)
     gv_positions = create_graphviz_layout(nodes_yaml, connections_yaml, layout_config)
 
-    # Calculate canvas size
-    canvas_width, canvas_height = calculate_canvas_bounds(gv_positions, nodes_yaml)
+    # Convert Graphviz positions (points) to screen positions (pixels)
+    # Graphviz uses bottom-left origin, we need top-left origin
+    # First, find the bounding box in Graphviz coordinates
+    gv_min_x = gv_min_y = float('inf')
+    gv_max_x = gv_max_y = float('-inf')
 
-    # Adjust positions to fit in canvas with padding
-    padding = 100
-    adjusted_positions = {}
     for text, (gv_x, gv_y) in gv_positions.items():
-        inf_x, inf_y = graphviz_to_inf_coords(gv_x, gv_y, canvas_height)
-        adjusted_positions[text] = (inf_x + padding, inf_y + padding)
+        node = next((n for n in nodes_yaml if n.get('text') == text), None)
+        if node:
+            node_type = node.get('type', 'rectangle')
+
+            if node_type == 'table':
+                table_data = node.get('table', {})
+                rows = table_data.get('rows', 3)
+                cols = table_data.get('cols', 3)
+                width = cols * TABLE_CELL_WIDTH
+                height = rows * TABLE_CELL_HEIGHT
+            elif node_type == 'circle':
+                radius, _ = calculate_text_dimensions(node.get('text', ''), node_type)
+                width = height = radius * 2
+            else:
+                width, height = calculate_text_dimensions(node.get('text', ''), node_type)
+
+            # Convert size to Graphviz points
+            gv_width = width / SCALE_FACTOR
+            gv_height = height / SCALE_FACTOR
+
+            # Track bounds in Graphviz coordinates (center-based)
+            gv_min_x = min(gv_min_x, gv_x - gv_width / 2)
+            gv_max_x = max(gv_max_x, gv_x + gv_width / 2)
+            gv_min_y = min(gv_min_y, gv_y - gv_height / 2)
+            gv_max_y = max(gv_max_y, gv_y + gv_height / 2)
+
+    # Calculate canvas size in Graphviz points
+    gv_padding = 100 / SCALE_FACTOR  # Convert padding to points
+    gv_canvas_width = gv_max_x - gv_min_x + (gv_padding * 2)
+    gv_canvas_height = gv_max_y - gv_min_y + (gv_padding * 2)
+
+    # Convert canvas size to screen pixels
+    canvas_width = int(gv_canvas_width * SCALE_FACTOR)
+    canvas_height = int(gv_canvas_height * SCALE_FACTOR)
+
+    # Enforce size limits
+    canvas_width = max(1000, min(canvas_width, 20000))
+    canvas_height = max(1000, min(canvas_height, 20000))
+
+    logger.debug(f"Canvas bounds: {canvas_width}x{canvas_height}")
+
+    # Convert all Graphviz positions to screen coordinates
+    # Adjust so that nodes start at padding distance from edges
+    screen_positions = {}
+    padding = 100  # Screen pixels
+
+    for text, (gv_x, gv_y) in gv_positions.items():
+        # Normalize position relative to bounding box
+        normalized_x = (gv_x - gv_min_x) * SCALE_FACTOR
+        normalized_y = (gv_y - gv_min_y) * SCALE_FACTOR
+
+        # Add padding and flip Y-axis (Graphviz is bottom-up, screen is top-down)
+        screen_x = normalized_x + padding
+        screen_y = canvas_height - (normalized_y + padding)
+
+        screen_positions[text] = (int(screen_x), int(screen_y))
+        logger.debug(f"Node '{text[:30]}...': GV({gv_x:.1f},{gv_y:.1f}) -> Screen({screen_x:.1f},{screen_y:.1f})")
 
     # Apply positions and sizes to nodes
     for node in inf_json['nodes']:
         text = node['text']
         node_type = node.get('type', 'rectangle')
-        position = adjusted_positions.get(text, (500, 500))  # Default if not found
+        position = screen_positions.get(text, (canvas_width // 2, canvas_height // 2))
         x, y = position
 
-        # Calculate size
+        # Calculate size and set position based on node type
+        # Graphviz centers are converted to top-left or center depending on type
         if node_type == 'table':
-            # Table size from rows/cols
+            # Table: x, y is top-left corner
             rows = node.get('rows', 3)
             cols = node.get('cols', 3)
             total_width = cols * TABLE_CELL_WIDTH
@@ -271,20 +354,22 @@ def apply_layout(inf_json: Dict, yaml_data: Dict, layout_config: Dict) -> Dict:
             node['x'] = x - total_width // 2
             node['y'] = y - total_height // 2
         elif node_type == 'circle':
-            width, height = calculate_text_dimensions(text, node_type)
+            # Circle: x, y is center, radius is stored
+            radius, _ = calculate_text_dimensions(text, node_type)
             node['x'] = x  # Center x
             node['y'] = y  # Center y
-            node['radius'] = width  # width is radius for circles
+            node['radius'] = radius
         elif node_type == 'diamond':
+            # Diamond: x, y is top-left corner
             width, height = calculate_text_dimensions(text, node_type)
-            node['x'] = x - width // 2  # Top-left x
-            node['y'] = y - height // 2  # Top-left y
+            node['x'] = x - width // 2
+            node['y'] = y - height // 2
             node['width'] = width
             node['height'] = height
-        else:  # rectangle, text, code
+        else:  # rectangle, text, code: x, y is top-left corner
             width, height = calculate_text_dimensions(text, node_type)
-            node['x'] = x - width // 2  # Top-left x
-            node['y'] = y - height // 2  # Top-left y
+            node['x'] = x - width // 2
+            node['y'] = y - height // 2
             node['width'] = width
             node['height'] = height
 
