@@ -1,5 +1,10 @@
 # Dockerfile for yaml2inf.py converter
 # Includes Graphviz and all Python dependencies
+#
+# Build the image:
+#     docker build -t yaml2inf .
+# Run the converter:
+#     docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --verbose --validate
 
 FROM python:3.11-slim
 
