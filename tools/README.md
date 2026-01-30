@@ -62,6 +62,7 @@ python3 tools/yaml2inf.py docs/ --validate --verbose
 - `--ranksep` - Vertical separation in inches
 - `--nodesep` - Horizontal separation in inches
 - `--verbose` - Print detailed information
+- `--debug` - Enable debug logging (very detailed output)
 - `--validate` - Validate YAML without generating JSON
 
 **Process:**
@@ -78,12 +79,15 @@ Validation-only script. Checks a single YAML file without generating JSON.
 
 **Usage:**
 ```bash
-python3 tools/yaml_checker.py <file.yaml>
+python3 tools/yaml_checker.py <file.yaml> [--debug]
 
 # Examples
 python3 tools/yaml_checker.py inf-notes/root.yaml
-python3 tools/yaml_checker.py diagrams/system.yaml
+python3 tools/yaml_checker.py diagrams/system.yaml --debug
 ```
+
+**Options:**
+- `--debug` - Enable debug logging (very detailed output)
 
 **Process:**
 1. Call `converter.convert_yaml_to_inf()` in validation mode
@@ -142,17 +146,51 @@ python3 tools/yaml_checker.py diagrams/system.yaml
   - Alternative: networkx (`pip install networkx`)
 - **Graphviz** - Graph visualization system (system package)
 
+## Logging
+
+All modules use Python's `logging` module for debug output:
+
+**Log Levels:**
+- **WARNING** (default) - Only show warnings and errors
+- **INFO** (--verbose) - Show conversion progress and summary
+- **DEBUG** (--debug) - Show detailed debugging information
+
+**Debug Logging:**
+```bash
+# Debug logging shows:
+# - File parsing details
+# - Node/connection/group creation
+# - Subgraph resolution
+# - Layout computation steps
+# - Coordinate transformations
+# - Canvas calculations
+
+python3 tools/yaml2inf.py project/ --debug
+python3 tools/yaml_checker.py file.yaml --debug
+```
+
+**Log Format:**
+- `--debug`: `HH:MM:SS [LEVEL] module: message`
+- `--verbose`: `HH:MM:SS [LEVEL] message`
+- Default: `LEVEL: message`
+
 ## Testing
 
 ```bash
 # Validate a single YAML file
 python3 tools/yaml_checker.py test-data/root.yaml
 
+# Validate with debug logging
+python3 tools/yaml_checker.py test-data/root.yaml --debug
+
 # Validate all YAML files in a folder
 python3 tools/yaml2inf.py test-data/ --validate --verbose
 
 # Convert with verbose output
 python3 tools/yaml2inf.py test-data/ --verbose
+
+# Convert with debug logging
+python3 tools/yaml2inf.py test-data/ --debug
 
 # Try different layout engines
 python3 tools/yaml2inf.py test-data/ --engine neato --verbose

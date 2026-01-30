@@ -7,6 +7,7 @@ Does NOT compute layout or sizes - that's handled by graphviz.py
 """
 
 import json
+import logging
 import os
 import sys
 import warnings
@@ -19,6 +20,12 @@ except ImportError:
     print("ERROR: PyYAML not installed. Install with: pip install pyyaml")
     sys.exit(1)
 
+# Setup logger
+logger = logging.getLogger(__name__)
+
+# Add a NullHandler by default (scripts can configure their own handlers)
+logger.addHandler(logging.NullHandler())
+
 # Constants
 INF_VERSION = "2.5"
 TABLE_CELL_WIDTH = 100
@@ -27,15 +34,20 @@ TABLE_CELL_HEIGHT = 40
 
 def parse_yaml_file(file_path: str) -> Dict:
     """Parse a YAML file and return the data structure."""
+    logger.debug(f"Parsing YAML file: {file_path}")
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
             if data is None:
+                logger.warning(f"Empty YAML file: {file_path}")
                 return {}
+            logger.debug(f"Successfully parsed {file_path}")
             return data
     except yaml.YAMLError as e:
+        logger.error(f"YAML parsing error in {file_path}: {e}")
         raise ValueError(f"Invalid YAML in {file_path}: {e}")
     except Exception as e:
+        logger.error(f"File reading error for {file_path}: {e}")
         raise IOError(f"Failed to read {file_path}: {e}")
 
 
@@ -51,12 +63,16 @@ def resolve_subgraph_path(base_dir: str, node_text: str, subgraph_hint: Optional
     base_path = Path(base_dir)
 
     if subgraph_hint:
+        logger.debug(f"Resolving subgraph for node '{node_text}': {subgraph_hint}")
+
         # Embedded subgraphs (dicts) are not supported in YAML format
         if isinstance(subgraph_hint, dict):
             location = f"{yaml_path}:node[{node_index}]" if yaml_path else f"node[{node_index}]"
-            warnings.warn(f"{location}: Node '{node_text}' has embedded subgraph (dict). "
-                         "YAML format only supports file-based subgraphs (strings). "
-                         "Use 'subgraph: \"file.yaml\"' instead.")
+            msg = f"{location}: Node '{node_text}' has embedded subgraph (dict). " \
+                  "YAML format only supports file-based subgraphs (strings). " \
+                  "Use 'subgraph: \"file.yaml\"' instead."
+            logger.warning(msg)
+            warnings.warn(msg)
             return None
 
         # Explicit hint provided (string)
@@ -69,9 +85,12 @@ def resolve_subgraph_path(base_dir: str, node_text: str, subgraph_hint: Optional
                 path = base_path / f"{subgraph_hint}.yaml"
 
         if path.exists():
+            logger.debug(f"Resolved subgraph path: {path}")
             return str(path)
         else:
-            warnings.warn(f"Subgraph file not found: {path}")
+            msg = f"Subgraph file not found: {path}"
+            logger.warning(msg)
+            warnings.warn(msg)
             return None
 
     # No implicit detection - subgraphs must be explicitly specified
@@ -88,6 +107,8 @@ def create_inf_node(node_id: int, node_yaml: Dict, base_dir: str,
     text = node_yaml.get('text', '')
     node_type = node_yaml.get('type', 'rectangle')
     align = node_yaml.get('align', 'center')
+
+    logger.debug(f"Creating node {node_id}: type={node_type}, text='{text[:30]}...'")
 
     # Base node structure
     inf_node = {
@@ -238,12 +259,14 @@ def convert_yaml_to_inf(yaml_path: str, validate_only: bool = False) -> Optional
             'base_dir': str     # Base directory for resolving subgraphs
         }
     """
+    logger.info(f"Converting YAML to Inf: {yaml_path} (validate_only={validate_only})")
     base_dir = os.path.dirname(yaml_path) or '.'
 
     # Parse YAML
     try:
         data = parse_yaml_file(yaml_path)
     except Exception as e:
+        logger.error(f"Failed to parse {yaml_path}: {e}")
         print(f"  ERROR: {e}")
         return None
 
@@ -251,8 +274,12 @@ def convert_yaml_to_inf(yaml_path: str, validate_only: bool = False) -> Optional
     connections_yaml = data.get('connections', [])
     groups_yaml = data.get('groups', [])
 
+    logger.debug(f"Found {len(nodes_yaml)} nodes, {len(connections_yaml)} connections, {len(groups_yaml)} groups")
+
     if not nodes_yaml:
-        warnings.warn(f"No nodes in {yaml_path}")
+        msg = f"No nodes in {yaml_path}"
+        logger.warning(msg)
+        warnings.warn(msg)
         return None
 
     # Generate Inf JSON structure (without layout)
@@ -292,6 +319,9 @@ def convert_yaml_to_inf(yaml_path: str, validate_only: bool = False) -> Optional
         'groups': inf_groups,
         'nextId': next_id
     }
+
+    logger.info(f"Successfully converted {yaml_path}: {len(inf_nodes)} nodes, "
+                f"{len(inf_connections)} connections, {len(inf_groups)} groups")
 
     return {
         'inf_json': inf_json,

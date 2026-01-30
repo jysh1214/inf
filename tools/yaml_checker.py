@@ -13,6 +13,7 @@ Example:
 """
 
 import argparse
+import logging
 import os
 import sys
 
@@ -22,6 +23,9 @@ try:
 except ImportError:
     sys.path.insert(0, os.path.dirname(__file__))
     from converter import convert_yaml_to_inf
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
 def validate_yaml_file(yaml_path: str) -> bool:
@@ -67,8 +71,25 @@ Examples:
     )
 
     parser.add_argument('file', help='YAML file to validate')
+    parser.add_argument('--debug', action='store_true',
+                        help='Enable debug logging (very detailed output)')
 
     args = parser.parse_args()
+
+    # Configure logging
+    if args.debug:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+            datefmt='%H:%M:%S'
+        )
+        logger.info("Debug logging enabled")
+    else:
+        # Only show warnings and errors
+        logging.basicConfig(
+            level=logging.WARNING,
+            format='%(levelname)s: %(message)s'
+        )
 
     # Validate file exists
     if not os.path.isfile(args.file):

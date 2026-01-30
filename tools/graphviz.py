@@ -5,6 +5,7 @@ Graphviz Layout Engine for Inf
 Computes node positions and sizes using Graphviz automatic layout.
 """
 
+import logging
 import sys
 from typing import Dict, List, Tuple, Optional
 
@@ -22,6 +23,10 @@ except ImportError:
         print("  or")
         print("  pip install networkx")
         sys.exit(1)
+
+# Setup logger
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 # Size calculation constants
 CHAR_WIDTH = 8  # Average character width in pixels
@@ -97,6 +102,9 @@ def create_graphviz_layout(nodes_yaml: List[Dict], connections_yaml: List[Dict],
     nodesep = layout_config.get('nodesep', 0.5)
     splines = layout_config.get('splines', 'spline')
 
+    logger.debug(f"Creating Graphviz layout: engine={engine}, rankdir={rankdir}, "
+                 f"{len(nodes_yaml)} nodes, {len(connections_yaml)} connections")
+
     # Create graph using pygraphviz
     G = pgv.AGraph(directed=True, strict=False)
     G.graph_attr['rankdir'] = rankdir
@@ -142,6 +150,7 @@ def create_graphviz_layout(nodes_yaml: List[Dict], connections_yaml: List[Dict],
             G.add_edge(from_node, to_node, dir='none')
 
     # Compute layout
+    logger.debug(f"Computing layout with {engine}...")
     G.layout(prog=engine)
 
     # Extract positions
@@ -152,6 +161,7 @@ def create_graphviz_layout(nodes_yaml: List[Dict], connections_yaml: List[Dict],
         x, y = map(float, pos_str.split(','))
         positions[str(node)] = (x, y)
 
+    logger.debug(f"Layout computed successfully: {len(positions)} positions")
     return positions
 
 
@@ -227,6 +237,7 @@ def apply_layout(inf_json: Dict, yaml_data: Dict, layout_config: Dict) -> Dict:
     Returns:
         Complete Inf JSON structure with layout
     """
+    logger.info(f"Applying layout to {len(inf_json['nodes'])} nodes")
     nodes_yaml = yaml_data.get('nodes', [])
     connections_yaml = yaml_data.get('connections', [])
 
@@ -282,4 +293,5 @@ def apply_layout(inf_json: Dict, yaml_data: Dict, layout_config: Dict) -> Dict:
     inf_json['canvasHeight'] = canvas_height
     inf_json['zoom'] = 1.0
 
+    logger.info(f"Layout applied successfully: canvas {canvas_width}x{canvas_height}")
     return inf_json

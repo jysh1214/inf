@@ -14,6 +14,7 @@ Example:
 
 import argparse
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -29,6 +30,9 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(__file__))
     from converter import convert_yaml_to_inf
     from graphviz import apply_layout
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
 def find_yaml_files(folder: str) -> List[str]:
@@ -141,12 +145,35 @@ Examples:
                         help='Horizontal separation in inches (default: 0.5)')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Print detailed conversion information')
+    parser.add_argument('--debug', action='store_true',
+                        help='Enable debug logging (very detailed output)')
     parser.add_argument('--strict', action='store_true',
                         help='Treat warnings as errors (exit on first warning)')
     parser.add_argument('--validate', action='store_true',
                         help='Validate YAML files without generating JSON')
 
     args = parser.parse_args()
+
+    # Configure logging
+    if args.debug:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+            datefmt='%H:%M:%S'
+        )
+        logger.info("Debug logging enabled")
+    elif args.verbose:
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s [%(levelname)s] %(message)s',
+            datefmt='%H:%M:%S'
+        )
+    else:
+        # Only show warnings and errors
+        logging.basicConfig(
+            level=logging.WARNING,
+            format='%(levelname)s: %(message)s'
+        )
 
     # Validate folder
     if not os.path.isdir(args.folder):
