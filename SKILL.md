@@ -283,15 +283,23 @@ Create `inf-notes/root.yaml` with system overview:
 - **Groups** for related areas (e.g., "Client Layer", "Services")
 - **Most nodes should have subgraphs** (mark for deeper exploration)
 
-## 3. Create Next Level Subgraphs (Parallel)
+## 3. Create Next Level Subgraphs (Sequential)
 
-Spawn 8-16 agents in parallel using Task tool. Each agent creates one subgraph file.
+Generate subgraphs **one at a time** to avoid context accumulation.
 
-**IMPORTANT: Spawn fresh agents for each level!**
-- Don't continue previous agents - spawn NEW agents for each level
+**Process:**
+1. Spawn ONE fresh agent for first subgraph
+2. Wait for it to complete and validate
+3. Agent exits (clears its context)
+4. Spawn next fresh agent
+5. Repeat for all subgraphs at this level
+
+**IMPORTANT: Sequential generation prevents context bloat**
+- Spawning 8-16 agents in parallel causes orchestrator context to explode
+- Sequential keeps orchestrator context minimal (one agent result at a time)
+- Each agent is fresh with minimal context (only its component)
 - Level-1: Give agents only their component scope (not entire repo)
 - Level-2+: Give agents only parent file + specific node to expand
-- This prevents context accumulation and token limit issues
 
 **Agent prompt template:**
 ```
@@ -324,7 +332,7 @@ Task(
 )
 ```
 
-**Wait for all agents to complete before proceeding.**
+**Trade-off:** Sequential is slower but prevents hitting context limits on large repos.
 
 ## 4. Batch Validation
 
@@ -362,7 +370,7 @@ Create a subgraph when the answer is yes:
 - Further detail would be implementation code (use code node with snippet instead)
 - Node is self-explanatory with no sub-components
 
-**Then repeat steps 3-4** for the next level, spawning fresh agents in parallel.
+**Then repeat steps 3-4** for the next level, spawning fresh agents sequentially (one at a time).
 
 **Example for level-2+:**
 ```
