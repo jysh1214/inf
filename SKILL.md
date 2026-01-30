@@ -303,8 +303,7 @@ CRITICAL: After creating the YAML file, you MUST validate it:
 4. Only mark your task complete when validation succeeds
 
 DO NOT convert YAML to JSON! Only validate:
-- Use tools/yaml_checker.py for validation (correct)
-- DO NOT use tools/yaml2inf.py for conversion (wrong - only for final batch conversion)
+- Use tools/yaml_checker.py for validation
 - Your job is to create valid YAML, not JSON
 
 Common issues to fix:
@@ -362,15 +361,19 @@ Structure:
 - Agents only create and validate YAML files
 - Conversion to JSON happens later (Phase 4)
 - Use `tools/yaml_checker.py` only (validation)
-- DO NOT use `tools/yaml2inf.py` (conversion)
 
 ### Batch Validation (After All Agents Complete)
 
-After all agents complete, verify all files together:
+After all agents complete, verify all files together.
 
+**Validate each file individually**
 ```bash
-# Validate entire folder
-python3 tools/yaml2inf.py inf-notes/ --validate --verbose
+# Validate all files one by one
+for file in inf-notes/*.yaml; do
+  echo "Validating: $file"
+  python3 tools/yaml_checker.py "$file" || exit 1
+done
+echo "✓ All files validated!"
 ```
 
 **Common validation errors**:
@@ -391,7 +394,7 @@ python3 tools/yaml2inf.py inf-notes/ --validate --verbose
 **Why this matters**:
 - Catches errors early before they cascade to deeper levels
 - Each agent is responsible for their output quality
-- Ensures tools/yaml2inf.py can successfully convert all files
+- Ensures YAML structure is valid and ready for conversion
 - Validates that connections and groups reference real nodes
 - Confirms all subgraph references are resolvable
 
@@ -424,31 +427,23 @@ api.yaml
 
 1. Run final batch validation on all files:
    ```bash
-   python3 tools/yaml2inf.py inf-notes/ --validate --verbose
+   # Option 1: Validate each file
+   for file in inf-notes/*.yaml; do
+     python3 tools/yaml_checker.py "$file" || exit 1
+   done
    ```
 
 2. Confirm all subgraph references point to existing files
 
 3. Verify YAML syntax is valid across all levels
 
-4. **NOW convert YAML to JSON** (only after all validation passes):
-   ```bash
-   python3 tools/yaml2inf.py inf-notes/ --verbose
-   ```
-
-5. Report completion summary:
+4. Report completion summary:
    - Total YAML files generated
-   - Total JSON files created
    - Hierarchy depth achieved
    - File structure overview
    - Validation status (all files valid)
-   - Conversion command user can run:
-     ```bash
-     # To re-convert if needed
-     python3 tools/yaml2inf.py inf-notes/
-     ```
 
-**Important**: Conversion only happens once, at the end, after ALL YAML files are complete and validated.
+**Important**: All YAML files must be validated before completing Phase 4.
 
 ---
 
@@ -630,7 +625,7 @@ Keep the user informed throughout:
 3. **Each agent validates** - Every agent MUST run tools/yaml_checker.py on their file
 4. **NO conversion by agents** - Agents create YAML only, NO JSON conversion
 5. **Fix errors immediately** - Agents fix validation errors before marking complete
-6. **Batch validate each level** - Run tools/yaml2inf.py --validate before proceeding deeper
+6. **Batch validate each level** - Validate all files with yaml_checker.py loop before proceeding deeper
 7. **Don't cascade errors** - Never proceed to next level with validation failures
 8. **Convert only at end** - JSON conversion happens in Phase 4, after all YAML complete
 9. **Appropriate depth** - Go deep where complexity exists, stay shallow for simple areas
