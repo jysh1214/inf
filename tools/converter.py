@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 # Constants
-INF_VERSION = "2.5"
+INF_VERSION = "3.1"
 TABLE_CELL_WIDTH = 100
 TABLE_CELL_HEIGHT = 40
 

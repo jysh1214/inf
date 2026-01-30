@@ -503,6 +503,20 @@ If "Failed to access file" errors occur:
 
 ## Version History
 
+- **v3.1** (2026-01-30):
+  - **YAML Tools Enhancements**:
+    - Fixed node positioning and canvas bounds calculation in Graphviz layout engine
+    - Proper coordinate conversion from Graphviz (points, bottom-left) to screen (pixels, top-left)
+    - All nodes now fit within canvas boundaries with correct 100px padding
+    - Added debug logging for position tracking
+  - **Docker Support**:
+    - Enhanced Dockerfile to copy all required modules (converter.py, graphviz.py, yaml2inf.py)
+    - Added comprehensive Docker usage examples
+    - Documented Docker workflow in CLAUDE.md
+  - **Documentation & Safety**:
+    - Added special characters warning in SKILL.md (3 locations)
+    - Prevents Graphviz DOT syntax errors from characters like `\` `"` `<` `>` `{}` `..`
+    - Updated validation checklist and best practices
 - **v2.5** (2026-01-30):
   - **Robustness & Error Handling**: Critical stability improvements
     - Canvas transform protection: try/finally in render() ensures ctx.restore() always executes
