@@ -150,6 +150,8 @@ layout:
 
 ## File-Based Subgraphs
 
+**Always include `.yaml` extension** in subgraph references for clarity and consistency.
+
 Link to other YAML files for hierarchical depth:
 
 ```yaml
@@ -159,9 +161,6 @@ nodes:
 
   - text: "Frontend"
     subgraph: "frontend/frontend.yaml"
-
-  - text: "Backend"
-    subgraph: "backend"  # Looks for backend.yaml or backend/backend.yaml
 ```
 
 ## Groups
@@ -261,7 +260,7 @@ nodes:
 
 ## Phase 2: Parallel Subgraph Creation
 
-**Don't create subgraphs sequentially!** Use Task tool to spawn 3-5 agents in parallel:
+**Don't create subgraphs sequentially!** Use Task tool to spawn 8-16 agents in parallel:
 
 ```
 Task(
@@ -277,15 +276,55 @@ Task(
 - Agents work simultaneously
 - Monitor progress, wait for all to complete
 
+## Phase 2.5: Validation
+
+**CRITICAL: Validate all YAML files before proceeding to next level!**
+
+After each level of subgraph generation:
+
+1. **Run validation**:
+   ```bash
+   python3 yaml2inf.py inf-notes/ --validate --verbose
+   ```
+   Or with Docker:
+   ```bash
+   docker run --rm -v $(pwd)/inf-notes:/workspace yaml2inf /workspace --validate --verbose
+   ```
+
+2. **Check for warnings**:
+   - `Node text '...' not found in nodes` - Connection/group references don't match node text exactly
+   - `Subgraph file not found: ...` - Subgraph reference points to non-existent file
+   - Other validation errors
+
+3. **If warnings found**:
+   - **STOP** - Do not proceed to next level
+   - Identify which YAML file(s) have issues
+   - Fix the issues:
+     - For text mismatch: Ensure connection `from`/`to` and group `nodes` use exact node text (including all `\n` line breaks)
+     - For missing subgraphs: Either create the referenced file or remove the subgraph reference
+   - Re-run validation until clean
+
+4. **Only proceed when**:
+   - Zero warnings
+   - All files validated successfully
+   - Message shows "✓ All files validated successfully!"
+
+**Why this matters**:
+- Catches errors early before they cascade to deeper levels
+- Ensures yaml2inf.py can successfully convert all files
+- Validates that connections and groups reference real nodes
+- Confirms all subgraph references are resolvable
+
 ## Phase 3: Deep Nesting (Recursive)
 
-After level-1 subgraphs are created:
+After level-1 subgraphs are validated:
 
 1. Review generated files
 2. Identify nodes needing more detail
 3. Spawn agents for level-2 subgraphs
 4. Use naming: `parent-name__child-name.yaml`
-5. Continue recursively (no depth limit!)
+5. **Validate again** (run Phase 2.5 for this level)
+6. Continue recursively (no depth limit!)
 
 Example:
 ```
@@ -298,13 +337,16 @@ api.yaml
     └── api__endpoints__products.yaml
 ```
 
-## Phase 4: Validation
+## Phase 4: Final Report
 
-1. Check all subgraph references point to existing files
-2. Verify YAML syntax is valid
-3. Ensure node text is unique within each file
-4. Verify connection references match node text exactly
-5. Report completion with file count and depth
+1. Run final validation on all files
+2. Confirm all subgraph references point to existing files
+3. Verify YAML syntax is valid across all levels
+4. Report completion summary:
+   - Total files generated
+   - Hierarchy depth achieved
+   - File structure overview
+   - Conversion command for user
 
 ---
 
@@ -449,8 +491,15 @@ Keep the user informed throughout:
 - "📝 Creating root.yaml with 8 major components..."
 - "🤖 Spawning 5 agents for parallel subgraph creation..."
 - "⏳ Agents working... (3/5 complete)"
+- "✅ All agents complete!"
+- "🔍 Validating level-1 YAML files..."
+- "✅ Validation passed! All files valid."
 - "🔄 Reviewing subgraphs for deeper expansion..."
 - "🤖 Spawning 3 agents for level-2 subgraphs..."
+- "⏳ Agents working... (2/3 complete)"
+- "✅ All agents complete!"
+- "🔍 Validating level-2 YAML files..."
+- "✅ Validation passed! All files valid."
 - "✅ Generated 23 YAML files with 3 levels of depth in inf-notes/"
 
 ---
@@ -459,14 +508,16 @@ Keep the user informed throughout:
 
 1. **Explore before creating** - Understand structure before documenting
 2. **Parallel execution** - Spawn multiple agents, don't work sequentially
-3. **Appropriate depth** - Go deep where complexity exists, stay shallow for simple areas
-4. **Semantic node types** - Choose based on meaning, not appearance
-5. **Meaningful connections** - Show real relationships and flow
-6. **Groups for organization** - Visual structure helps comprehension
-7. **No artificial limits** - Embrace infinite depth if topic requires it
-8. **Consistent naming** - Use clear, descriptive filenames
-9. **Single responsibility** - Each file covers one cohesive topic
-10. **Validate early** - Check YAML syntax as you go
+3. **Validate after each level** - Run yaml2inf.py --validate before proceeding deeper
+4. **Fix errors immediately** - Don't cascade validation errors to next level
+5. **Appropriate depth** - Go deep where complexity exists, stay shallow for simple areas
+6. **Semantic node types** - Choose based on meaning, not appearance
+7. **Meaningful connections** - Show real relationships and flow
+8. **Exact text matching** - Connection references must match node text exactly (including \n)
+9. **Groups for organization** - Visual structure helps comprehension
+10. **No artificial limits** - Embrace infinite depth if topic requires it
+11. **Consistent naming** - Use clear, descriptive filenames
+12. **Single responsibility** - Each file covers one cohesive topic
 
 ---
 
@@ -494,6 +545,8 @@ cp SKILL.md ~/.claude/skills/inf/
 - **Subgraphs manage complexity** - Break large topics into focused files
 - **Groups show organization** - Organize related nodes visually
 - **Parallel agents save time** - Don't create files one by one
+- **Validate after each level** - Catch errors early before they cascade
+- **Exact text matching** - Connections must use full node text (including newlines)
 - **Inf philosophy**: Infinite depth, no limits, complete expression
 
 Now analyze this repository and create beautiful structured notes! 🚀

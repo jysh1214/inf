@@ -141,26 +141,18 @@ connections:
 
 ## File-Based Subgraphs
 
-### Explicit Path
+**Always include `.yaml` extension** for clarity and consistency.
+
 ```yaml
 nodes:
+  - text: "Authentication"
+    subgraph: "module-auth.yaml"
+
   - text: "Frontend"
     subgraph: "frontend/frontend.yaml"
 ```
 
-### Directory Name
-```yaml
-nodes:
-  - text: "Backend"
-    subgraph: "backend"  # Looks for backend.yaml or backend/backend.yaml
-```
-
-### Implicit (Auto-detect)
-```yaml
-nodes:
-  - text: "Database"
-    # If Database.yaml exists, auto-links
-```
+**Format**: `subgraph: "filename.yaml"` or `subgraph: "path/filename.yaml"`
 
 ---
 
@@ -253,9 +245,9 @@ layout:
 ```yaml
 nodes:
   - text: "Frontend"
-    subgraph: "frontend"
+    subgraph: "frontend.yaml"
   - text: "Backend API"
-    subgraph: "backend"
+    subgraph: "backend.yaml"
   - text: "Database"
     type: circle
 
@@ -550,7 +542,7 @@ python3 yaml2inf.py project/ --validate --strict
 | Connection | `directed` | true, false | true |
 | Layout engine | `engine` | dot, neato, fdp, circo, twopi | dot |
 | Direction | `rankdir` | TB, LR, BT, RL | TB |
-| Subgraph | `subgraph` | "path.yaml" or "dirname" | (implicit) |
+| Subgraph | `subgraph` | "filename.yaml" | - |
 
 ---
 

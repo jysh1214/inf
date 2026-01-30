@@ -118,7 +118,7 @@ def calculate_text_dimensions(text: str, node_type: str = 'rectangle') -> Tuple[
     return (int(width), int(height))
 
 
-def resolve_subgraph_path(base_dir: str, node_text: str, subgraph_hint: Optional[str]) -> Optional[str]:
+def resolve_subgraph_path(base_dir: str, node_text: str, subgraph_hint: Optional[str], yaml_path: str = "", node_index: int = -1) -> Optional[str]:
     """
     Resolve subgraph file path.
 
@@ -130,7 +130,13 @@ def resolve_subgraph_path(base_dir: str, node_text: str, subgraph_hint: Optional
     base_path = Path(base_dir)
 
     if subgraph_hint:
-        # Explicit hint provided
+        # Embedded subgraphs (dicts) are not supported in YAML format
+        if isinstance(subgraph_hint, dict):
+            location = f"{yaml_path}:node[{node_index}]" if yaml_path else f"node[{node_index}]"
+            warnings.warn(f"{location}: Node '{node_text}' has embedded subgraph (dict). YAML format only supports file-based subgraphs (strings). Use 'subgraph: \"file.yaml\"' instead.")
+            return None
+
+        # Explicit hint provided (string)
         if subgraph_hint.endswith('.yaml'):
             path = base_path / subgraph_hint
         else:
@@ -145,20 +151,7 @@ def resolve_subgraph_path(base_dir: str, node_text: str, subgraph_hint: Optional
             warnings.warn(f"Subgraph file not found: {path}")
             return None
 
-    # Implicit detection
-    # Sanitize node text for filename
-    safe_name = node_text.replace(' ', '_').replace('/', '_')
-
-    # Try <text>.yaml in same directory
-    path = base_path / f"{safe_name}.yaml"
-    if path.exists():
-        return str(path)
-
-    # Try <text>/<text>.yaml subdirectory
-    path = base_path / safe_name / f"{safe_name}.yaml"
-    if path.exists():
-        return str(path)
-
+    # No implicit detection - subgraphs must be explicitly specified
     return None
 
 
@@ -235,7 +228,7 @@ def graphviz_to_inf_coords(gv_x: float, gv_y: float, canvas_height: int) -> Tupl
     return (int(inf_x), int(inf_y))
 
 
-def create_inf_node(node_id: int, node_yaml: Dict, position: Tuple[int, int], base_dir: str) -> Dict:
+def create_inf_node(node_id: int, node_yaml: Dict, position: Tuple[int, int], base_dir: str, yaml_path: str = "", node_index: int = -1) -> Dict:
     """Create an Inf JSON node from YAML description and calculated position."""
     text = node_yaml.get('text', '')
     node_type = node_yaml.get('type', 'rectangle')
@@ -303,7 +296,7 @@ def create_inf_node(node_id: int, node_yaml: Dict, position: Tuple[int, int], ba
 
     # Handle subgraph
     subgraph_hint = node_yaml.get('subgraph')
-    subgraph_path = resolve_subgraph_path(base_dir, text, subgraph_hint)
+    subgraph_path = resolve_subgraph_path(base_dir, text, subgraph_hint, yaml_path, node_index)
 
     if subgraph_path:
         # File-based subgraph - store relative path
@@ -318,43 +311,76 @@ def create_inf_node(node_id: int, node_yaml: Dict, position: Tuple[int, int], ba
     return inf_node
 
 
-def create_inf_connection(conn_id: int, conn_yaml: Dict, node_map: Dict[str, int]) -> Optional[Dict]:
-    """Create an Inf JSON connection from YAML description."""
-    from_text = conn_yaml.get('from', '')
-    to_text = conn_yaml.get('to', '')
+def create_inf_connection(conn_id: int, conn_yaml: Dict, node_map: Dict[str, int], nodes_yaml: List[Dict]) -> Optional[Dict]:
+    """Create an Inf JSON connection from YAML description.
+
+    Supports both numeric indices (0-based) and text-based node references.
+    """
+    from_ref = conn_yaml.get('from', '')
+    to_ref = conn_yaml.get('to', '')
     directed = conn_yaml.get('directed', True)
 
-    # Validate node references
-    if from_text not in node_map:
-        warnings.warn(f"Connection source '{from_text}' not found in nodes")
-        return None
-    if to_text not in node_map:
-        warnings.warn(f"Connection target '{to_text}' not found in nodes")
+    # Helper to resolve node reference (numeric index or text)
+    def resolve_node_id(ref):
+        # If it's an integer, treat as array index
+        if isinstance(ref, int):
+            if 0 <= ref < len(nodes_yaml):
+                node_text = nodes_yaml[ref].get('text', '')
+                return node_map.get(node_text)
+            else:
+                warnings.warn(f"Node index {ref} out of range (0-{len(nodes_yaml)-1})")
+                return None
+        # Otherwise treat as text lookup
+        else:
+            if ref in node_map:
+                return node_map[ref]
+            else:
+                warnings.warn(f"Node text '{ref}' not found in nodes")
+                return None
+
+    from_id = resolve_node_id(from_ref)
+    to_id = resolve_node_id(to_ref)
+
+    if from_id is None or to_id is None:
         return None
 
     return {
         'id': conn_id,
-        'fromId': node_map[from_text],
-        'toId': node_map[to_text],
+        'fromId': from_id,
+        'toId': to_id,
         'directed': directed
     }
 
 
-def create_inf_group(group_id: int, group_yaml: Dict, node_map: Dict[str, int]) -> Optional[Dict]:
-    """Create an Inf JSON group from YAML description."""
+def create_inf_group(group_id: int, group_yaml: Dict, node_map: Dict[str, int], nodes_yaml: List[Dict]) -> Optional[Dict]:
+    """Create an Inf JSON group from YAML description.
+
+    Supports both numeric indices (0-based) and text-based node references.
+    """
     name = group_yaml.get('name', 'Group')
-    node_texts = group_yaml.get('nodes', [])
+    node_refs = group_yaml.get('nodes', [])
 
     # Resolve node IDs
     node_ids = []
-    for text in node_texts:
-        if text in node_map:
-            node_ids.append(node_map[text])
+    for ref in node_refs:
+        # If it's an integer, treat as array index
+        if isinstance(ref, int):
+            if 0 <= ref < len(nodes_yaml):
+                node_text = nodes_yaml[ref].get('text', '')
+                node_id = node_map.get(node_text)
+                if node_id:
+                    node_ids.append(node_id)
+            else:
+                warnings.warn(f"Group '{name}' references node index {ref} out of range (0-{len(nodes_yaml)-1})")
+        # Otherwise treat as text lookup
         else:
-            warnings.warn(f"Group '{name}' references unknown node '{text}'")
+            if ref in node_map:
+                node_ids.append(node_map[ref])
+            else:
+                warnings.warn(f"Group '{name}' references unknown node '{ref}'")
 
-    if len(node_ids) < 2:
-        warnings.warn(f"Group '{name}' has fewer than 2 valid nodes, skipping")
+    if len(node_ids) < 1:
+        warnings.warn(f"Group '{name}' has no valid nodes, skipping")
         return None
 
     return {
@@ -452,11 +478,11 @@ def convert_yaml_to_inf(yaml_path: str, args: argparse.Namespace) -> bool:
     node_text_to_id = {}
 
     # Create nodes
-    for node_yaml in nodes_yaml:
+    for node_index, node_yaml in enumerate(nodes_yaml):
         text = node_yaml.get('text', '')
         position = adjusted_positions.get(text, (500, 500))  # Default if not in layout
 
-        inf_node = create_inf_node(next_id, node_yaml, position, base_dir)
+        inf_node = create_inf_node(next_id, node_yaml, position, base_dir, yaml_path, node_index)
         inf_nodes.append(inf_node)
         node_text_to_id[text] = next_id
         next_id += 1
@@ -464,7 +490,7 @@ def convert_yaml_to_inf(yaml_path: str, args: argparse.Namespace) -> bool:
     # Create connections
     inf_connections = []
     for conn_yaml in connections_yaml:
-        inf_conn = create_inf_connection(next_id, conn_yaml, node_text_to_id)
+        inf_conn = create_inf_connection(next_id, conn_yaml, node_text_to_id, nodes_yaml)
         if inf_conn:
             inf_connections.append(inf_conn)
             next_id += 1
@@ -472,7 +498,7 @@ def convert_yaml_to_inf(yaml_path: str, args: argparse.Namespace) -> bool:
     # Create groups
     inf_groups = []
     for group_yaml in groups_yaml:
-        inf_group = create_inf_group(next_id, group_yaml, node_text_to_id)
+        inf_group = create_inf_group(next_id, group_yaml, node_text_to_id, nodes_yaml)
         if inf_group:
             inf_groups.append(inf_group)
             next_id += 1

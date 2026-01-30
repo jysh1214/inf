@@ -34,3 +34,6 @@ WORKDIR /workspace
 
 # Set python path to find yaml2inf.py
 ENV PYTHONPATH=/app:$PYTHONPATH
+
+# Set the entrypoint to run the converter script
+ENTRYPOINT ["python", "/app/yaml2inf.py"]
