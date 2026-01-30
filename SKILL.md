@@ -266,51 +266,92 @@ nodes:
 Task(
   subagent_type="general-purpose",
   description="Document auth module",
-  prompt="Explore the authentication module and create inf-notes/module-auth.yaml with a detailed diagram covering: login flow, token handling, session management, password reset. Use appropriate node types (circle for entry points, diamond for decisions, rectangle for components). Include connections showing data flow. Follow YAML format from /inf skill."
+  prompt="Explore the authentication module and create inf-notes/module-auth.yaml with a detailed diagram covering: login flow, token handling, session management, password reset. Use appropriate node types (circle for entry points, diamond for decisions, rectangle for components). Include connections showing data flow.
+
+CRITICAL: After creating the YAML file, you MUST validate it:
+1. Run: python3 tools/yaml_checker.py inf-notes/module-auth.yaml
+2. If validation fails, fix the errors immediately
+3. Re-run validation until it passes
+4. Only mark your task complete when validation succeeds
+
+Common issues to fix:
+- Connection 'from'/'to' must match node text exactly (including \\n line breaks)
+- Group 'nodes' must reference existing node text
+- Subgraph files must exist if referenced
+
+Follow YAML format from /inf skill."
 )
 ```
 
 **Key points**:
 - Each agent explores one component deeply
 - Each creates a focused YAML file (5-15 nodes)
+- **CRITICAL**: Each agent MUST validate their YAML before completing
 - Agents work simultaneously
 - Monitor progress, wait for all to complete
 
 ## Phase 2.5: Validation
 
-**CRITICAL: Validate all YAML files before proceeding to next level!**
+**CRITICAL: Each agent validates their own YAML, then you verify all files!**
 
-After each level of subgraph generation:
+### Individual Agent Validation (Required)
 
-1. **Run validation**:
-   ```bash
-   python3 tools/yaml2inf.py inf-notes/ --validate --verbose
-   ```
-   Or with Docker:
-   ```bash
-   docker run --rm -v $(pwd)/inf-notes:/workspace yaml2inf /workspace --validate --verbose
-   ```
+Each agent MUST validate their YAML file before completing:
 
-2. **Check for warnings**:
-   - `Node text '...' not found in nodes` - Connection/group references don't match node text exactly
-   - `Subgraph file not found: ...` - Subgraph reference points to non-existent file
-   - Other validation errors
+```bash
+# Agent validates their own file
+python3 tools/yaml_checker.py inf-notes/module-auth.yaml
+```
 
-3. **If warnings found**:
-   - **STOP** - Do not proceed to next level
-   - Identify which YAML file(s) have issues
-   - Fix the issues:
-     - For text mismatch: Ensure connection `from`/`to` and group `nodes` use exact node text (including all `\n` line breaks)
-     - For missing subgraphs: Either create the referenced file or remove the subgraph reference
-   - Re-run validation until clean
+**Expected output:**
+```
+Validating: inf-notes/module-auth.yaml
 
-4. **Only proceed when**:
-   - Zero warnings
-   - All files validated successfully
-   - Message shows "✓ All files validated successfully!"
+  [INFO] Converting YAML to Inf: inf-notes/module-auth.yaml (validate_only=True)
+  [INFO] Successfully converted: 8 nodes, 7 connections, 2 groups
+
+Structure:
+  Nodes:       8
+  Connections: 7
+  Groups:      2
+  Subgraphs:   3
+
+✓ Valid
+```
+
+**If validation fails**, agent must:
+1. Read the error messages carefully
+2. Fix the issues in the YAML file
+3. Re-run validation until it passes
+4. Only then mark task complete
+
+### Batch Validation (After All Agents Complete)
+
+After all agents complete, verify all files together:
+
+```bash
+# Validate entire folder
+python3 tools/yaml2inf.py inf-notes/ --validate --verbose
+```
+
+**Common validation errors**:
+- `Node text '...' not found in nodes` - Connection/group references don't match node text exactly
+- `Subgraph file not found: ...` - Subgraph reference points to non-existent file
+- `Invalid YAML` - Syntax error in YAML file
+
+**How to fix**:
+- For text mismatch: Ensure connection `from`/`to` and group `nodes` use exact node text (including all `\n` line breaks)
+- For missing subgraphs: Either create the referenced file or remove the subgraph reference
+- For YAML errors: Check indentation, quotes, special characters
+
+**Only proceed when**:
+- All individual files validated by agents
+- Batch validation shows "✓ All files validated successfully!"
+- Zero warnings across all files
 
 **Why this matters**:
 - Catches errors early before they cascade to deeper levels
+- Each agent is responsible for their output quality
 - Ensures tools/yaml2inf.py can successfully convert all files
 - Validates that connections and groups reference real nodes
 - Confirms all subgraph references are resolvable
@@ -323,8 +364,9 @@ After level-1 subgraphs are validated:
 2. Identify nodes needing more detail
 3. Spawn agents for level-2 subgraphs
 4. Use naming: `parent-name__child-name.yaml`
-5. **Validate again** (run Phase 2.5 for this level)
-6. Continue recursively (no depth limit!)
+5. **Each agent validates their YAML** (using tools/yaml_checker.py)
+6. **Batch validate this level** (run Phase 2.5 batch validation)
+7. Continue recursively (no depth limit!)
 
 Example:
 ```
@@ -339,14 +381,21 @@ api.yaml
 
 ## Phase 4: Final Report
 
-1. Run final validation on all files
+1. Run final batch validation on all files:
+   ```bash
+   python3 tools/yaml2inf.py inf-notes/ --validate --verbose
+   ```
 2. Confirm all subgraph references point to existing files
 3. Verify YAML syntax is valid across all levels
 4. Report completion summary:
    - Total files generated
    - Hierarchy depth achieved
    - File structure overview
-   - Conversion command for user
+   - Validation status (all files valid)
+   - Conversion command for user:
+     ```bash
+     python3 tools/yaml2inf.py inf-notes/
+     ```
 
 ---
 
@@ -469,17 +518,30 @@ layout:
 
 # Validation Checklist
 
-Before saving each YAML file:
+**CRITICAL: After creating each YAML file, MUST run validation tool!**
+
+```bash
+python3 tools/yaml_checker.py inf-notes/your-file.yaml
+```
+
+**Manual checks before running validator:**
 
 - [ ] All node text is unique within the file
-- [ ] All connection references match node text exactly
+- [ ] All connection references match node text exactly (including `\n` in multiline text)
 - [ ] Node types are valid: rectangle, circle, diamond, text, code, table
 - [ ] Alignment values are valid: left, center, right
 - [ ] Layout engine is valid: dot, neato, fdp, circo, twopi
 - [ ] Layout direction is valid: TB, LR, BT, RL
 - [ ] Groups contain 1+ nodes
 - [ ] No coordinates, IDs, or sizes specified
-- [ ] Subgraph references are clear and will be created
+- [ ] Subgraph references point to files that exist or will be created
+
+**Automated validation (REQUIRED):**
+
+- [ ] Run `tools/yaml_checker.py` on your file
+- [ ] Validation passes with "✓ Valid"
+- [ ] Fix any errors reported
+- [ ] Re-validate until clean
 
 ---
 
@@ -508,16 +570,18 @@ Keep the user informed throughout:
 
 1. **Explore before creating** - Understand structure before documenting
 2. **Parallel execution** - Spawn multiple agents, don't work sequentially
-3. **Validate after each level** - Run tools/yaml2inf.py --validate before proceeding deeper
-4. **Fix errors immediately** - Don't cascade validation errors to next level
-5. **Appropriate depth** - Go deep where complexity exists, stay shallow for simple areas
-6. **Semantic node types** - Choose based on meaning, not appearance
-7. **Meaningful connections** - Show real relationships and flow
-8. **Exact text matching** - Connection references must match node text exactly (including \n)
-9. **Groups for organization** - Visual structure helps comprehension
-10. **No artificial limits** - Embrace infinite depth if topic requires it
-11. **Consistent naming** - Use clear, descriptive filenames
-12. **Single responsibility** - Each file covers one cohesive topic
+3. **Each agent validates** - Every agent MUST run tools/yaml_checker.py on their file
+4. **Fix errors immediately** - Agents fix validation errors before marking complete
+5. **Batch validate each level** - Run tools/yaml2inf.py --validate before proceeding deeper
+6. **Don't cascade errors** - Never proceed to next level with validation failures
+7. **Appropriate depth** - Go deep where complexity exists, stay shallow for simple areas
+8. **Semantic node types** - Choose based on meaning, not appearance
+9. **Meaningful connections** - Show real relationships and flow
+10. **Exact text matching** - Connection references must match node text exactly (including \n)
+11. **Groups for organization** - Visual structure helps comprehension
+12. **No artificial limits** - Embrace infinite depth if topic requires it
+13. **Consistent naming** - Use clear, descriptive filenames
+14. **Single responsibility** - Each file covers one cohesive topic
 
 ---
 
@@ -545,7 +609,10 @@ cp SKILL.md ~/.claude/skills/inf/
 - **Subgraphs manage complexity** - Break large topics into focused files
 - **Groups show organization** - Organize related nodes visually
 - **Parallel agents save time** - Don't create files one by one
-- **Validate after each level** - Catch errors early before they cascade
+- **CRITICAL: Each agent validates** - Run tools/yaml_checker.py on every generated file
+- **Agents fix their errors** - Don't mark complete until validation passes
+- **Batch validate each level** - Ensure all files valid before proceeding deeper
+- **Never cascade errors** - Catch errors early before they cascade
 - **Exact text matching** - Connections must use full node text (including newlines)
 - **Inf philosophy**: Infinite depth, no limits, complete expression
 
