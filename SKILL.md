@@ -264,186 +264,123 @@ nodes:
 
 # Multi-Agent Strategy
 
-## Phase 1: Repository Analysis (You)
+## 1. Repository Analysis
 
-1. **Explore the codebase**:
-   - Main entry points (main.js, app.py, index.html)
-   - Directory structure (src/, lib/, components/, tests/)
-   - Configuration files (package.json, requirements.txt, Makefile)
-   - Documentation (README, docs/)
-   - Build system (build scripts, Dockerfile)
+Explore the codebase to understand its architecture:
 
-2. **Identify architecture**:
-   - Frontend/backend separation
-   - Modules and their responsibilities
-   - Data flow patterns
-   - External dependencies
-   - Key algorithms
+- **Entry points**: main.js, app.py, index.html
+- **Structure**: src/, lib/, components/, tests/
+- **Config**: package.json, requirements.txt, Makefile
+- **Docs**: README, docs/
+- **Build system**: scripts, Dockerfile
 
-3. **Create root.yaml**:
-   - 5-10 major components at root level
-   - Use groups to organize related areas
-   - Mark 70% of nodes with subgraphs
-   - Choose appropriate layout (dot/LR for systems, dot/TB for flows)
+Identify key patterns: frontend/backend separation, modules, data flow, dependencies, algorithms.
 
-## Phase 2: Parallel Subgraph Creation
+## 2. Create root.yaml
 
-**Don't create subgraphs sequentially!** Use Task tool to spawn 8-16 agents in parallel:
+Create `inf-notes/root.yaml` with system overview:
 
+- **Groups** for related areas (e.g., "Client Layer", "Services")
+- **Most nodes should have subgraphs** (mark for deeper exploration)
+
+## 3. Create Next Level Subgraphs (Parallel)
+
+Spawn 8-16 agents in parallel using Task tool. Each agent creates one subgraph file.
+
+**Agent prompt template:**
 ```
 Task(
   subagent_type="general-purpose",
-  description="Document auth module",
-  prompt="Explore the authentication module and create inf-notes/module-auth.yaml with a detailed diagram covering: login flow, token handling, session management, password reset. Use appropriate node types (circle for entry points, diamond for decisions, rectangle for components). Include connections showing data flow.
+  description="Document [component name]",
+  prompt="Create inf-notes/[filename].yaml covering [specific areas].
 
-CRITICAL: After creating the YAML file, you MUST validate it:
-1. Run: python3 tools/yaml_checker.py inf-notes/module-auth.yaml
-2. If validation fails, fix the errors immediately
-3. Re-run validation until it passes
-4. Only mark your task complete when validation succeeds
+  Use 5-15 nodes with appropriate types:
+  - Rectangle: components, modules
+  - Circle: entry/exit points, external systems
+  - Diamond: decisions, conditionals
+  - Code/Text/Table: as needed
 
-DO NOT convert YAML to JSON! Only validate:
-- Use tools/yaml_checker.py for validation
-- Your job is to create valid YAML, not JSON
+  Mark 50-70% of nodes with subgraphs for deeper detail.
+  Use naming: parent__child.yaml (double underscore for nested levels).
 
-Common issues to fix:
-- Connection 'from'/'to' must match node text exactly (including \\n line breaks)
-- Group 'nodes' must reference existing node text
-- Subgraph files must exist if referenced
+  CRITICAL - Validate before completing:
+  1. Run: python3 tools/yaml_checker.py inf-notes/[filename].yaml
+  2. Fix any errors immediately
+  3. Re-validate until it passes
+  4. Only mark complete when validation succeeds
 
-Follow YAML format from /inf skill."
+  DO NOT convert to JSON - only validate YAML!
+
+  Common issues:
+  - Connection from/to must match node text exactly (including \\n)
+  - Group nodes must reference existing node text
+  - Subgraph files must exist or be removed"
 )
 ```
 
-**Key points**:
-- Each agent explores one component deeply
-- Each creates a focused YAML file (5-15 nodes)
-- **CRITICAL**: Each agent MUST validate their YAML before completing
-- Agents work simultaneously
-- Monitor progress, wait for all to complete
+**Wait for all agents to complete before proceeding.**
 
-## Phase 2.5: Validation
+## 4. Batch Validation
 
-**CRITICAL: Each agent validates their own YAML, then you verify all files!**
-
-### Individual Agent Validation (Required)
-
-Each agent MUST validate their YAML file before completing:
+Validate all files at current level:
 
 ```bash
-# Agent validates their own file
-python3 tools/yaml_checker.py inf-notes/module-auth.yaml
-```
-
-**Expected output:**
-```
-Validating: inf-notes/module-auth.yaml
-
-  [INFO] Converting YAML to Inf: inf-notes/module-auth.yaml (validate_only=True)
-  [INFO] Successfully converted: 8 nodes, 7 connections, 2 groups
-
-Structure:
-  Nodes:       8
-  Connections: 7
-  Groups:      2
-  Subgraphs:   3
-
-✓ Valid
-```
-
-**If validation fails**, agent must:
-1. Read the error messages carefully
-2. Fix the issues in the YAML file
-3. Re-run validation until it passes
-4. Only then mark task complete
-
-**IMPORTANT: DO NOT convert to JSON!**
-- Agents only create and validate YAML files
-- Conversion to JSON happens later (Phase 4)
-- Use `tools/yaml_checker.py` only (validation)
-
-### Batch Validation (After All Agents Complete)
-
-After all agents complete, verify all files together.
-
-**Validate each file individually**
-```bash
-# Validate all files one by one
+# Validate each file individually
 for file in inf-notes/*.yaml; do
-  echo "Validating: $file"
   python3 tools/yaml_checker.py "$file" || exit 1
 done
 echo "✓ All files validated!"
 ```
 
-**Common validation errors**:
-- `Node text '...' not found in nodes` - Connection/group references don't match node text exactly
-- `Subgraph file not found: ...` - Subgraph reference points to non-existent file
-- `Invalid YAML` - Syntax error in YAML file
+**Fix errors before proceeding:**
+- Text mismatch: Ensure exact text matching (including `\n`)
+- Missing subgraphs: Create referenced files or remove reference
+- YAML syntax: Check indentation, quotes, special characters
 
-**How to fix**:
-- For text mismatch: Ensure connection `from`/`to` and group `nodes` use exact node text (including all `\n` line breaks)
-- For missing subgraphs: Either create the referenced file or remove the subgraph reference
-- For YAML errors: Check indentation, quotes, special characters
+## 5. Review and Go Deeper
 
-**Only proceed when**:
-- All individual files validated by agents
-- Batch validation shows "✓ All files validated successfully!"
-- Zero warnings across all files
+After validation passes, **review each file systematically**. For every node in every file, ask:
 
-**Why this matters**:
-- Catches errors early before they cascade to deeper levels
-- Each agent is responsible for their output quality
-- Ensures YAML structure is valid and ready for conversion
-- Validates that connections and groups reference real nodes
-- Confirms all subgraph references are resolvable
+**"Could we explain more about this?"**
 
-## Phase 3: Deep Nesting (Recursive)
+Create a subgraph when the answer is yes:
 
-After level-1 subgraphs are validated:
+- **Component with multiple responsibilities** → Break down into sub-components
+- **Complex algorithm or process** → Detail the steps and logic
+- **Module with multiple files** → Show file relationships
+- **Multi-step interaction** → Expand the sequence
+- **Data structure with relationships** → Detail schema and connections
 
-1. Review generated files
-2. Identify nodes needing more detail
-3. Spawn agents for level-2 subgraphs
-4. Use naming: `parent-name__child-name.yaml`
-5. **Each agent validates their YAML** (using tools/yaml_checker.py)
-6. **Batch validate this level** (run Phase 2.5 batch validation)
-7. Continue recursively (no depth limit!)
+**When to stop:**
+- Node represents a single function or file (atomic)
+- Further detail would be implementation code (use code node with snippet instead)
+- Node is self-explanatory with no sub-components
 
-Example:
+**Then repeat steps 3-4** for the next level, spawning agents in parallel for identified nodes.
+
+**Target depth: 3-5 levels** for typical projects, 6+ for large/complex systems.
+
+**File hierarchy example:**
 ```
-api.yaml
-├── api__authentication.yaml
-│   ├── api__authentication__login.yaml
-│   └── api__authentication__oauth.yaml
-└── api__endpoints.yaml
-    ├── api__endpoints__users.yaml
-    └── api__endpoints__products.yaml
+root.yaml
+├── api.yaml
+│   ├── api__authentication.yaml
+│   │   ├── api__authentication__login.yaml
+│   │   └── api__authentication__oauth.yaml
+│   └── api__endpoints.yaml
+├── database.yaml
+│   └── database__schema.yaml
+└── frontend.yaml
 ```
 
-## Phase 4: Final Report & Conversion
+## Final Report
 
-**After all YAML files are created and validated:**
+After all levels complete:
 
-1. Run final batch validation on all files:
-   ```bash
-   # Option 1: Validate each file
-   for file in inf-notes/*.yaml; do
-     python3 tools/yaml_checker.py "$file" || exit 1
-   done
-   ```
-
-2. Confirm all subgraph references point to existing files
-
-3. Verify YAML syntax is valid across all levels
-
-4. Report completion summary:
-   - Total YAML files generated
-   - Hierarchy depth achieved
-   - File structure overview
-   - Validation status (all files valid)
-
-**Important**: All YAML files must be validated before completing Phase 4.
+1. **Final validation**: Verify all YAML files pass
+2. **Count files**: Report total generated and depth achieved
+3. **Tree structure**: Show file hierarchy overview
+4. **Status**: Confirm all files valid and ready
 
 ---
 
@@ -451,14 +388,11 @@ api.yaml
 
 ## Root Level
 - **Comprehensive overview** of entire system
-- **5-10 major components** (not too sparse, not too dense)
 - **Groups** for related areas (e.g., "Client Layer", "Services", "Data Layer")
-- **70% of nodes have subgraphs** for depth
-- **Appropriate layout**: LR for system architecture, TB for process flows
+- **Most nodes have subgraphs** for depth
 
 ## Subgraphs
 - **Focused scope**: One topic per file
-- **5-15 nodes** (manageable complexity)
 - **Clear connections** showing relationships
 - **Entry point nodes** (circles) showing context from parent
 - **Groups** to organize subsections
@@ -469,166 +403,10 @@ api.yaml
 - **Nested**: `parent__child.yaml` (double underscore)
 - **Descriptive**: Filename should clearly indicate content
 
-## Node Types (Semantic)
-- **Rectangle**: Components, modules, services
-- **Circle**: Entry/exit points, external systems, states
-- **Diamond**: Decisions, conditionals, branching logic
-- **Text**: Titles, annotations, explanations
-- **Code**: Commands, config, code snippets
-- **Table**: Data structures, schemas
-
 ## Connection Design
 - **Directed**: Flow, dependencies, sequence, cause-effect
 - **Undirected**: Associations, relationships, mutual dependencies
 - **Semantic accuracy**: Choose based on real relationships
-
----
-
-# Common Patterns
-
-## System Architecture
-```yaml
-nodes:
-  - text: "Frontend"
-    subgraph: "frontend.yaml"
-  - text: "Backend API"
-    subgraph: "backend.yaml"
-  - text: "Database"
-    type: circle
-
-connections:
-  - from: "Frontend"
-    to: "Backend API"
-  - from: "Backend API"
-    to: "Database"
-
-groups:
-  - name: "Application"
-    nodes: ["Frontend", "Backend API"]
-
-layout:
-  engine: dot
-  rankdir: LR
-```
-
-## Process Flow
-```yaml
-nodes:
-  - text: "Start"
-    type: circle
-  - text: "Input Data"
-    type: rectangle
-  - text: "Valid?"
-    type: diamond
-  - text: "Process"
-    type: rectangle
-  - text: "End"
-    type: circle
-
-connections:
-  - from: "Start"
-    to: "Input Data"
-  - from: "Input Data"
-    to: "Valid?"
-  - from: "Valid?"
-    to: "Process"
-  - from: "Process"
-    to: "End"
-
-layout:
-  engine: dot
-  rankdir: TB
-```
-
-## Module Dependencies
-```yaml
-nodes:
-  - text: "Core Module"
-  - text: "Auth Module"
-  - text: "Database Module"
-  - text: "Utils"
-
-connections:
-  - from: "Core Module"
-    to: "Utils"
-  - from: "Auth Module"
-    to: "Database Module"
-  - from: "Auth Module"
-    to: "Utils"
-
-layout:
-  engine: dot
-  rankdir: TB
-  ranksep: 1.5
-```
-
----
-
-# Validation Checklist
-
-**CRITICAL: After creating each YAML file, MUST run validation tool!**
-
-```bash
-python3 tools/yaml_checker.py inf-notes/your-file.yaml
-```
-
-**Manual checks before running validator:**
-
-- [ ] All node text is unique within the file
-- [ ] All connection references match node text exactly (including `\n` in multiline text)
-- [ ] **No special characters in node text** (avoid: `\` `"` `'` `<` `>` `{` `}` `..` - use descriptive words instead)
-- [ ] Node types are valid: rectangle, circle, diamond, text, code, table
-- [ ] Alignment values are valid: left, center, right
-- [ ] Layout engine is valid: dot, neato, fdp, circo, twopi
-- [ ] Layout direction is valid: TB, LR, BT, RL
-- [ ] Groups contain 1+ nodes
-- [ ] No coordinates, IDs, or sizes specified
-- [ ] Subgraph references point to files that exist or will be created
-
-**Automated validation (REQUIRED):**
-
-- [ ] Run `tools/yaml_checker.py` on your file
-- [ ] Validation passes with "✓ Valid"
-- [ ] Fix any errors reported
-- [ ] Re-validate until clean
-- [ ] DO NOT convert to JSON
-
----
-
-# Status Updates
-
-Keep the user informed throughout:
-
-- "🔍 Analyzing repository structure..."
-- "📝 Creating root.yaml with X major components..."
-- "🤖 Spawning N agents for parallel subgraph creation..."
-- "⏳ Agents working... (Y/X complete)"
-- "✅ All agents complete!"
-- "🔍 Validating level-N YAML files..."
-- "✅ Validation passed! All files valid."
-- "🔄 Reviewing subgraphs for deeper expansion..."
-
----
-
-# Best Practices
-
-1. **Explore before creating** - Understand structure before documenting
-2. **Parallel execution** - Spawn multiple agents, don't work sequentially
-3. **Each agent validates** - Every agent MUST run tools/yaml_checker.py on their file
-4. **NO conversion by agents** - Agents create YAML only, NO JSON conversion
-5. **Fix errors immediately** - Agents fix validation errors before marking complete
-6. **Batch validate each level** - Validate all files with yaml_checker.py loop before proceeding deeper
-7. **Don't cascade errors** - Never proceed to next level with validation failures
-8. **Convert only at end** - JSON conversion happens in Phase 4, after all YAML complete
-9. **Appropriate depth** - Go deep where complexity exists, stay shallow for simple areas
-10. **Semantic node types** - Choose based on meaning, not appearance
-11. **Meaningful connections** - Show real relationships and flow
-12. **Exact text matching** - Connection references must match node text exactly (including \n)
-13. **Avoid special characters** - Use descriptive words instead of `\` `"` `'` `<` `>` `{}` `..` in node text (prevents Graphviz errors)
-14. **Groups for organization** - Visual structure helps comprehension
-15. **No artificial limits** - Embrace infinite depth if topic requires it
-16. **Consistent naming** - Use clear, descriptive filenames
-17. **Single responsibility** - Each file covers one cohesive topic
 
 ---
 
@@ -657,7 +435,7 @@ cp SKILL.md ~/.claude/skills/inf/
 - **Groups show organization** - Organize related nodes visually
 - **Parallel agents save time** - Don't create files one by one
 - **CRITICAL: Each agent validates** - Run tools/yaml_checker.py on every generated file
-- **NO JSON conversion by agents** - Agents create YAML only, conversion happens in Phase 4
+- **NO JSON conversion by agents** - Agents create YAML only
 - **Agents fix their errors** - Don't mark complete until validation passes
 - **Batch validate each level** - Ensure all files valid before proceeding deeper
 - **Never cascade errors** - Catch errors early before they cascade
