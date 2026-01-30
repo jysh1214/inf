@@ -274,6 +274,11 @@ CRITICAL: After creating the YAML file, you MUST validate it:
 3. Re-run validation until it passes
 4. Only mark your task complete when validation succeeds
 
+DO NOT convert YAML to JSON! Only validate:
+- Use tools/yaml_checker.py for validation (correct)
+- DO NOT use tools/yaml2inf.py for conversion (wrong - only for final batch conversion)
+- Your job is to create valid YAML, not JSON
+
 Common issues to fix:
 - Connection 'from'/'to' must match node text exactly (including \\n line breaks)
 - Group 'nodes' must reference existing node text
@@ -324,6 +329,12 @@ Structure:
 2. Fix the issues in the YAML file
 3. Re-run validation until it passes
 4. Only then mark task complete
+
+**IMPORTANT: DO NOT convert to JSON!**
+- Agents only create and validate YAML files
+- Conversion to JSON happens later (Phase 4)
+- Use `tools/yaml_checker.py` only (validation)
+- DO NOT use `tools/yaml2inf.py` (conversion)
 
 ### Batch Validation (After All Agents Complete)
 
@@ -379,23 +390,37 @@ api.yaml
     └── api__endpoints__products.yaml
 ```
 
-## Phase 4: Final Report
+## Phase 4: Final Report & Conversion
+
+**After all YAML files are created and validated:**
 
 1. Run final batch validation on all files:
    ```bash
    python3 tools/yaml2inf.py inf-notes/ --validate --verbose
    ```
+
 2. Confirm all subgraph references point to existing files
+
 3. Verify YAML syntax is valid across all levels
-4. Report completion summary:
-   - Total files generated
+
+4. **NOW convert YAML to JSON** (only after all validation passes):
+   ```bash
+   python3 tools/yaml2inf.py inf-notes/ --verbose
+   ```
+
+5. Report completion summary:
+   - Total YAML files generated
+   - Total JSON files created
    - Hierarchy depth achieved
    - File structure overview
    - Validation status (all files valid)
-   - Conversion command for user:
+   - Conversion command user can run:
      ```bash
+     # To re-convert if needed
      python3 tools/yaml2inf.py inf-notes/
      ```
+
+**Important**: Conversion only happens once, at the end, after ALL YAML files are complete and validated.
 
 ---
 
@@ -542,6 +567,7 @@ python3 tools/yaml_checker.py inf-notes/your-file.yaml
 - [ ] Validation passes with "✓ Valid"
 - [ ] Fix any errors reported
 - [ ] Re-validate until clean
+- [ ] DO NOT convert to JSON (that happens later in Phase 4)
 
 ---
 
@@ -563,6 +589,8 @@ Keep the user informed throughout:
 - "🔍 Validating level-2 YAML files..."
 - "✅ Validation passed! All files valid."
 - "✅ Generated 23 YAML files with 3 levels of depth in inf-notes/"
+- "🔄 Converting YAML to JSON..."
+- "✅ Converted 23 files successfully!"
 
 ---
 
@@ -571,17 +599,19 @@ Keep the user informed throughout:
 1. **Explore before creating** - Understand structure before documenting
 2. **Parallel execution** - Spawn multiple agents, don't work sequentially
 3. **Each agent validates** - Every agent MUST run tools/yaml_checker.py on their file
-4. **Fix errors immediately** - Agents fix validation errors before marking complete
-5. **Batch validate each level** - Run tools/yaml2inf.py --validate before proceeding deeper
-6. **Don't cascade errors** - Never proceed to next level with validation failures
-7. **Appropriate depth** - Go deep where complexity exists, stay shallow for simple areas
-8. **Semantic node types** - Choose based on meaning, not appearance
-9. **Meaningful connections** - Show real relationships and flow
-10. **Exact text matching** - Connection references must match node text exactly (including \n)
-11. **Groups for organization** - Visual structure helps comprehension
-12. **No artificial limits** - Embrace infinite depth if topic requires it
-13. **Consistent naming** - Use clear, descriptive filenames
-14. **Single responsibility** - Each file covers one cohesive topic
+4. **NO conversion by agents** - Agents create YAML only, NO JSON conversion
+5. **Fix errors immediately** - Agents fix validation errors before marking complete
+6. **Batch validate each level** - Run tools/yaml2inf.py --validate before proceeding deeper
+7. **Don't cascade errors** - Never proceed to next level with validation failures
+8. **Convert only at end** - JSON conversion happens in Phase 4, after all YAML complete
+9. **Appropriate depth** - Go deep where complexity exists, stay shallow for simple areas
+10. **Semantic node types** - Choose based on meaning, not appearance
+11. **Meaningful connections** - Show real relationships and flow
+12. **Exact text matching** - Connection references must match node text exactly (including \n)
+13. **Groups for organization** - Visual structure helps comprehension
+14. **No artificial limits** - Embrace infinite depth if topic requires it
+15. **Consistent naming** - Use clear, descriptive filenames
+16. **Single responsibility** - Each file covers one cohesive topic
 
 ---
 
@@ -610,6 +640,7 @@ cp SKILL.md ~/.claude/skills/inf/
 - **Groups show organization** - Organize related nodes visually
 - **Parallel agents save time** - Don't create files one by one
 - **CRITICAL: Each agent validates** - Run tools/yaml_checker.py on every generated file
+- **NO JSON conversion by agents** - Agents create YAML only, conversion happens in Phase 4
 - **Agents fix their errors** - Don't mark complete until validation passes
 - **Batch validate each level** - Ensure all files valid before proceeding deeper
 - **Never cascade errors** - Catch errors early before they cascade
