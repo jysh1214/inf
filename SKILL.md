@@ -287,6 +287,12 @@ Create `inf-notes/root.yaml` with system overview:
 
 Spawn 8-16 agents in parallel using Task tool. Each agent creates one subgraph file.
 
+**IMPORTANT: Spawn fresh agents for each level!**
+- Don't continue previous agents - spawn NEW agents for each level
+- Level-1: Give agents only their component scope (not entire repo)
+- Level-2+: Give agents only parent file + specific node to expand
+- This prevents context accumulation and token limit issues
+
 **Agent prompt template:**
 ```
 Task(
@@ -356,7 +362,22 @@ Create a subgraph when the answer is yes:
 - Further detail would be implementation code (use code node with snippet instead)
 - Node is self-explanatory with no sub-components
 
-**Then repeat steps 3-4** for the next level, spawning agents in parallel for identified nodes.
+**Then repeat steps 3-4** for the next level, spawning fresh agents in parallel.
+
+**Example for level-2+:**
+```
+Task(
+  description="Expand Authentication node",
+  prompt="Read inf-notes/api.yaml and expand the 'Authentication' node.
+
+  Create inf-notes/api__authentication.yaml covering login, token handling,
+  session management. Use 8-12 nodes. Mark 40-60% with subgraphs.
+
+  Validate with: python3 tools/yaml_checker.py inf-notes/api__authentication.yaml"
+)
+```
+
+Each agent gets only what it needs - no accumulated context from previous levels.
 
 **Target depth: 3-5 levels** for typical projects, 6+ for large/complex systems.
 
