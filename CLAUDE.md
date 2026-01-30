@@ -4,11 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Inf is a single-file canvas-based diagram note-taking application. The app uses vanilla JavaScript with HTML5 Canvas for rendering. The build system merges modular source files into a single `index.html` file for distribution.
+Inf is a comprehensive diagram note-taking system with three main components:
+
+1. **Canvas Application** - Single-file HTML5 Canvas-based diagram editor (JavaScript)
+2. **YAML Tools** - Python utilities for converting YAML diagrams to Inf JSON format
+3. **Claude Code Skill** - `/inf` command for generating hierarchical documentation
+
+## Repository Structure
+
+```
+inf/
+├── src/                    # Canvas app source files (JavaScript/CSS/HTML)
+│   ├── template.html       # HTML structure
+│   ├── styles.css          # Styling
+│   └── *.js                # 12 JavaScript modules (see order below)
+├── tools/                  # Python conversion tools
+│   ├── converter.py        # YAML → Inf structure conversion
+│   ├── graphviz.py         # Layout computation with Graphviz
+│   ├── yaml2inf.py         # Main conversion script
+│   └── yaml_checker.py     # Validation-only script
+├── build.py                # Builds src/ → index.html
+├── check.py                # Validates build output
+├── SKILL.md                # /inf skill documentation
+├── YAML_FORMAT.md          # YAML format specification
+└── INF_FORMAT.md           # JSON format specification
+```
 
 ## Build System
 
-The project uses Python scripts to build and validate the final output:
+### Canvas Application Build
 
 ```bash
 # Build the application
@@ -21,17 +45,44 @@ python3 build.py --check
 python3 check.py
 ```
 
-The build process:
-1. Reads `src/template.html` as the base HTML structure
-2. Injects CSS from `src/styles.css` into the `<!-- CSS -->` placeholder
-3. Injects JavaScript files from `src/` in dependency order into the `<!-- JS -->` placeholder
-4. Outputs a single `index.html` file (gitignored)
+**Build Process:**
+1. Reads `src/template.html` as base HTML structure
+2. Injects CSS from `src/styles.css` into `<!-- CSS -->` placeholder
+3. Injects JavaScript files from `src/` in dependency order into `<!-- JS -->` placeholder
+4. Outputs single `index.html` file (gitignored)
 
-**Important**: The `index.html` file is generated and should never be edited directly. All changes must be made to source files in `src/`.
+**Important**: `index.html` is generated and should never be edited directly. All changes must be made to source files in `src/`.
+
+### YAML Tools Usage
+
+```bash
+# Validate a single YAML file
+python3 tools/yaml_checker.py <file.yaml>
+
+# Validate all YAML files in a folder
+python3 tools/yaml2inf.py <folder>/ --validate --verbose
+
+# Convert YAML files to Inf JSON
+python3 tools/yaml2inf.py <folder>/ --verbose
+
+# Convert with custom layout
+python3 tools/yaml2inf.py <folder>/ --engine neato --rankdir LR
+```
+
+**Common Options:**
+- `--validate` - Validate only, don't generate JSON
+- `--verbose` - Show conversion progress
+- `--debug` - Detailed debugging output
+- `--engine` - Layout engine: dot (default), neato, fdp, circo, twopi
+- `--rankdir` - Direction: TB (default), LR, BT, RL
 
 ## Architecture
 
-### JavaScript Module Loading Order
+### Canvas Application
+
+The canvas app uses vanilla JavaScript with HTML5 Canvas for rendering. The build system merges modular source files into a single `index.html` for distribution.
+
+#### JavaScript Module Loading Order
 
 The build system concatenates JavaScript files in a specific dependency order (defined in `build.py:34-46`):
 
@@ -50,7 +101,7 @@ The build system concatenates JavaScript files in a specific dependency order (d
 
 **Critical**: When adding new JavaScript files or modifying dependencies between files, update both the `js_files` array in `build.py` and the `expected_modules` list in `check.py` to maintain the correct load order. Currently 12 modules total.
 
-### State Management
+#### State Management
 
 Global state is managed through variables in `state.js`. Key state includes:
 
@@ -80,7 +131,7 @@ Global state is managed through variables in `state.js`. Key state includes:
 - `currentPath` array - Array of node IDs from root to current position
 - `fileHandleMap` Map - Maps node IDs to FileSystemFileHandle objects for file-based subgraphs
 
-### Node System
+#### Node System
 
 Six node types are supported: `rectangle`, `circle`, `diamond`, `text`, `code`, `table`. Each type has different:
 - Geometry representation (x/y/width/height for rectangles, x/y/radius for circles)
@@ -116,7 +167,7 @@ All nodes share common properties: `id`, `type`, `text`, `textAlign`.
 - Ctrl+Click on a node creates a new subgraph or enters an existing one
 - The modal in `ui.js` prompts users to choose: Embedded, New File, or Load Existing
 
-### Connection System
+#### Connection System
 
 Connections are directional or undirectional edges between nodes. The system:
 - Prevents self-connections and duplicate connections (`createConnection` in `nodeManager.js`)
@@ -137,56 +188,7 @@ The rendering approach ensures perfect alignment and no gaps:
    - Handles zero-length connections (epsilon check: `|dx| < 0.001`)
    - Uses floating-point epsilon values (0.0001, 0.001) for comparisons
 
-### File Operations & Subgraph System
-
-The app supports multiple storage mechanisms:
-
-1. **Auto-save to localStorage**: Automatic debounced saves (1s delay) to localStorage with validation on load. Includes subgraph navigation state (stack, depth, path).
-
-2. **Manual JSON save/load**:
-   - Uses File System Access API (Chrome/Edge) for native file picker
-   - Falls back to prompt-based filename input and blob download for other browsers
-   - Includes comprehensive validation with detailed error messages (`validateNode`, `validateConnection`, `validateSubgraph` in `fileOperations.js`)
-
-3. **Hierarchical Subgraph Navigation**:
-   - **Creating subgraphs**: Ctrl+Click on a node opens a modal with three options (via `showSubgraphModal()` in `ui.js`)
-   - **Entering subgraphs**: After creation or Ctrl+Click on nodes with subgraphs, calls `enterSubgraph()` which:
-     - Saves current state to `subgraphStack`
-     - Loads subgraph data (from embedded object or external file via File System Access API)
-     - Updates `currentDepth` and `currentPath`
-     - Validates against circular references
-   - **Exiting subgraphs**: Escape key or "Back to Parent" button calls `exitSubgraph()` which:
-     - Saves current subgraph changes (to parent node object or external file)
-     - Pops from `subgraphStack` to restore parent state
-     - Updates navigation breadcrumb
-   - **File-based subgraphs**: Three-tier file access system
-     - `fileHandleMap` (memory): Session-only cache for fast access
-     - IndexedDB: Persistent FileSystemFileHandle storage (survives page reload)
-     - Workspace folder: Directory-level permission for batch file access
-   - **Workspace folder**: Users can authorize a folder via Directory Picker API (`selectWorkspaceFolder()`)
-     - All files in authorized folder open automatically without file picker
-     - Directory handle stored in IndexedDB (persists across reloads)
-     - `findFileInDirectory()` searches workspace for subgraph files by filename
-   - **Circular reference prevention**: Validates that embedded subgraphs don't create cycles via node ID path checking, and file-based subgraphs aren't already in the stack
-
-4. **IndexedDB for Persistent Storage** (`indexedDB.js`):
-   - Stores FileSystemFileHandle objects (can't use localStorage)
-   - Stores FileSystemDirectoryHandle for workspace folder
-   - DB_VERSION = 2 (v1: fileHandles, v2: added directoryHandle store)
-   - Functions: `storeFileHandle()`, `getFileHandle()`, `deleteFileHandle()`, `storeDirectoryHandle()`, `getDirectoryHandle()`, `findFileInDirectory()`
-   - Verifies permissions before using stored handles (`verifyPermission()`)
-   - File access priority: memory cache → IndexedDB → workspace folder → file picker
-   - **Singleton promise pattern**: Prevents race conditions during initialization
-     - `dbPromise` variable tracks initialization in progress
-     - If `db` exists, returns immediately
-     - If `dbPromise` exists, waits for existing initialization
-     - On failure, resets `dbPromise` to null to allow retry
-   - **Error handling**: All functions wrapped in try/catch with graceful degradation
-     - Returns null on failure to allow fallback to file picker
-     - Detects QuotaExceededError with specific error messages
-     - Non-critical operations (delete) log warnings instead of throwing
-
-### Validation System
+#### Validation System
 
 **Build Validation** (`check.py`):
 - File existence and size checks
@@ -208,9 +210,137 @@ The app supports multiple storage mechanisms:
 - Circular reference detection for both embedded and file-based subgraphs
 - JSON parsing with detailed error context (node index, property names)
 
+### YAML Tools Architecture
+
+The Python tools follow a modular architecture with clear separation of concerns:
+
+```
+┌─────────────────┐
+│  yaml2inf.py    │  Main script (orchestration)
+└────────┬────────┘
+         │
+         ├──────────────────┬──────────────────┐
+         │                  │                  │
+         v                  v                  v
+┌────────────────┐  ┌───────────────┐  ┌──────────────┐
+│ converter.py   │  │ graphviz.py   │  │ File I/O     │
+│                │  │               │  │              │
+│ YAML → Inf     │  │ Layout        │  │ Read/Write   │
+│ (structure)    │  │ (positions)   │  │ JSON files   │
+└────────────────┘  └───────────────┘  └──────────────┘
+
+┌─────────────────┐
+│yaml_checker.py  │  Single-file validation wrapper
+└────────┬────────┘
+         │
+         v
+┌────────────────┐
+│ converter.py   │  Validate only (no layout, no JSON output)
+└────────────────┘
+```
+
+**Design Principles:**
+- **Separation of Concerns**: `converter.py` handles YAML → Inf structure, `graphviz.py` handles layout, `yaml2inf.py` orchestrates
+- **Modularity**: Each module can be imported and used independently
+- **Single Responsibility**: Each function does one thing well
+
+**Key Modules:**
+
+**converter.py** - Core conversion logic:
+- `parse_yaml_file(file_path)` - Parse YAML file
+- `convert_yaml_to_inf(yaml_path, validate_only)` - Convert YAML to Inf structure
+- `create_inf_node(...)` - Create node structure
+- `create_inf_connection(...)` - Create connection structure
+- `create_inf_group(...)` - Create group structure
+- `resolve_subgraph_path(...)` - Resolve subgraph file references
+
+**graphviz.py** - Layout computation:
+- `calculate_text_dimensions(text, node_type)` - Calculate node size
+- `create_graphviz_layout(nodes, connections, layout_config)` - Compute positions
+- `apply_layout(inf_json, yaml_data, layout_config)` - Apply layout to Inf structure
+- `calculate_canvas_bounds(positions, nodes)` - Calculate canvas size
+
+### Claude Code Skill (`/inf`)
+
+The `/inf` skill generates hierarchical documentation for any repository using multi-agent orchestration:
+
+**Phase 1: Repository Analysis**
+1. Explore codebase structure
+2. Identify architecture and key components
+3. Create `inf-notes/root.yaml` with 5-10 major components
+
+**Phase 2: Parallel Subgraph Creation**
+1. Spawn 8-16 agents in parallel using Task tool
+2. Each agent creates a focused YAML file (5-15 nodes)
+3. **Each agent MUST validate their YAML** using `tools/yaml_checker.py`
+4. Agents fix validation errors before marking complete
+
+**Phase 2.5: Validation**
+1. Each agent validates their own file with `tools/yaml_checker.py`
+2. Batch validation with `tools/yaml2inf.py --validate --verbose`
+3. Fix errors before proceeding to next level
+
+**Phase 3: Deep Nesting (Recursive)**
+1. Review generated files, identify nodes needing detail
+2. Spawn agents for level-2 subgraphs
+3. Use naming: `parent-name__child-name.yaml`
+4. Continue recursively (no depth limit!)
+
+**Phase 4: Final Report & Conversion**
+1. Run final batch validation
+2. Convert all YAML to JSON: `python3 tools/yaml2inf.py inf-notes/ --verbose`
+3. Report completion summary
+
+**Important**: Agents create YAML files only. JSON conversion happens once at the end in Phase 4. Agents MUST validate their YAML before completing.
+
+## YAML Format
+
+The YAML format is designed for AI-friendly diagram creation. **AI writes structure, script handles layout.**
+
+### Basic Template
+
+```yaml
+nodes:
+  - text: "Node 1"
+    type: rectangle    # Optional: rectangle (default), circle, diamond, text, code, table
+    align: center      # Optional: left, center (default), right
+
+  - text: "Node 2"
+    type: circle
+
+connections:
+  - from: "Node 1"
+    to: "Node 2"
+    directed: true     # Optional: true (default), false
+
+groups:
+  - name: "Group Name"
+    nodes: ["Node 1", "Node 2"]
+
+layout:
+  engine: dot          # Optional: dot (default), neato, fdp, circo, twopi
+  rankdir: TB          # Optional: TB (default), LR, BT, RL
+```
+
+### Key Principles
+
+**AI specifies:**
+- Node text, types, connections, relationships, groups
+- Layout preferences (engine, direction, spacing)
+
+**AI does NOT specify:**
+- Coordinates, IDs, sizes, canvas dimensions (computed automatically)
+
+**File-based subgraphs:**
+```yaml
+nodes:
+  - text: "Authentication"
+    subgraph: "module-auth.yaml"  # Always include .yaml extension
+```
+
 ## Code Patterns
 
-### Adding New Node Types
+### Adding New Node Types to Canvas App
 
 To add a new node type (example: Code node was added in v1.4):
 1. Add default size constants to `constants.js` (e.g., `DEFAULT_CODE_WIDTH`, `DEFAULT_CODE_HEIGHT`)
@@ -225,13 +355,7 @@ To add a new node type (example: Code node was added in v1.4):
    - Add to `validTypes` array in `validateNode()`
    - Add to type-specific validation conditions (width/height checks)
 10. Update `autoSave.js` validation if type needs special handling
-11. Update documentation (INF_NOTE_GUIDE.md, AI_PROMPT.md)
-
-**Code Node Example Patterns:**
-- Conditional rendering based on edit state (`isEditing ? plainText : syntaxHighlighted`)
-- Pre-compiled regex patterns for performance (`SYNTAX_PATTERNS` in constants.js)
-- Helper functions for token classification (`getSyntaxColor()`)
-- Cursor positioning must match rendering exactly (measure same way you draw)
+11. Update documentation (INF_FORMAT.md, YAML_FORMAT.md)
 
 ### Adding New Global State
 
@@ -259,63 +383,6 @@ Call `render()` after any state change that affects visual output. Call `trigger
   - Users can copy nodes from any graph and paste into any other graph
   - Clipboard persists across all navigation operations
 
-## Text Editing & Cursor System
-
-**Cursor Position Tracking:**
-- `cursorPosition` tracks character index in text (0 to text.length)
-- Set when entering edit mode (to end of text or 0 for new nodes)
-- Updated on all text operations (insert, delete, arrow keys)
-
-**Keyboard Navigation:**
-- **ArrowLeft/Right**: Move cursor by character
-- **ArrowUp/Down**: Move cursor by line (maintains column position)
-- **Home/End**: Jump to start/end of current line
-- **Backspace**: Delete before cursor
-- **Delete**: Delete after cursor
-- **Enter**: Insert newline at cursor position
-- **Shift+Enter/Escape**: Exit edit mode
-
-**Arrow Key Implementation:**
-- Splits text into lines by `\n`
-- Calculates current line and position within line
-- For Up: `prevLineStart = charCount - lines[currentLine - 1].length - 1; cursorPosition = prevLineStart + newPosInLine`
-- For Down: `nextLineStart = charCount + lines[currentLine].length + 1; cursorPosition = nextLineStart + newPosInLine`
-- Bounds checking: `cursorPosition = Math.max(0, Math.min(cursorPosition, text.length))`
-- Empty text edge case: Return early if `!text`
-
-**Cursor Rendering:**
-- Code nodes: Measure substring directly for accurate positioning
-- Text nodes: Track character positions through word wrapping using `lineCharStarts` array
-- Blinking cursor at 500ms intervals (CURSOR_BLINK_RATE constant)
-- Reset blink on every input to ensure cursor is visible
-
-## Canvas Rendering
-
-The rendering pipeline (`render()` in `renderer.js`):
-1. Clear canvas
-2. Apply zoom transform (`ctx.scale(zoom, zoom)`)
-3. Draw all connections with edge point calculations
-4. Draw connection preview if in connection mode (dashed green line)
-5. Draw all nodes with type-specific rendering
-6. Draw hover effects (dashed border around hovered node)
-7. Restore transform
-
-Visual states are indicated by colors and borders:
-- Selected: blue border (`#2196f3`)
-- Editing: yellow background (`#fff9c4`) and orange border (`#ffa000`)
-- Hovered: dashed blue border (`#2196f3`), green in connection mode (`#4caf50`)
-- Has subgraph: 4px thick border (normal, selected, or editing color)
-- Connection selected: blue line and arrowhead (`#2196f3`, width 3)
-- Connection normal: gray line and arrowhead (`#666`, width 2)
-
-**Mouse coordinate transformation:**
-- `getMousePos()` converts viewport coordinates to canvas coordinates
-- Accounts for canvas position: `e.clientX - rect.left`
-- Accounts for zoom: divide by `zoom` factor
-- Does NOT account for scroll (getBoundingClientRect already viewport-relative)
-
-**Performance note:** Rendering is O(n + m) where n = nodes, m = connections. No quadratic loops.
-
 ## Important Architecture Principles
 
 ### The Spirit of Infinity
@@ -327,97 +394,48 @@ The project name "Inf" reflects a core principle: **no artificial limits**. This
 
 When implementing features, avoid adding arbitrary limits unless there's a technical necessity (like browser/canvas limitations).
 
-### Modal UI Pattern
+### YAML Validation Philosophy
 
-The modal system in `ui.js` provides a template for future UI components:
-- Promise-based async API (`showSubgraphModal()` returns user choice)
-- Overlay with blur backdrop for modern aesthetics
-- Close on overlay click or Escape key (using `stopImmediatePropagation()` to prevent event conflicts)
-- Smooth CSS animations (slide-in effect)
-- Consistent styling with the rest of the app
+**Critical**: Agents MUST validate YAML before considering their work complete:
+- Each agent validates their own file using `tools/yaml_checker.py`
+- Agents fix validation errors immediately
+- NO JSON conversion by agents (only YAML creation)
+- Batch validation happens after each level completes
+- Never proceed to next level with validation failures
+- Conversion to JSON happens once at the end (Phase 4)
 
-### File System Access API Strategy
+**Why this matters:**
+- Catches errors early before they cascade to deeper levels
+- Each agent is responsible for their output quality
+- Ensures `tools/yaml2inf.py` can successfully convert all files
+- Validates connections and groups reference real nodes
+- Confirms all subgraph references are resolvable
 
-For file operations:
-- **Prefer** File System Access API when available (`'showSaveFilePicker' in window`, `'showDirectoryPicker' in window`)
-- **Fallback** to prompt-based input and blob downloads for unsupported browsers
-- **IndexedDB persistence**: FileSystemFileHandle objects ARE stored in IndexedDB (not localStorage)
-  - Handles persist across page reloads
-  - Permission verification on retrieval (`verifyPermission()`)
-  - Three-tier access: memory → IndexedDB → workspace → file picker
+### Validation Workflow
 
-### Workspace Folder Strategy
+**For agents creating YAML files:**
+```bash
+# Agent validates their own file (REQUIRED)
+python3 tools/yaml_checker.py inf-notes/module-auth.yaml
 
-**Recommended workflow** for file-based subgraphs:
-1. User clicks "Set Folder" to authorize a workspace directory
-2. **Auto-loads `root.json`** if it exists in the workspace folder
-3. All diagram files for a project live in that folder
-4. Files in workspace open automatically (no picker prompts)
-5. Directory permission persists across sessions (stored in IndexedDB)
+# Expected: "✓ Valid" output
+# If errors: Fix immediately, re-validate, repeat until clean
+```
 
-**Implementation:**
-- Use Directory Picker API (`showDirectoryPicker()`)
-- Store `FileSystemDirectoryHandle` in IndexedDB
-- **`root.json` convention**: Main diagram file named `root.json` auto-loads when workspace is set
-- Search workspace by filename using `dirHandle.getFileHandle(filename)`
-- Falls back to individual file picker for files outside workspace
-- **Relative paths only**: File-based subgraphs use filenames only (e.g., `"module-auth.json"`)
-- **Workspace required**: UI enforces workspace folder setup before allowing file-based subgraphs
-- Best UX: Minimal permission prompts, maximum automation
+**After all agents complete a level:**
+```bash
+# Batch validate entire folder
+python3 tools/yaml2inf.py inf-notes/ --validate --verbose
 
-**File Access Flow (`loadSubgraphFromFile`):**
-1. Check memory cache for file handle
-2. Check IndexedDB for persisted handle → verify permission → validate handle is not stale
-3. If handle stale (file deleted/moved), clear from cache and IndexedDB
-4. Try workspace folder by filename
-5. Fallback to file picker prompt
-6. Store new handle in memory + IndexedDB for future use
+# Expected: "✓ All files validated successfully!"
+# Only proceed to next level if this passes
+```
 
-**Performance optimization:** File handle validation reuses the file object instead of calling `getFile()` twice
-
-### Event Handler Priority
-
-Multiple keydown listeners exist on `document`. When adding new global keyboard shortcuts:
-- Check for conflicts in both `eventHandlers.js` and `ui.js`
-- Use `stopImmediatePropagation()` (not just `stopPropagation()`) to prevent other listeners on the same element from firing
-- Modal/overlay handlers should check visibility state before acting
-
-## Key Interactions
-
-### Ctrl+Click Behavior (Context-Dependent)
-
-**On regular nodes (with Shift):**
-1. Creates/enters subgraph (modal appears if no subgraph exists)
-2. Modal via `showSubgraphModal()` offers: Embedded, New File, or Load Existing
-3. File validation happens before linking
-4. `enterSubgraph(node)` called automatically after creation
-
-**On regular nodes (without Shift):**
-1. Multi-select toggle - adds/removes node from `selectedNodeIds` Set
-2. Allows selecting multiple nodes for copy/paste or alignment
-3. Status shows: "Node #X added/removed from selection (N selected)"
-
-**On table cells:**
-1. Similar subgraph behavior but for individual cells
-2. Calls `createCellSubgraph()` or `enterCellSubgraph()`
-3. Cell-level subgraph navigation supported
-
-### Escape Key Priority (Top to Bottom)
-1. **Error modal visible**: `ui.js` closes error modal first
-2. **Other modal visible**: `ui.js` closes subgraph/table modal
-3. **Editing text**: `eventHandlers.js` exits edit mode
-4. **Connection mode**: `eventHandlers.js` cancels connection
-5. **In subgraph** (depth > 0): `eventHandlers.js` exits to parent
-6. Order matters - use `stopImmediatePropagation()` to prevent cascading
-
-### Copy/Paste Multi-Select
-1. Select multiple nodes with Ctrl+Click
-2. Press Ctrl+C to copy all selected nodes
-3. Press Ctrl+V to paste with relative positioning preserved
-4. Pasted nodes maintain spatial relationships
-5. New IDs assigned to pasted nodes
-6. **Cross-graph support:** Copy from any graph, paste into any other graph (v2.4+)
-7. **Note:** Connections between nodes are NOT copied - only the nodes themselves
+**Final conversion (Phase 4 only):**
+```bash
+# Convert all YAML to JSON (after all YAML complete)
+python3 tools/yaml2inf.py inf-notes/ --verbose
+```
 
 ## Common Issues and Solutions
 
@@ -429,6 +447,23 @@ If connections don't touch node borders or have gaps:
 3. Ensure edge bounds checking (x/y within rectangle/circle/diamond boundaries)
 4. For rectangles, verify all 4 edges are checked and closest intersection is returned
 5. Check epsilon values for floating-point comparisons (0.001 for distance, 0.0001 for line intersection)
+
+### YAML Validation Errors
+
+**Common validation errors:**
+- `Node text '...' not found in nodes` - Connection/group references don't match node text exactly
+  - **Fix**: Ensure connection `from`/`to` and group `nodes` use exact node text (including all `\n` line breaks)
+- `Subgraph file not found: ...` - Subgraph reference points to non-existent file
+  - **Fix**: Either create the referenced file or remove the subgraph reference
+- `Invalid YAML` - Syntax error in YAML file
+  - **Fix**: Check indentation, quotes, special characters
+
+**How to debug:**
+1. Run `tools/yaml_checker.py` on the problematic file
+2. Read error messages carefully (they include context)
+3. Check that connection text matches node text exactly (case-sensitive, including `\n`)
+4. Verify all subgraph files exist before referencing them
+5. Use `--debug` flag for detailed output
 
 ### IndexedDB Issues
 
@@ -449,69 +484,6 @@ If "Failed to access file" errors occur:
 4. System falls back to workspace folder search, then file picker
 5. No user action needed - automatic recovery handles this gracefully
 
-### Mouse Position Issues
-
-If clicks don't match visual positions:
-1. Verify `getMousePos()` doesn't double-count scroll offset
-2. Check getBoundingClientRect() is used (viewport-relative coordinates)
-3. Ensure zoom transformation is applied correctly
-4. Do NOT add `container.scrollLeft/Top` (rect is already adjusted for scroll)
-
-### Cursor Positioning Issues in Code Nodes
-
-If cursor appears offset or shows extra spaces while editing:
-1. Ensure cursor position is measured the same way text is rendered
-2. For Code nodes: Use direct substring measurement, NOT token-by-token addition
-   - Tokenization for syntax highlighting can cause measurement mismatches
-   - Cursor position: `ctx.measureText(line.substring(0, cursorPosInLine)).width`
-3. Render plain text while editing to avoid tokenization measurement issues
-4. Only apply syntax highlighting in view mode (when not editing)
-5. Verify ArrowUp/Down calculations don't use incorrect formulas
-   - Correct: `prevLineStart = charCount - lines[currentLine - 1].length - 1`
-   - Incorrect: Subtracting both current and previous line lengths
-
-### Font Configuration
-
-Font is configurable via constants in `constants.js`:
-- `FONT_FAMILY` - Font family for regular nodes (default: `'sans-serif'`)
-- `FONT_SIZE` - Font size in pixels for regular nodes (default: `14`)
-- `CODE_FONT_FAMILY` - Monospace font for code nodes (default: `'Monaco, Menlo, "Courier New", monospace'`)
-- `CODE_FONT_SIZE` - Font size for code nodes (default: `13`)
-
-Change these constants to customize text rendering across all nodes.
-
-### Syntax Highlighting Configuration
-
-Syntax highlighting colors and keywords in `constants.js`:
-- `SYNTAX_COLORS` - Object mapping token types to colors (keyword, string, number, comment, default)
-- `SYNTAX_KEYWORDS` - Array of 70+ keywords for JavaScript/TypeScript, C/C++, and Python
-  - Organized into: Shared keywords, JavaScript-specific, C/C++-specific, Python-specific
-- `SYNTAX_PATTERNS` - Pre-compiled regex patterns for performance
-  - `string`: `/^["'`]/`
-  - `number`: `/^[0-9]/`
-  - `comment`: `/^(\/\/|#)/` (supports both // and # comments)
-
-**Performance:** Pre-compiling regex patterns provides ~30% faster syntax highlighting vs creating patterns on each token check.
-
-### UI Design System
-
-**Modern gradient theme** (v1.5):
-- Purple gradient primary color: `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`
-- Applied to: buttons, active states, app title, error modals
-- Sidebar: Subtle white-to-gray gradient with shadow
-- File path display: Purple-tinted background with rounded corners
-- Status bar: Dark gradient with monospace font
-- Error modal: Red gradient theme with animated warning icon
-
-**Modal System:**
-- Three modal types: error, subgraph selection, table size input
-- Shared styling with backdrop blur and slide-in animation
-- Error modal features:
-  - Large animated warning icon (pulse effect)
-  - Red gradient confirm button
-  - Scrollable monospace error message
-  - Escape key and overlay click to dismiss
-
 ## Version History
 
 - **v2.5** (2026-01-30):
@@ -522,52 +494,30 @@ Syntax highlighting colors and keywords in `constants.js`:
     - Clear error messages with context for debugging
   - **Defensive programming**: Graceful degradation (returns null/false instead of crashing)
   - **Production-ready**: All validation tested, +192 lines of robust error handling
-  - **Documentation**: FIXES_APPLIED.md with detailed implementation notes
 - **v2.3** (2026-01-20):
-  - **Critical bug fixes**: Fixed 4 critical issues found in comprehensive code review
-    - Memory leak: Clean up cell subgraph file handles when deleting table nodes
-    - Circular references: Add recursive validation for deeply nested embedded subgraphs
-    - ID generation: Create calculateSafeNextId() to prevent duplicates and crashes
-    - IndexedDB: Add transaction validation and error handling in upgrade handler
-  - **Code quality improvements**: Extract all magic numbers to named constants
-    - Added 15 new descriptive constants (TEXT_PADDING, GROUP_PADDING, CURSOR_HEIGHT, etc.)
-    - Improved code maintainability and self-documentation
-    - Easier customization and consistency across the codebase
+  - Critical bug fixes (memory leak, circular references, ID generation, IndexedDB)
+  - Extract all magic numbers to named constants (15 new constants)
 - **v2.0** (2026-01-19):
-  - **UI/UX overhaul**: Modern purple gradient design system
-  - **Beautiful error modal**: Replaces browser alert() with animated custom modal
-  - **File path display**: Shows current file in sidebar
-  - **Critical bug fixes**: 6 bugs fixed including all table rendering issues
-    - Fixed text alignment in table cells
-    - Fixed hover effect size for table nodes
-    - Fixed connection rendering for table nodes (center point and edge points)
-    - Fixed hover effect persisting after node deletion
-    - Fixed undefined variable bug (copiedNode → copiedNodes)
-  - **Documentation**: Comprehensive CLAUDE.md updates with bug patterns
+  - UI/UX overhaul with modern purple gradient design
+  - Beautiful error modal replaces browser alert()
+  - File path display, 6 critical bug fixes
 - **v1.5** (2026-01-19):
   - Table node type with cell-level subgraph support
-  - Multi-node selection with Ctrl+Click
-  - Multi-node alignment (horizontal/vertical)
-  - Copy/paste for multiple nodes
+  - Multi-node selection, alignment, copy/paste
 - **v1.4** (2026-01-18):
-  - Code node type with syntax highlighting (JavaScript/TypeScript, C/C++, Python)
+  - Code node type with syntax highlighting
   - Full cursor position tracking with arrow key navigation
-  - Conditional syntax highlighting (view mode only)
-  - Pre-compiled regex patterns for performance
-  - Bug fixes: ArrowUp cursor calculation, empty text edge cases, bounds checking
 - **v1.3** (2026-01-18):
   - Workspace folder with `root.json` auto-load
-  - Relative paths enforced for file-based subgraphs
-  - Stale file handle recovery
-  - Performance optimization (eliminated duplicate file access)
-  - Font constants
-- **v1.2** (2026-01-18): Connection rendering fixes (arrowhead gaps, 45-degree angles, center-to-center alignment)
-- **v1.1** (2026-01-17): Workspace folder permission, IndexedDB persistence, mouse position fix, race condition fix
+  - Relative paths, stale file handle recovery
+- **v1.2** (2026-01-18): Connection rendering fixes
+- **v1.1** (2026-01-17): Workspace folder permission, IndexedDB persistence
 - **v1.0** (2026-01-17): Initial major release with hierarchical subgraph navigation
 
 ## Documentation
 
-- **INF_NOTE_GUIDE.md**: Comprehensive guide to the JSON format for users who want to write diagrams by hand
-- **AI_PROMPT.md**: Concise prompt for AI assistants to create diagrams in Inf format
-- **RELEASE_V*.md**: Detailed release notes for each version
+- **INF_FORMAT.md**: JSON format specification for Inf diagrams
+- **YAML_FORMAT.md**: YAML format specification for AI-generated diagrams
+- **SKILL.md**: `/inf` skill documentation for Claude Code
+- **tools/README.md**: Python tools architecture and usage
 - **CLAUDE.md**: This file - architectural guidance for Claude Code instances
