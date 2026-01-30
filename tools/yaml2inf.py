@@ -6,10 +6,10 @@ Converts abstract YAML diagram descriptions into positioned Inf JSON files
 using automatic layout via Graphviz.
 
 Usage:
-    python3 yaml2inf.py <folder> [options]
+    python3 tools/yaml2inf.py <folder> [options]
 
 Example:
-    python3 yaml2inf.py diagrams/ --engine dot --rankdir LR --verbose
+    python3 tools/yaml2inf.py diagrams/ --engine dot --rankdir LR --verbose
 """
 
 import argparse
@@ -546,9 +546,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python3 yaml2inf.py diagrams/
-  python3 yaml2inf.py project/ --engine neato --verbose
-  python3 yaml2inf.py docs/ --rankdir LR --ranksep 2.0
+  python3 tools/yaml2inf.py diagrams/
+  python3 tools/yaml2inf.py project/ --engine neato --verbose
+  python3 tools/yaml2inf.py docs/ --rankdir LR --ranksep 2.0
         """
     )
 

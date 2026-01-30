@@ -1,4 +1,4 @@
-# Dockerfile for yaml2inf.py converter
+# Dockerfile for tools/yaml2inf.py converter
 # Includes Graphviz and all Python dependencies
 #
 # Build the image:
@@ -27,7 +27,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the converter script
-COPY yaml2inf.py .
+COPY tools/yaml2inf.py .
 
 # Create directory for input/output files
 WORKDIR /workspace

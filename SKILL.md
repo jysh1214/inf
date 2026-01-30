@@ -284,7 +284,7 @@ After each level of subgraph generation:
 
 1. **Run validation**:
    ```bash
-   python3 yaml2inf.py inf-notes/ --validate --verbose
+   python3 tools/yaml2inf.py inf-notes/ --validate --verbose
    ```
    Or with Docker:
    ```bash
@@ -311,7 +311,7 @@ After each level of subgraph generation:
 
 **Why this matters**:
 - Catches errors early before they cascade to deeper levels
-- Ensures yaml2inf.py can successfully convert all files
+- Ensures tools/yaml2inf.py can successfully convert all files
 - Validates that connections and groups reference real nodes
 - Confirms all subgraph references are resolvable
 
@@ -508,7 +508,7 @@ Keep the user informed throughout:
 
 1. **Explore before creating** - Understand structure before documenting
 2. **Parallel execution** - Spawn multiple agents, don't work sequentially
-3. **Validate after each level** - Run yaml2inf.py --validate before proceeding deeper
+3. **Validate after each level** - Run tools/yaml2inf.py --validate before proceeding deeper
 4. **Fix errors immediately** - Don't cascade validation errors to next level
 5. **Appropriate depth** - Go deep where complexity exists, stay shallow for simple areas
 6. **Semantic node types** - Choose based on meaning, not appearance

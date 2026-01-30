@@ -522,13 +522,13 @@ layout:
 
 ```bash
 # Convert YAML to Inf JSON
-python3 yaml2inf.py project/
+python3 tools/yaml2inf.py project/
 
 # With verbose output
-python3 yaml2inf.py project/ --verbose
+python3 tools/yaml2inf.py project/ --verbose
 
 # Validate first
-python3 yaml2inf.py project/ --validate --strict
+python3 tools/yaml2inf.py project/ --validate --strict
 ```
 
 ---
