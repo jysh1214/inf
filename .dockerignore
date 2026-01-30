@@ -1,0 +1,30 @@
+# Git files
+.git
+.gitignore
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Source files (not needed for converter)
+src/
+build.py
+check.py
+index.html
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,10 +1,2 @@
-# YAML to Inf Converter Dependencies
-# Install with: pip3 install -r requirements.txt
-
-# YAML parsing (required)
 pyyaml>=6.0
-
-# Graphviz integration (choose one)
-# Option A: pygraphviz (recommended, faster)
-# Requires system Graphviz: brew install graphviz (macOS) or apt-get install graphviz-dev (Linux)
 pygraphviz>=1.11
