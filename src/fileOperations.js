@@ -509,8 +509,8 @@ function validateGroup(group, index, nodeIds) {
     if (!Array.isArray(group.nodeIds)) {
         throw new Error(`Group ${index} (id: ${group.id}): 'nodeIds' must be an array (got ${typeof group.nodeIds})`);
     }
-    if (group.nodeIds.length < 2) {
-        throw new Error(`Group ${index} (id: ${group.id}): 'nodeIds' must contain at least 2 node IDs (got ${group.nodeIds.length})`);
+    if (group.nodeIds.length < 1) {
+        throw new Error(`Group ${index} (id: ${group.id}): 'nodeIds' must contain at least 1 node ID (got ${group.nodeIds.length})`);
     }
 
     // Validate each node ID in the group

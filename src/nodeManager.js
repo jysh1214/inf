@@ -422,9 +422,9 @@ function getResizeCorner(x, y, node) {
  * Shows modal to get group name
  */
 function createGroupFromSelection() {
-    // Validate that we have at least 2 nodes selected
-    if (selectedNodeIds.size < 2) {
-        setStatus('⚠️ Please select at least 2 nodes to create a group');
+    // Validate that we have at least 1 node selected
+    if (selectedNodeIds.size < 1) {
+        setStatus('⚠️ Please select at least 1 node to create a group');
         return;
     }
 
