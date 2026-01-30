@@ -591,7 +591,7 @@ python3 tools/yaml_checker.py inf-notes/your-file.yaml
 - [ ] Validation passes with "✓ Valid"
 - [ ] Fix any errors reported
 - [ ] Re-validate until clean
-- [ ] DO NOT convert to JSON (that happens later in Phase 4)
+- [ ] DO NOT convert to JSON
 
 ---
 
