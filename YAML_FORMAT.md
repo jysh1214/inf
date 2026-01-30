@@ -518,21 +518,6 @@ layout:
 
 ---
 
-## Conversion
-
-```bash
-# Convert YAML to Inf JSON
-python3 tools/yaml2inf.py project/
-
-# With verbose output
-python3 tools/yaml2inf.py project/ --verbose
-
-# Validate first
-python3 tools/yaml2inf.py project/ --validate --strict
-```
-
----
-
 ## Quick Reference Card
 
 | Feature | Property | Values | Default |
