@@ -62,7 +62,7 @@ layout:
 - text: "Process Step"
   type: rectangle
 ```
-**Use for**: Standard boxes, process steps, components, modules
+**Use for**: concepts, process steps, components, modules
 
 ### Circle
 ```yaml
@@ -84,7 +84,7 @@ layout:
   type: text
   align: center
 ```
-**Use for**: Titles, labels, annotations, headings
+**Use for**: Titles, labels, details, annotations, headings
 
 ### Code
 ```yaml
@@ -107,7 +107,7 @@ layout:
       "[1, 0]": "Value 1"
       "[1, 1]": "Value 2"
 ```
-**Use for**: Structured data, entities, database schemas
+**Use for**: Structured data, comparisons
 
 ## Text Alignment
 
@@ -600,21 +600,13 @@ python3 tools/yaml_checker.py inf-notes/your-file.yaml
 Keep the user informed throughout:
 
 - "🔍 Analyzing repository structure..."
-- "📝 Creating root.yaml with 8 major components..."
-- "🤖 Spawning 5 agents for parallel subgraph creation..."
-- "⏳ Agents working... (3/5 complete)"
+- "📝 Creating root.yaml with X major components..."
+- "🤖 Spawning N agents for parallel subgraph creation..."
+- "⏳ Agents working... (Y/X complete)"
 - "✅ All agents complete!"
-- "🔍 Validating level-1 YAML files..."
+- "🔍 Validating level-N YAML files..."
 - "✅ Validation passed! All files valid."
 - "🔄 Reviewing subgraphs for deeper expansion..."
-- "🤖 Spawning 3 agents for level-2 subgraphs..."
-- "⏳ Agents working... (2/3 complete)"
-- "✅ All agents complete!"
-- "🔍 Validating level-2 YAML files..."
-- "✅ Validation passed! All files valid."
-- "✅ Generated 23 YAML files with 3 levels of depth in inf-notes/"
-- "🔄 Converting YAML to JSON..."
-- "✅ Converted 23 files successfully!"
 
 ---
 
