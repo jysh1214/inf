@@ -3,8 +3,20 @@
 #
 # Build the image:
 #     docker build -t yaml2inf .
-# Run the converter:
-#     docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --verbose --validate
+#
+# Usage examples:
+#
+# Validate YAML files only (no conversion):
+#     docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --validate --verbose
+#
+# Convert YAML to JSON with verbose output:
+#     docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --verbose
+#
+# Convert with custom layout engine:
+#     docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --engine neato --rankdir LR
+#
+# Convert a single file:
+#     docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace/myfile.yaml --verbose
 
 FROM python:3.11-slim
 
@@ -26,14 +38,13 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the converter script
+# Copy all converter tools
 COPY tools/yaml2inf.py .
+COPY tools/converter.py .
+COPY tools/graphviz.py .
 
 # Create directory for input/output files
 WORKDIR /workspace
-
-# Set python path to find yaml2inf.py
-ENV PYTHONPATH=/app:$PYTHONPATH
 
 # Set the entrypoint to run the converter script
 ENTRYPOINT ["python", "/app/yaml2inf.py"]

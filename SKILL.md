@@ -232,6 +232,34 @@ nodes:
     align: left
 ```
 
+## Special Characters Warning
+
+**CRITICAL: Avoid special characters in node text that may confuse Graphviz:**
+
+❌ **Do NOT use these characters in node names:**
+- Backslashes: `\` (except in `\n` for newlines)
+- Quotes inside text: `"` or `'` (use descriptive words instead)
+- Angle brackets: `<` `>`
+- Curly braces in isolation: `{` `}`
+- Periods and commas in isolation: `..` `,`
+
+✅ **Use descriptive words instead:**
+```yaml
+# BAD - Special characters cause Graphviz errors
+- text: "Check Path\n.., /, \\"
+
+# GOOD - Descriptive words
+- text: "Check Path\n(dots, slashes)"
+
+# BAD - Quotes in text
+- text: "Validate \"name\" field"
+
+# GOOD - Descriptive alternative
+- text: "Validate name field"
+```
+
+**Why this matters:** Graphviz processes node text as DOT syntax, and special characters can cause parsing errors during layout computation.
+
 ---
 
 # Multi-Agent Strategy
@@ -553,6 +581,7 @@ python3 tools/yaml_checker.py inf-notes/your-file.yaml
 
 - [ ] All node text is unique within the file
 - [ ] All connection references match node text exactly (including `\n` in multiline text)
+- [ ] **No special characters in node text** (avoid: `\` `"` `'` `<` `>` `{` `}` `..` - use descriptive words instead)
 - [ ] Node types are valid: rectangle, circle, diamond, text, code, table
 - [ ] Alignment values are valid: left, center, right
 - [ ] Layout engine is valid: dot, neato, fdp, circo, twopi
@@ -608,10 +637,11 @@ Keep the user informed throughout:
 10. **Semantic node types** - Choose based on meaning, not appearance
 11. **Meaningful connections** - Show real relationships and flow
 12. **Exact text matching** - Connection references must match node text exactly (including \n)
-13. **Groups for organization** - Visual structure helps comprehension
-14. **No artificial limits** - Embrace infinite depth if topic requires it
-15. **Consistent naming** - Use clear, descriptive filenames
-16. **Single responsibility** - Each file covers one cohesive topic
+13. **Avoid special characters** - Use descriptive words instead of `\` `"` `'` `<` `>` `{}` `..` in node text (prevents Graphviz errors)
+14. **Groups for organization** - Visual structure helps comprehension
+15. **No artificial limits** - Embrace infinite depth if topic requires it
+16. **Consistent naming** - Use clear, descriptive filenames
+17. **Single responsibility** - Each file covers one cohesive topic
 
 ---
 

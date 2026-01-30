@@ -76,6 +76,23 @@ python3 tools/yaml2inf.py <folder>/ --engine neato --rankdir LR
 - `--engine` - Layout engine: dot (default), neato, fdp, circo, twopi
 - `--rankdir` - Direction: TB (default), LR, BT, RL
 
+**Docker Usage (no local dependencies required):**
+```bash
+# Build the Docker image (one time)
+docker build -t yaml2inf .
+
+# Validate YAML files only
+docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --validate --verbose
+
+# Convert YAML to JSON
+docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --verbose
+
+# Convert with custom layout engine
+docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --engine neato --rankdir LR
+```
+
+The Docker image includes all dependencies (Python, Graphviz, pygraphviz), eliminating the need for local installation.
+
 ## Architecture
 
 ### Canvas Application
