@@ -39,11 +39,13 @@ def validate_yaml_file(yaml_path: str) -> bool:
         True if valid, False otherwise
     """
     print(f"Validating: {yaml_path}")
+    print()
 
     # Use converter in validation mode
     result = convert_yaml_to_inf(yaml_path, validate_only=True)
 
     if result is None:
+        print()
         print("✗ Invalid structure")
         return False
 
@@ -51,9 +53,18 @@ def validate_yaml_file(yaml_path: str) -> bool:
     conns_count = len(result['inf_json']['connections'])
     groups_count = len(result['inf_json']['groups'])
 
-    print(f"  Nodes: {nodes_count}")
+    print()
+    print(f"Structure:")
+    print(f"  Nodes:       {nodes_count}")
     print(f"  Connections: {conns_count}")
-    print(f"  Groups: {groups_count}")
+    print(f"  Groups:      {groups_count}")
+
+    # Check for subgraphs
+    subgraph_count = sum(1 for node in result['inf_json']['nodes'] if 'subgraph' in node)
+    if subgraph_count > 0:
+        print(f"  Subgraphs:   {subgraph_count}")
+
+    print()
     print("✓ Valid")
 
     return True
@@ -76,19 +87,18 @@ Examples:
 
     args = parser.parse_args()
 
-    # Configure logging
+    # Configure logging - always show detailed validation output
     if args.debug:
         logging.basicConfig(
             level=logging.DEBUG,
-            format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+            format='  %(asctime)s [%(levelname)s] %(name)s: %(message)s',
             datefmt='%H:%M:%S'
         )
-        logger.info("Debug logging enabled")
     else:
-        # Only show warnings and errors
+        # Show INFO level by default for validation details
         logging.basicConfig(
-            level=logging.WARNING,
-            format='%(levelname)s: %(message)s'
+            level=logging.INFO,
+            format='  [%(levelname)s] %(message)s'
         )
 
     # Validate file exists

@@ -89,10 +89,18 @@ python3 tools/yaml_checker.py diagrams/system.yaml --debug
 **Options:**
 - `--debug` - Enable debug logging (very detailed output)
 
+**Output:**
+Shows detailed validation information by default:
+- Conversion progress (INFO level logging)
+- Node, connection, and group counts
+- Subgraph count (if any)
+- Validation warnings (missing files, invalid references)
+
 **Process:**
 1. Call `converter.convert_yaml_to_inf()` in validation mode
-2. Report structure (nodes, connections, groups)
-3. Exit with status code (0 = valid, 1 = invalid)
+2. Report structure (nodes, connections, groups, subgraphs)
+3. Display any warnings or errors
+4. Exit with status code (0 = valid, 1 = invalid)
 
 ## Architecture
 
