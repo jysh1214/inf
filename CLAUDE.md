@@ -514,6 +514,15 @@ Syntax highlighting colors and keywords in `constants.js`:
 
 ## Version History
 
+- **v2.5** (2026-01-30):
+  - **Robustness & Error Handling**: Critical stability improvements
+    - Canvas transform protection: try/finally in render() ensures ctx.restore() always executes
+    - Private browsing detection: User-friendly error modal when IndexedDB is unavailable
+    - Comprehensive input validation: 14 public API functions now validate parameters
+    - Clear error messages with context for debugging
+  - **Defensive programming**: Graceful degradation (returns null/false instead of crashing)
+  - **Production-ready**: All validation tested, +192 lines of robust error handling
+  - **Documentation**: FIXES_APPLIED.md with detailed implementation notes
 - **v2.3** (2026-01-20):
   - **Critical bug fixes**: Fixed 4 critical issues found in comprehensive code review
     - Memory leak: Clean up cell subgraph file handles when deleting table nodes
