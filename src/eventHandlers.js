@@ -1022,7 +1022,7 @@ document.addEventListener('keydown', (e) => {
         }
         e.preventDefault();
     } else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey)) {
-        // Ctrl+C: Copy selected nodes
+        // Ctrl+C: Copy selected nodes (only if nodes are selected)
         if (selectedNodeIds.size > 0) {
             // Deep clone all selected nodes
             copiedNodes = Array.from(selectedNodeIds).map(nodeId => {
@@ -1031,10 +1031,9 @@ document.addEventListener('keydown', (e) => {
             });
 
             setStatus(`Copied ${copiedNodes.length} node(s)`);
-        } else {
-            setStatus('No node selected to copy');
+            e.preventDefault(); // Prevent default only when copying nodes
         }
-        e.preventDefault();
+        // If no nodes selected, allow browser's default copy behavior
     } else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) {
         // Ctrl+V: Paste copied nodes
         if (copiedNodes.length > 0) {
