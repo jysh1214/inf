@@ -13,9 +13,8 @@ When `/inf` is invoked:
 
 1. **Analyze the repository** - Explore files, understand architecture
 2. **Create root overview** - Generate `inf-notes/root.yaml` with main components
-3. **Spawn agents for subgraphs** - Use Task tool to create detailed subgraphs in parallel
-4. **Recursive expansion** - Create deeper nested subgraphs as needed
-5. **Report completion** - Summarize generated files and structure
+3. **Recursive expansion** - Create deeper nested subgraphs as needed
+4. **Report completion** - Summarize generated files and structure
 
 **Output Location**: `./inf-notes/`
 
@@ -24,6 +23,24 @@ When `/inf` is invoked:
 # YAML Format Specification
 
 ## Core Principle
+
+- Provide a comprehensive overview (the full picture) at the root level (root.yaml).
+- Place detailed explanations in separate YAML files, using file-based subgraphs.
+- Use appropriate node types:
+    - rectangle — concepts
+	  - circle — entry / exit points
+	  - diamond — decisions
+	  - text — details / annotations
+	  - code — commands, pseudocode, or source code snippets
+	  - table — data or comparisons (cells may contain subgraphs)
+	  - url - references / resources
+- Create meaningful connections:
+    - Directed edges for flow or dependencies
+    - Undirected edges for associations
+- Use groups to organize related nodes, with clear visual boundaries and labels.
+- Go as deep as needed — subgraphs support infinite nesting levels.
+- Separate YAML files for each subgraph, with clear and descriptive names (e.g., module-authentication.yaml, concept-event-loop.yaml)
+- Use relative paths only.
 
 **AI writes structure, script handles layout.**
 
@@ -293,13 +310,6 @@ Generate subgraphs **one at a time** to avoid context accumulation.
 3. Agent exits (clears its context)
 4. Spawn next fresh agent
 5. Repeat for all subgraphs at this level
-
-**IMPORTANT: Sequential generation prevents context bloat**
-- Spawning 8-16 agents in parallel causes orchestrator context to explode
-- Sequential keeps orchestrator context minimal (one agent result at a time)
-- Each agent is fresh with minimal context (only its component)
-- Level-1: Give agents only their component scope (not entire repo)
-- Level-2+: Give agents only parent file + specific node to expand
 
 **Agent prompt template:**
 ```

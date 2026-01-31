@@ -9,12 +9,12 @@ Structure
 - Place detailed explanations in separate YAML files, using file-based subgraphs.
 - Use appropriate node types:
     - rectangle — concepts
-	- circle — entry / exit points
-	- diamond — decisions
-	- text — details / annotations
-	- code — commands, pseudocode, or source code snippets
-	- table — data or comparisons (cells may contain subgraphs)
-	- url - references / resources
+	  - circle — entry / exit points
+	  - diamond — decisions
+	  - text — details / annotations
+	  - code — commands, pseudocode, or source code snippets
+	  - table — data or comparisons (cells may contain subgraphs)
+	  - url - references / resources
 - Create meaningful connections:
     - Directed edges for flow or dependencies
     - Undirected edges for associations
