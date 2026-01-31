@@ -1,6 +1,6 @@
 ---
 name: inf
-description: Analyze the current repository and generate hierarchical Inf diagram notes as YAML files in the inf-notes directory. Creates root.yaml overview and nested subgraphs with multi-agent orchestration.
+description: Analyze the current repository and generate hierarchical Inf diagram notes as YAML files in the inf-notes directory. Creates root.yaml overview and nested subgraphs.
 ---
 
 # Inf Repository Notes Generator
