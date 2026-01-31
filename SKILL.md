@@ -16,13 +16,13 @@ Generate comprehensive visual documentation for the current repository using the
 - Provide a comprehensive overview (the full picture) at the root level (root.yaml).
 - Place detailed explanations in separate YAML files, using file-based subgraphs.
 - Use appropriate node types:
-    - rectangle — concepts, components, modules
-	  - circle — entry / exit points, external systems
-	  - diamond — decisions, conditionals
-	  - text — details / annotations (no border)
-	  - code — commands, pseudocode, or source code snippets
-	  - table — data or comparisons (cells may contain subgraphs)
-	  - url — references / resources (use text/rectangle type with URL in content)
+  - rectangle — concepts, components, modules
+  - circle — entry / exit points, external systems
+  - diamond — decisions, conditionals
+  - text — details / annotations (no border)
+  - code — commands, pseudocode, or source code snippets
+  - table — data or comparisons (cells may contain subgraphs)
+  - url — references / resources (use text/rectangle type with URL in content)
 - Create meaningful connections:
     - Directed edges for flow or dependencies
     - Undirected edges for associations
@@ -85,8 +85,8 @@ layout:
 ```yaml
 nodes:
   - text: "Node Name"
-    type: [rectangle|circle|diamond|text|code]  # default: rectangle
-    align: [left|center|right]                   # default: center
+    type: [rectangle|circle|diamond|text|code|table]  # default: rectangle
+    align: [left|center|right]                        # default: center
 ```
 
 **Node Types:**
@@ -262,39 +262,35 @@ Identify key patterns: frontend/backend separation, modules, data flow, dependen
 
 ---
 
-## Iterative Process
+## Iterative Process (Breadth-First)
 
-**1. Create root.yaml**
+**Level 0: Root**
 
-Create `inf-notes/root.yaml` with system overview.
+1. Create `inf-notes/root.yaml` with system overview
+2. Validate: `python3 tools/yaml_checker.py inf-notes/root.yaml`
+3. Fix errors until validation passes
 
-**2. Validate root.yaml**
+**For Each Level (1, 2, 3, ...):**
 
-Run: `python3 tools/yaml_checker.py inf-notes/root.yaml`
+1. **Scan all nodes** in all current-level YAML files
+2. **Mark nodes for expansion**: For each node, ask "Could we explain more about this?"
+   - If yes: Add `subgraph: "filename.yaml"` to the node
+   - If no: Skip and move to next node
+3. **Create all subgraph files** at this level (BFS approach)
+4. **Validate all files** at this level:
+   ```bash
+   python3 tools/yaml_checker.py inf-notes/<filename>.yaml
+   ```
+5. **Fix errors** until all files pass validation
 
-Fix errors until validation passes.
+**Repeat** until no more nodes need expansion (see "When to Stop" below).
 
-**3. Scan all nodes in generated YAML**
+**After all levels complete:**
 
-Review each node in the current file.
-
-**4. Ask: "Could we explain more about this?"**
-
-If yes, mark the node with `subgraph: "filename.yaml"` and continue to step 5.
-
-If no, move to next node and repeat step 3.
-
-**5. Create next level subgraph**
-
-Create the subgraph YAML file referenced in step 4.
-
-**6. Validate the generated YAML**
-
-Run: `python3 tools/yaml_checker.py inf-notes/<filename>.yaml`
-
-Fix errors until validation passes.
-
-**Repeat steps 3-6** until all nodes are fully explored.
+Convert all YAML files to JSON:
+```bash
+python3 tools/yaml2inf.py inf-notes/ --verbose
+```
 
 ---
 
