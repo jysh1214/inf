@@ -25,8 +25,7 @@ inf/
 │   └── yaml_checker.py     # Validation-only script
 ├── build.py                # Builds src/ → index.html
 ├── check.py                # Validates build output
-├── SKILL.md                # /inf skill documentation
-├── YAML_FORMAT.md          # YAML format specification
+├── SKILL.md                # /inf skill documentation (includes YAML format spec)
 └── INF_FORMAT.md           # JSON format specification
 ```
 
@@ -355,6 +354,25 @@ nodes:
     subgraph: "module-auth.yaml"  # Always include .yaml extension
 ```
 
+**Table nodes (Markdown format):**
+```yaml
+nodes:
+  - text: "Configuration Matrix"
+    type: table
+    table: |
+      | Component  | Status | Version |
+      |:-----------|:------:|--------:|
+      | API        | Active | 2.1.0   |
+      | Database   | Active | 14.5    |
+```
+
+**Table alignment:**
+- `:---` = left-aligned column
+- `:---:` = center-aligned column
+- `---:` = right-aligned column
+
+The converter automatically detects row/column counts and cell alignment from the Markdown table syntax. This is more AI-friendly than manual coordinate specification.
+
 ## Code Patterns
 
 ### Adding New Node Types to Canvas App
@@ -372,7 +390,7 @@ To add a new node type (example: Code node was added in v1.4):
    - Add to `validTypes` array in `validateNode()`
    - Add to type-specific validation conditions (width/height checks)
 10. Update `autoSave.js` validation if type needs special handling
-11. Update documentation (INF_FORMAT.md, YAML_FORMAT.md)
+11. Update documentation (INF_FORMAT.md, SKILL.md)
 
 ### Adding New Global State
 
@@ -548,7 +566,6 @@ If "Failed to access file" errors occur:
 ## Documentation
 
 - **INF_FORMAT.md**: JSON format specification for Inf diagrams
-- **YAML_FORMAT.md**: YAML format specification for AI-generated diagrams
-- **SKILL.md**: `/inf` skill documentation for Claude Code
+- **SKILL.md**: `/inf` skill documentation with YAML format specification
 - **tools/README.md**: Python tools architecture and usage
 - **CLAUDE.md**: This file - architectural guidance for Claude Code instances

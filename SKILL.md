@@ -7,17 +7,6 @@ description: Analyze the current repository and generate hierarchical Inf diagra
 
 Generate comprehensive visual documentation for the current repository using the Inf YAML format.
 
-## What You Do
-
-When `/inf` is invoked:
-
-1. **Analyze the repository** - Explore files, understand architecture
-2. **Create root overview** - Generate `inf-notes/root.yaml` with main components
-3. **Recursive expansion** - Create deeper nested subgraphs as needed
-4. **Report completion** - Summarize generated files and structure
-
-**Output Location**: `./inf-notes/`
-
 ---
 
 # YAML Format Specification
@@ -27,13 +16,13 @@ When `/inf` is invoked:
 - Provide a comprehensive overview (the full picture) at the root level (root.yaml).
 - Place detailed explanations in separate YAML files, using file-based subgraphs.
 - Use appropriate node types:
-    - rectangle — concepts
-	  - circle — entry / exit points
-	  - diamond — decisions
-	  - text — details / annotations
+    - rectangle — concepts, components, modules
+	  - circle — entry / exit points, external systems
+	  - diamond — decisions, conditionals
+	  - text — details / annotations (no border)
 	  - code — commands, pseudocode, or source code snippets
 	  - table — data or comparisons (cells may contain subgraphs)
-	  - url - references / resources
+	  - url — references / resources (use text/rectangle type with URL in content)
 - Create meaningful connections:
     - Directed edges for flow or dependencies
     - Undirected edges for associations
@@ -47,207 +36,183 @@ When `/inf` is invoked:
 ✅ **You specify**: Node text, types, connections, relationships, groups
 ❌ **You do NOT specify**: Coordinates, IDs, sizes, canvas dimensions
 
-## Basic Template
+---
+
+## Complete Example
 
 ```yaml
 nodes:
-  - text: "Node 1"
-    type: rectangle    # Optional: rectangle (default), circle, diamond, text, code, table
-    align: center      # Optional: left, center (default), right
+  - text: "Web Client"
+    type: rectangle
 
-  - text: "Node 2"
+  - text: "API Gateway"
+    type: rectangle
+    subgraph: "api-gateway.yaml"
+
+  - text: "Auth Service"
+    type: rectangle
+    subgraph: "auth-service.yaml"
+
+  - text: "Database"
     type: circle
 
 connections:
-  - from: "Node 1"
-    to: "Node 2"
-    directed: true     # Optional: true (default), false
+  - from: "Web Client"
+    to: "API Gateway"
+    directed: true
+
+  - from: "API Gateway"
+    to: "Auth Service"
+
+  - from: "API Gateway"
+    to: "Database"
 
 groups:
-  - name: "Group Name"
-    nodes: ["Node 1", "Node 2"]
+  - name: "Backend Services"
+    nodes: ["API Gateway", "Auth Service", "Database"]
 
 layout:
-  engine: dot          # Optional: dot (default), neato, fdp, circo, twopi
-  rankdir: TB          # Optional: TB (default), LR, BT, RL
+  engine: dot
+  rankdir: LR
 ```
 
-## Node Types
+---
 
-### Rectangle (Default)
+## Format
+
+### Normal Node
+
 ```yaml
-- text: "Process Step"
-  type: rectangle
+nodes:
+  - text: "Node Name"
+    type: [rectangle|circle|diamond|text|code]  # default: rectangle
+    align: [left|center|right]                   # default: center
 ```
-**Use for**: concepts, process steps, components, modules
 
-### Circle
+**Node Types:**
+- `rectangle` - Concepts, process steps, components, modules (default)
+- `circle` - Start/end points, states, actors, external systems
+- `diamond` - Decision points, conditionals, gateways
+- `text` - Titles, labels, details, annotations (no border)
+- `code` - Code snippets, configuration, commands, scripts
+
+**URLs/References:**
+URLs are automatically detected and highlighted in any node type (clickable with Ctrl+Click):
 ```yaml
-- text: "Start"
-  type: circle
+- text: "API Docs\nhttps://api.example.com/docs"
+  type: text
+  align: left
 ```
-**Use for**: Start/end points, states, actors, external systems
 
-### Diamond
-```yaml
-- text: "Decision"
-  type: diamond
-```
-**Use for**: Decision points, conditionals, gateways
+**Text Alignment:**
+- `left` - For lists, code blocks
+- `center` - For titles, labels (default)
+- `right` - For dates, metadata
 
-### Text (No Border)
+**Multiline text:** Use `\n` for line breaks:
 ```yaml
-- text: "Title or Label"
+- text: "Title\nSubtitle\nDetails"
   type: text
   align: center
 ```
-**Use for**: Titles, labels, details, annotations, headings
 
-### Code
-```yaml
-- text: "function main() {\n  return true;\n}"
-  type: code
-  align: left
-```
-**Use for**: Code snippets, configuration, commands, scripts
+### Node with Subgraph
 
-### Table
-```yaml
-- text: "Data Table"
-  type: table
-  table:
-    rows: 3
-    cols: 2
-    cells:
-      "[0, 0]": "Header 1"
-      "[0, 1]": "Header 2"
-      "[1, 0]": "Value 1"
-      "[1, 1]": "Value 2"
-```
-**Use for**: Structured data, comparisons
-
-## Text Alignment
-
-```yaml
-- text: "Left-aligned\nBullet points:\n- Item 1\n- Item 2"
-  type: text
-  align: left
-
-- text: "Centered\nTitle"
-  type: text
-  align: center
-
-- text: "Right-aligned\nDate: 2026-01-30"
-  type: text
-  align: right
-```
-
-**Guidelines**:
-- Code → `left`
-- Titles/Labels → `center`
-- Lists → `left`
-
-## Connections
-
-### Directed (Default)
-```yaml
-- from: "Source"
-  to: "Target"
-  directed: true  # Arrow showing flow/dependency
-```
-
-### Undirected
-```yaml
-- from: "Node A"
-  to: "Node B"
-  directed: false  # Line without arrow for associations
-```
-
-**Important**: Node text must match exactly (case-sensitive)
-
-## File-Based Subgraphs
-
-**Always include `.yaml` extension** in subgraph references for clarity and consistency.
-
-Link to other YAML files for hierarchical depth:
+Link to another YAML file for hierarchical depth:
 
 ```yaml
 nodes:
   - text: "Authentication"
+    type: rectangle
     subgraph: "module-auth.yaml"
 
   - text: "Frontend"
+    type: rectangle
     subgraph: "frontend/frontend.yaml"
 ```
+
+**Always include `.yaml` extension** in subgraph references for clarity and consistency.
+
+### Table
+
+Use Markdown table syntax:
+
+```yaml
+nodes:
+  - text: "Table Name"
+    type: table
+    table: |
+      | Header 1 | Header 2 |
+      |----------|----------|
+      | Value 1  | Value 2  |
+      | Value 3  | Value 4  |
+```
+
+**Table alignment:**
+- `:---` = left-aligned column
+- `:---:` = center-aligned column
+- `---:` = right-aligned column
+
+**Example with alignment:**
+```yaml
+- text: "System Config"
+  type: table
+  table: |
+    | Component  | Status | Version |
+    |:-----------|:------:|--------:|
+    | API        | Active | 2.1.0   |
+    | Database   | Active | 14.5    |
+```
+
+## Connections
+
+```yaml
+connections:
+  - from: "Source"
+    to: "Target"
+    directed: [true|false]  # default: true
+```
+
+**Connection Types:**
+- `directed: true` - Arrow showing flow/dependency (default)
+- `directed: false` - Line without arrow for associations
+
+**Important:** Node text must match exactly (case-sensitive, including `\n` line breaks)
 
 ## Groups
 
 Organize related nodes with visual boundaries:
 
 ```yaml
-nodes:
-  - text: "Web Server"
-  - text: "App Server"
-  - text: "Database"
-
 groups:
-  - name: "Application Tier"
-    nodes: ["Web Server", "App Server"]
-  - name: "Data Tier"
-    nodes: ["Database"]
+  - name: "Group Name"
+    nodes: ["Node 1", "Node 2"]
 ```
 
-**Requirements**:
-- Groups can contain 1+ nodes
-- Node text must match exactly
+**Note:** Node text must match exactly (case-sensitive)
 
-## Layout Configuration
-
-### Layout Engines
+## Layout
 
 ```yaml
 layout:
-  engine: dot      # Hierarchical (best for flowcharts, org charts)
-  # engine: neato  # Force-directed (best for networks)
-  # engine: fdp    # Force-directed with clustering
-  # engine: circo  # Circular layout
-  # engine: twopi  # Radial layout
+  engine: [dot|neato|fdp|circo|twopi]  # default: dot
+  rankdir: [TB|LR|BT|RL]                # default: TB
+  ranksep: 1.5                          # default: 1.0
+  nodesep: 1.0                          # default: 0.5
 ```
 
-### Direction
+**Layout Engines:**
+- `dot` - Hierarchical (flowcharts, org charts)
+- `neato` - Force-directed (networks)
+- `fdp` - Force-directed with clustering
+- `circo` - Circular layout
+- `twopi` - Radial layout
 
-```yaml
-layout:
-  rankdir: TB      # Top to bottom (default)
-  # rankdir: LR    # Left to right (good for timelines)
-  # rankdir: BT    # Bottom to top
-  # rankdir: RL    # Right to left
-```
-
-### Spacing
-
-```yaml
-layout:
-  ranksep: 1.5     # Vertical spacing (default: 1.0)
-  nodesep: 1.0     # Horizontal spacing (default: 0.5)
-```
-
-## Multi-line Text
-
-Use `\n` for line breaks:
-
-```yaml
-nodes:
-  - text: "Title\nSubtitle\nDetails"
-
-  - text: "Code Example\nfunction main() {\n  return true;\n}"
-    type: code
-    align: left
-
-  - text: "List:\n- Item 1\n- Item 2\n- Item 3"
-    type: text
-    align: left
-```
+**Direction:**
+- `TB` - Top to bottom (default)
+- `LR` - Left to right (timelines)
+- `BT` - Bottom to top
+- `RL` - Right to left
 
 ## Special Characters Warning
 
@@ -279,9 +244,11 @@ nodes:
 
 ---
 
-# Multi-Agent Strategy
+# Sequential Creation Workflow
 
-## 1. Repository Analysis
+**Output Location**: `./inf-notes/`
+
+## Repository Analysis
 
 Explore the codebase to understand its architecture:
 
@@ -293,133 +260,50 @@ Explore the codebase to understand its architecture:
 
 Identify key patterns: frontend/backend separation, modules, data flow, dependencies, algorithms.
 
-## 2. Create root.yaml
+---
 
-Create `inf-notes/root.yaml` with system overview:
+## Iterative Process
 
-- **Groups** for related areas (e.g., "Client Layer", "Services")
-- **Most nodes should have subgraphs** (mark for deeper exploration)
+**1. Create root.yaml**
 
-## 3. Create Next Level Subgraphs (Sequential)
+Create `inf-notes/root.yaml` with system overview.
 
-Generate subgraphs **one at a time** to avoid context accumulation.
+**2. Validate root.yaml**
 
-**Process:**
-1. Spawn ONE fresh agent for first subgraph
-2. Wait for it to complete and validate
-3. Agent exits (clears its context)
-4. Spawn next fresh agent
-5. Repeat for all subgraphs at this level
+Run: `python3 tools/yaml_checker.py inf-notes/root.yaml`
 
-**Agent prompt template:**
-```
-Task(
-  subagent_type="general-purpose",
-  description="Document [component name]",
-  prompt="Create inf-notes/[filename].yaml covering [specific areas].
+Fix errors until validation passes.
 
-  Use 5-15 nodes with appropriate types:
-  - Rectangle: components, modules
-  - Circle: entry/exit points, external systems
-  - Diamond: decisions, conditionals
-  - Code/Text/Table: as needed
+**3. Scan all nodes in generated YAML**
 
-  Mark 50-70% of nodes with subgraphs for deeper detail.
-  Use naming: parent__child.yaml (double underscore for nested levels).
+Review each node in the current file.
 
-  CRITICAL - Validate before completing:
-  1. Run: python3 tools/yaml_checker.py inf-notes/[filename].yaml
-  2. Fix any errors immediately
-  3. Re-validate until it passes
-  4. Only mark complete when validation succeeds
+**4. Ask: "Could we explain more about this?"**
 
-  DO NOT convert to JSON - only validate YAML!
+If yes, mark the node with `subgraph: "filename.yaml"` and continue to step 5.
 
-  Common issues:
-  - Connection from/to must match node text exactly (including \\n)
-  - Group nodes must reference existing node text
-  - Subgraph files must exist or be removed"
-)
-```
+If no, move to next node and repeat step 3.
 
-**Trade-off:** Sequential is slower but prevents hitting context limits on large repos.
+**5. Create next level subgraph**
 
-## 4. Batch Validation
+Create the subgraph YAML file referenced in step 4.
 
-Validate all files at current level:
+**6. Validate the generated YAML**
 
-```bash
-# Validate each file individually
-for file in inf-notes/*.yaml; do
-  python3 tools/yaml_checker.py "$file" || exit 1
-done
-echo "✓ All files validated!"
-```
+Run: `python3 tools/yaml_checker.py inf-notes/<filename>.yaml`
 
-**Fix errors before proceeding:**
-- Text mismatch: Ensure exact text matching (including `\n`)
-- Missing subgraphs: Create referenced files or remove reference
-- YAML syntax: Check indentation, quotes, special characters
+Fix errors until validation passes.
 
-## 5. Review and Go Deeper
+**Repeat steps 3-6** until all nodes are fully explored.
 
-After validation passes, **review each file systematically**. For every node in every file, ask:
+---
 
-**"Could we explain more about this?"**
+## When to Stop
 
-Create a subgraph when the answer is yes:
-
-- **Component with multiple responsibilities** → Break down into sub-components
-- **Complex algorithm or process** → Detail the steps and logic
-- **Module with multiple files** → Show file relationships
-- **Multi-step interaction** → Expand the sequence
-- **Data structure with relationships** → Detail schema and connections
-
-**When to stop:**
+Stop creating subgraphs when:
 - Node represents a single function or file (atomic)
 - Further detail would be implementation code (use code node with snippet instead)
 - Node is self-explanatory with no sub-components
-
-**Then repeat steps 3-4** for the next level, spawning fresh agents sequentially (one at a time).
-
-**Example for level-2+:**
-```
-Task(
-  description="Expand Authentication node",
-  prompt="Read inf-notes/api.yaml and expand the 'Authentication' node.
-
-  Create inf-notes/api__authentication.yaml covering login, token handling,
-  session management. Use 8-12 nodes. Mark 40-60% with subgraphs.
-
-  Validate with: python3 tools/yaml_checker.py inf-notes/api__authentication.yaml"
-)
-```
-
-Each agent gets only what it needs - no accumulated context from previous levels.
-
-**Target depth: 3-5 levels** for typical projects, 6+ for large/complex systems.
-
-**File hierarchy example:**
-```
-root.yaml
-├── api.yaml
-│   ├── api__authentication.yaml
-│   │   ├── api__authentication__login.yaml
-│   │   └── api__authentication__oauth.yaml
-│   └── api__endpoints.yaml
-├── database.yaml
-│   └── database__schema.yaml
-└── frontend.yaml
-```
-
-## Final Report
-
-After all levels complete:
-
-1. **Final validation**: Verify all YAML files pass
-2. **Count files**: Report total generated and depth achieved
-3. **Tree structure**: Show file hierarchy overview
-4. **Status**: Confirm all files valid and ready
 
 ---
 
@@ -448,37 +332,5 @@ After all levels complete:
 - **Semantic accuracy**: Choose based on real relationships
 
 ---
-
-# Installation
-
-To enable this skill in Claude Code:
-
-```bash
-# Create skills directory if it doesn't exist
-mkdir -p ~/.claude/skills/inf
-
-# Copy the skill file
-cp SKILL.md ~/.claude/skills/inf/
-
-# Now you can use /inf in any repository!
-```
-
----
-
-# Remember
-
-- You're creating **visual documentation**, not text summaries
-- **Structure over style** - Focus on accurate relationships
-- **Connections show meaning** - Use directed/undirected appropriately
-- **Subgraphs manage complexity** - Break large topics into focused files
-- **Groups show organization** - Organize related nodes visually
-- **Parallel agents save time** - Don't create files one by one
-- **CRITICAL: Each agent validates** - Run tools/yaml_checker.py on every generated file
-- **NO JSON conversion by agents** - Agents create YAML only
-- **Agents fix their errors** - Don't mark complete until validation passes
-- **Batch validate each level** - Ensure all files valid before proceeding deeper
-- **Never cascade errors** - Catch errors early before they cascade
-- **Exact text matching** - Connections must use full node text (including newlines)
-- **Inf philosophy**: Infinite depth, no limits, complete expression
 
 Now analyze this repository and create beautiful structured notes! 🚀

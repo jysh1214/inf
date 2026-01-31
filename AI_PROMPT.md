@@ -2,7 +2,7 @@
 
 ## The Prompt
 
-Follow the inf/YAML_FORMAT.md specification to create a structured note diagram for [TOPIC / DOCUMENTATION / REPOSITORY].
+Follow the inf/SKILL.md specification to create a structured note diagram for [TOPIC / DOCUMENTATION / REPOSITORY].
 
 Structure
 - Provide a comprehensive overview (the full picture) at the root level.
