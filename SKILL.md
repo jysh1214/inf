@@ -276,8 +276,8 @@ Generate **Level 0 (root) + Level 1 (direct children) only**:
 3. Create all Level 1 subgraph files (direct children of root)
 4. Validate all YAML files:
    ```bash
-   python3 tools/yaml_convert.py inf-notes/root.yaml --validate
-   python3 tools/yaml_convert.py inf-notes/api.yaml --validate
+   python3 ~/.claude/skills/inf/tools/yaml_convert.py inf-notes/root.yaml --validate
+   python3 ~/.claude/skills/inf/tools/yaml_convert.py inf-notes/api.yaml --validate
    # ... validate each Level 1 file
    ```
 5. Fix errors until all files pass validation
@@ -299,7 +299,7 @@ If `--focus <file>` is provided (e.g., `/inf --focus api.yaml`):
 4. **Create all subgraph files** for the focused file's children only
 5. **Validate all new files**:
    ```bash
-   python3 tools/yaml_convert.py inf-notes/<new-file>.yaml --validate
+   python3 ~/.claude/skills/inf/tools/yaml_convert.py inf-notes/<new-file>.yaml --validate
    ```
 6. Fix errors until all files pass validation
 7. **Stop here** - user will run `/inf --focus <file>` again to go deeper, or `/inf` to expand other areas
@@ -318,7 +318,7 @@ If `--focus <file>` is provided (e.g., `/inf --focus api.yaml`):
 4. **Create all new subgraph files** for the newly added references (one level of children)
 5. **Validate all modified and new files**:
    ```bash
-   python3 tools/yaml_convert.py inf-notes/<file>.yaml --validate
+   python3 ~/.claude/skills/inf/tools/yaml_convert.py inf-notes/<file>.yaml --validate
    ```
 6. Fix errors until all files pass validation
 7. **Stop here** - user will run `/inf` again to scan and extend the next level
