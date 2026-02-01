@@ -521,6 +521,19 @@ If "Failed to access file" errors occur:
 
 ## Version History
 
+- **v3.2** (2026-02-01):
+  - **/inf Skill Enhancements**:
+    - Added `--focus <file>` argument for targeted subgraph expansion
+    - Enables deep exploration of specific areas without affecting others
+    - Supports parallel work and iterative refinement workflows
+  - **Aggressive Extensibility**:
+    - Default behavior: mark nearly all nodes as extensible
+    - "When to Stop" reframed as "Extensibility Exceptions"
+    - Bias toward expansion - creates richer hierarchies for exploration
+  - **Documentation**:
+    - Comprehensive usage examples (focused expansion, parallel work, iterative refinement)
+    - Clear guidance on when to use --focus argument
+    - Updated quality standards to emphasize extensibility
 - **v3.1** (2026-01-30):
   - **YAML Tools Enhancements**:
     - Fixed node positioning and canvas bounds calculation in Graphviz layout engine
