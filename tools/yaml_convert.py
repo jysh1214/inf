@@ -679,10 +679,10 @@ class YAMLToInfConverter:
         rows = sum(1 for line in lines if '---' not in line)
         return (max(1, rows), max(1, cols))
 
-    def parse_table_cells(self, table_str: str) -> List[Dict[str, Any]]:
-        """Parse markdown table to get cell data"""
+    def parse_table_cells(self, table_str: str) -> List[List[Dict[str, Any]]]:
+        """Parse markdown table to get cell data as 2D array"""
         lines = [line.strip() for line in table_str.strip().split('\n') if line.strip()]
-        cells = []
+        cells = []  # 2D array: cells[row][col]
 
         # Parse alignment from separator
         alignments = []
@@ -709,12 +709,16 @@ class YAMLToInfConverter:
             if row_cells and not row_cells[-1]:
                 row_cells = row_cells[:-1]
 
+            # Create row array
+            row = []
             for i, cell_text in enumerate(row_cells):
                 align = alignments[i] if i < len(alignments) else 'left'
-                cells.append({
+                row.append({
                     "text": cell_text,
                     "textAlign": align
                 })
+
+            cells.append(row)  # Append row to 2D array
 
         return cells
 
