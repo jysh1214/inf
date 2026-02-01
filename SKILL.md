@@ -28,13 +28,7 @@ Generate comprehensive visual documentation for the current repository using the
     - Undirected edges for associations
 - Use groups to organize related nodes, with clear visual boundaries and labels.
 - Go as deep as needed — subgraphs support infinite nesting levels.
-- Separate YAML files for each subgraph, with clear and descriptive names (e.g., module-authentication.yaml, concept-event-loop.yaml)
-- Use relative paths only.
-
-**AI writes structure, script handles layout.**
-
-✅ **You specify**: Node text, types, connections, relationships, groups
-❌ **You do NOT specify**: Coordinates, IDs, sizes, canvas dimensions
+- Separate YAML files for each subgraph, with clear and descriptive names (e.g., module-authentication.yaml, concept-event-loop.yaml). Use relative paths only.
 
 ---
 
@@ -251,7 +245,7 @@ Identify key patterns: frontend/backend separation, modules, data flow, dependen
 **Level 0: Root**
 
 1. Create `inf-notes/root.yaml` with system overview
-2. Validate: `python3 tools/yaml_checker.py inf-notes/root.yaml`
+2. Validate: `python3 tools/yaml_convert.py inf-notes/root.yaml --validate`
 3. Fix errors until validation passes
 
 **For Each Level (1, 2, 3, ...):**
@@ -263,18 +257,11 @@ Identify key patterns: frontend/backend separation, modules, data flow, dependen
 3. **Create all subgraph files** at this level (BFS approach)
 4. **Validate all files** at this level:
    ```bash
-   python3 tools/yaml_checker.py inf-notes/<filename>.yaml
+   python3 tools/yaml_convert.py inf-notes/<filename>.yaml --validate
    ```
 5. **Fix errors** until all files pass validation
 
 **Repeat** until no more nodes need expansion (see "When to Stop" below).
-
-**After all levels complete:**
-
-Convert all YAML files to JSON:
-```bash
-python3 tools/yaml2inf.py inf-notes/ --verbose
-```
 
 ---
 
