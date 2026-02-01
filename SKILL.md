@@ -38,46 +38,6 @@ Generate comprehensive visual documentation for the current repository using the
 
 ---
 
-## Complete Example
-
-```yaml
-nodes:
-  - text: "Web Client"
-    type: rectangle
-
-  - text: "API Gateway"
-    type: rectangle
-    subgraph: "api-gateway.yaml"
-
-  - text: "Auth Service"
-    type: rectangle
-    subgraph: "auth-service.yaml"
-
-  - text: "Database"
-    type: circle
-
-connections:
-  - from: "Web Client"
-    to: "API Gateway"
-    directed: true
-
-  - from: "API Gateway"
-    to: "Auth Service"
-
-  - from: "API Gateway"
-    to: "Database"
-
-groups:
-  - name: "Backend Services"
-    nodes: ["API Gateway", "Auth Service", "Database"]
-
-layout:
-  engine: dot
-  rankdir: LR
-```
-
----
-
 ## Format
 
 ### Normal Node
@@ -116,7 +76,7 @@ URLs are automatically detected and highlighted in any node type (clickable with
   align: center
 ```
 
-### Node with Subgraph
+### Subgraph
 
 Link to another YAML file for hierarchical depth:
 
@@ -131,7 +91,31 @@ nodes:
     subgraph: "frontend/frontend.yaml"
 ```
 
-**Always include `.yaml` extension** in subgraph references for clarity and consistency.
+**File-based subgraphs:**
+- Always include `.yaml` extension for clarity
+- Use relative paths only
+- Referenced file must exist (or will be created in next level)
+
+**Naming conventions:**
+- **Top-level**: `api.yaml`, `database.yaml`, `frontend.yaml`
+- **Nested (level 2+)**: `parent__child.yaml` (double underscore)
+- **Prefixes**: `api-`, `module-`, `concept-`, `flow-`
+- **Kebab-case**: `module-authentication.yaml`, `api-endpoints.yaml`
+
+**Examples:**
+```yaml
+# Level 1: root.yaml references
+- text: "API Layer"
+  subgraph: "api.yaml"
+
+# Level 2: api.yaml references
+- text: "Authentication"
+  subgraph: "api__authentication.yaml"
+
+# Level 3: api__authentication.yaml references
+- text: "OAuth Flow"
+  subgraph: "api__authentication__oauth.yaml"
+```
 
 ### Table
 
