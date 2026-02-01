@@ -1,6 +1,6 @@
 ---
 name: inf
-description: Generate hierarchical Inf diagram notes as YAML files in the inf-notes directory. First run creates root.yaml + Level 1. Subsequent runs deepen existing notes by one level. Use --focus <file> to expand only a specific subgraph.
+description: Generate hierarchical Inf diagram notes as YAML files in the inf-notes directory. First run creates root.yaml + Level 1. Subsequent runs scan all nodes across all levels and extend expandable ones by one level. Use --focus <file> to expand only a specific file.
 ---
 
 # Inf Repository Notes Generator
@@ -25,9 +25,10 @@ Generate comprehensive visual documentation for the current repository using the
 
 **Behavior:**
 - Scans only the specified file for nodes to expand
-- Creates subgraph files only for that focused file's children
+- Creates subgraph files only for that focused file's children (one level deep)
 - Ignores all other YAML files in inf-notes/
-- Still follows one-level-at-a-time incremental workflow
+- **One-level-at-a-time**: Allows controlled iteration and review before going deeper
+- **Contrast**: Without `--focus`, scans ALL files at ALL levels for expandable nodes
 
 ---
 
@@ -284,7 +285,7 @@ Generate **Level 0 (root) + Level 1 (direct children) only**:
 
 **If `inf-notes/` already EXISTS (deepening existing notes):**
 
-Generate **next level deeper** based on existing YAML files:
+Scan **all nodes across all levels** and extend expandable nodes by one level:
 
 **A. Check for `--focus` argument:**
 
@@ -303,20 +304,24 @@ If `--focus <file>` is provided (e.g., `/inf --focus api.yaml`):
 6. Fix errors until all files pass validation
 7. **Stop here** - user will run `/inf --focus <file>` again to go deeper, or `/inf` to expand other areas
 
-**B. If no `--focus` argument (expand all files at deepest level):**
+**B. If no `--focus` argument (scan all levels, expand by one):**
 
-1. **Scan all YAML files** in `inf-notes/` to find the current deepest level
-2. **Identify nodes for expansion**: For each node at the deepest level, **default to marking as extensible** unless it's truly atomic (see "When to Stop" below)
-   - **Bias toward expansion**: When uncertain, mark the node as extensible with `subgraph: "parent__child.yaml"`
+**Breadth-first incremental expansion** - Scan all nodes across all existing files and extend by one level:
+
+1. **Scan ALL YAML files** in `inf-notes/` (at every level, not just the deepest)
+2. **For each file, identify nodes without subgraphs**: Check if the node could be extended
+   - **Default to marking as extensible** unless it's truly atomic (see "Extensibility Exceptions" below)
+   - **Bias toward expansion**: When uncertain, add `subgraph: "parent__child.yaml"` to the node
    - Use double underscore naming for nested levels
    - Only skip nodes that are clearly atomic (single functions, simple concepts, no sub-components)
-3. **Create all subgraph files** for the next level
-4. **Validate all new files**:
+3. **Update existing files** to add subgraph references to expandable nodes
+4. **Create all new subgraph files** for the newly added references (one level of children)
+5. **Validate all modified and new files**:
    ```bash
-   python3 tools/yaml_convert.py inf-notes/<new-file>.yaml --validate
+   python3 tools/yaml_convert.py inf-notes/<file>.yaml --validate
    ```
-5. Fix errors until all files pass validation
-6. **Stop here** - user will run `/inf` again to go deeper if needed
+6. Fix errors until all files pass validation
+7. **Stop here** - user will run `/inf` again to scan and extend the next level
 
 ---
 
@@ -326,9 +331,10 @@ If `--focus <file>` is provided (e.g., `/inf --focus api.yaml`):
 - Node represents a single function, constant, or variable (truly atomic)
 - Further detail would be raw implementation code (use code node with snippet instead)
 - Node is a leaf concept with no possible sub-components (e.g., "Port 3000", "UTF-8 encoding")
-- Level 2+ subgraphs reached (let user run `/inf` again to continue)
 
 **When in doubt, mark as extensible** - it's better to create expansion opportunities than to miss important details.
+
+**Note on behavior:** Both with and without `--focus`, expansion is incremental (one level at a time). The difference is scope: `--focus` targets one file, while no-focus scans all files at all levels.
 
 ---
 
@@ -367,25 +373,31 @@ If `--focus <file>` is provided (e.g., `/inf --focus api.yaml`):
 /inf                    # Create root.yaml + Level 1 files
 ```
 
-## Deepening All Areas
+## Deepening All Areas (Breadth-First)
 
 ```bash
-/inf                    # Expand all files at deepest level by one level
-/inf                    # Run again to go even deeper
+/inf                    # Scans ALL nodes in ALL files
+                        # Identifies nodes without subgraphs that could be extended
+                        # Adds subgraph references and creates one level of children
+                        # Run multiple times to progressively deepen all areas
 ```
 
-## Focused Expansion
+**Behavior:** Without `--focus`, the skill scans all existing files at every level, identifies nodes that could be extended but don't have subgraphs yet, adds subgraph references, and creates one level of children. This is breadth-first expansion - progressively adding depth across all areas simultaneously.
+
+## Focused Expansion (One Level at a Time)
 
 ```bash
-# Expand only the API documentation
-/inf --focus api.yaml
+# Expand only the API documentation (one level)
+/inf --focus api.yaml              # Creates api__*.yaml children only
 
-# Go deeper into API authentication
-/inf --focus api__auth.yaml
+# Go deeper into API authentication (one level)
+/inf --focus api__auth.yaml        # Creates api__auth__*.yaml children only
 
-# Continue deepening the auth flow
-/inf --focus api__auth__oauth.yaml
+# Continue deepening the auth flow (one level)
+/inf --focus api__auth__oauth.yaml # Creates api__auth__oauth__*.yaml children only
 ```
+
+**Behavior:** With `--focus`, expansion is limited to **one level** for controlled, iterative deepening. This allows you to carefully review and refine each level before proceeding deeper.
 
 ## Parallel Work Strategy
 
@@ -407,10 +419,10 @@ If `--focus <file>` is provided (e.g., `/inf --focus api.yaml`):
 /inf                              # Create root + Level 1
 
 # Focus on one area to refine
-/inf --focus api.yaml             # Expand API details
-/inf --focus api.yaml             # Refine further (re-run to deepen)
+/inf --focus api.yaml             # Expand API details (creates api__*.yaml)
+/inf --focus api__auth.yaml       # Go deeper into auth (creates api__auth__*.yaml)
 
-# Switch focus to another area
+# Or switch focus to another area
 /inf --focus database.yaml        # Now work on database
 ```
 
@@ -418,7 +430,8 @@ If `--focus <file>` is provided (e.g., `/inf --focus api.yaml`):
 
 **Ready to generate notes!**
 
-- First run: Creates root.yaml + Level 1 subgraphs
-- Subsequent runs: Deepens existing notes by one level
-- Use `--focus <file>` to target specific areas for deep exploration
-- Run `/inf` multiple times to incrementally build deep hierarchical documentation
+- **First run**: Creates root.yaml + Level 1 subgraphs only
+- **Subsequent runs (no --focus)**: Scans ALL nodes across ALL levels, extends expandable ones by one level
+- **With `--focus <file>`**: Extends only nodes in the specified file by one level
+- **Breadth-first by default**: `/inf` progressively deepens all areas simultaneously
+- **Focused iteration**: Use `--focus` to target specific areas while leaving others unchanged
