@@ -760,56 +760,34 @@ class YAMLToInfConverter:
         }
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='YAML to Inf JSON converter with Graphviz layout',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='''
-Examples:
-  # Validate YAML only
-  python3 yaml_convert.py input.yaml --validate
-
-  # Convert to JSON with Graphviz layout
-  python3 yaml_convert.py input.yaml --output output.json
-        '''
-    )
-
-    parser.add_argument('input', help='Input YAML file')
-    parser.add_argument('--validate', action='store_true', help='Validate YAML format only (no conversion)')
-    parser.add_argument('--output', '-o', metavar='FILE', help='Output JSON file (required for conversion)')
-
-    args = parser.parse_args()
-
-    # Validate mode or output mode required
-    if not args.validate and not args.output:
-        parser.error('Must specify either --validate or --output')
-
+def convert_single_file(input_file: str, output_file: str, validate_only: bool = False) -> bool:
+    """Convert a single YAML file to Inf JSON"""
     # Load YAML
     try:
-        with open(args.input, 'r', encoding='utf-8') as f:
+        with open(input_file, 'r', encoding='utf-8') as f:
             yaml_data = yaml.safe_load(f)
     except FileNotFoundError:
-        print(f"❌ ERROR: File not found: {args.input}")
-        sys.exit(1)
+        print(f"❌ ERROR: File not found: {input_file}")
+        return False
     except yaml.YAMLError as e:
-        print(f"❌ ERROR: Invalid YAML syntax:")
+        print(f"❌ ERROR: Invalid YAML syntax in {input_file}:")
         print(f"   {e}")
-        sys.exit(1)
+        return False
     except Exception as e:
-        print(f"❌ ERROR: Failed to read file: {e}")
-        sys.exit(1)
+        print(f"❌ ERROR: Failed to read {input_file}: {e}")
+        return False
 
     # Validate
     validator = YAMLValidator()
     validator.validate(yaml_data)
-    success = validator.print_results(args.input)
+    success = validator.print_results(input_file)
 
     if not success:
-        sys.exit(1)
+        return False
 
     # If validate-only, stop here
-    if args.validate:
-        sys.exit(0)
+    if validate_only:
+        return True
 
     # Compute layout with Graphviz
     print(f"\n{'='*60}")
@@ -818,7 +796,7 @@ Examples:
 
     layout_engine = GraphvizLayoutEngine(yaml_data)
     if not layout_engine.compute_layout():
-        sys.exit(1)
+        return False
 
     print(f"✅ Layout computed successfully")
     print(f"   Engine: {layout_engine.engine}")
@@ -826,7 +804,7 @@ Examples:
 
     # Convert to Inf JSON
     print(f"\n{'='*60}")
-    print(f"Converting to Inf JSON: {args.output}")
+    print(f"Converting to Inf JSON: {output_file}")
     print(f"{'='*60}\n")
 
     converter = YAMLToInfConverter(layout_engine)
@@ -834,18 +812,140 @@ Examples:
 
     # Write output
     try:
-        with open(args.output, 'w', encoding='utf-8') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(inf_json, f, indent=2, ensure_ascii=False)
 
         print(f"✅ Conversion complete!")
-        print(f"   Output: {args.output}")
+        print(f"   Output: {output_file}")
         print(f"   Nodes: {len(inf_json['nodes'])}")
         print(f"   Connections: {len(inf_json['connections'])}")
         print(f"   Groups: {len(inf_json['groups'])}")
         print(f"   Canvas: {inf_json['canvasWidth']}x{inf_json['canvasHeight']}")
+        return True
     except Exception as e:
         print(f"❌ ERROR: Failed to write output: {e}")
-        sys.exit(1)
+        return False
+
+
+def convert_directory(directory: str) -> bool:
+    """Convert all YAML files in a directory to Inf JSON"""
+    dir_path = Path(directory)
+
+    if not dir_path.exists():
+        print(f"❌ ERROR: Directory not found: {directory}")
+        return False
+
+    if not dir_path.is_dir():
+        print(f"❌ ERROR: Not a directory: {directory}")
+        return False
+
+    # Find all .yaml files
+    yaml_files = sorted(dir_path.glob('*.yaml'))
+
+    if not yaml_files:
+        print(f"⚠️  WARNING: No .yaml files found in {directory}")
+        return True
+
+    print(f"\n{'='*60}")
+    print(f"Batch Conversion: {directory}")
+    print(f"{'='*60}")
+    print(f"Found {len(yaml_files)} YAML file(s)\n")
+
+    success_count = 0
+    failed_files = []
+
+    for yaml_file in yaml_files:
+        output_file = yaml_file.with_suffix('.json')
+
+        print(f"\n{'─'*60}")
+        print(f"Processing: {yaml_file.name}")
+        print(f"{'─'*60}\n")
+
+        if convert_single_file(str(yaml_file), str(output_file), validate_only=False):
+            success_count += 1
+        else:
+            failed_files.append(yaml_file.name)
+
+    # Print summary
+    print(f"\n{'='*60}")
+    print(f"Batch Conversion Summary")
+    print(f"{'='*60}\n")
+    print(f"Total files: {len(yaml_files)}")
+    print(f"✅ Success: {success_count}")
+    print(f"❌ Failed: {len(failed_files)}")
+
+    if failed_files:
+        print(f"\nFailed files:")
+        for filename in failed_files:
+            print(f"  - {filename}")
+        return False
+
+    print(f"\n🎉 All files processed successfully!")
+    return True
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='YAML to Inf JSON converter with Graphviz layout',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  # Validate a single YAML file
+  python3 yaml_convert.py input.yaml --validate
+
+  # Convert a single YAML file to JSON
+  python3 yaml_convert.py input.yaml --output output.json
+
+  # Convert all YAML files in a directory (batch mode)
+  python3 yaml_convert.py --dir inf-notes/
+
+Note: --validate, --dir, and --output are mutually exclusive.
+      Use only one mode at a time.
+        '''
+    )
+
+    parser.add_argument('input', nargs='?', help='Input YAML file (for single-file mode)')
+    parser.add_argument('--dir', metavar='DIR', help='Directory containing YAML files (for batch mode)')
+    parser.add_argument('--validate', action='store_true', help='Validate YAML format only (no conversion)')
+    parser.add_argument('--output', '-o', metavar='FILE', help='Output JSON file (single-file mode only)')
+
+    args = parser.parse_args()
+
+    # Enforce mutual exclusivity: only one of --validate, --dir, or --output
+    mode_flags = [args.validate, args.dir is not None, args.output is not None]
+    if sum(mode_flags) > 1:
+        parser.error('Cannot use more than one of: --validate, --dir, --output')
+    if sum(mode_flags) == 0:
+        parser.error('Must specify one of: --validate, --dir, or --output')
+
+    # Determine mode based on which flag is set
+    if args.dir:
+        # Batch directory conversion mode
+        if args.input:
+            parser.error('Cannot specify input file with --dir')
+
+        success = convert_directory(args.dir)
+        sys.exit(0 if success else 1)
+
+    elif args.validate:
+        # Single file validation mode
+        if not args.input:
+            parser.error('--validate requires an input file')
+
+        success = convert_single_file(args.input, None, validate_only=True)
+        sys.exit(0 if success else 1)
+
+    elif args.output:
+        # Single file conversion mode
+        if not args.input:
+            parser.error('--output requires an input file')
+
+        success = convert_single_file(args.input, args.output, validate_only=False)
+        sys.exit(0 if success else 1)
+
+    else:
+        # Should never reach here due to earlier check
+        parser.error('Must specify one of: --validate, --dir, or --output')
 
 
 if __name__ == '__main__':
