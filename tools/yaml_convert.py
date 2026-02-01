@@ -8,6 +8,9 @@ Usage:
 
     # Convert to JSON with Graphviz layout
     python3 tools/yaml_convert.py input.yaml --output output.json
+
+    # Batch-convert
+    python3 tools/yaml_convert.py --dir inf-notes/
 """
 
 import sys
