@@ -1,50 +1,70 @@
-# Dockerfile for tools/yaml2inf.py converter
-# Includes Graphviz and all Python dependencies
-#
-# Build the image:
-#     docker build -t yaml2inf .
-#
-# Usage examples:
-#
-# Validate YAML files only (no conversion):
-#     docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --validate --verbose
-#
-# Convert YAML to JSON with verbose output:
-#     docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --verbose
-#
-# Convert with custom layout engine:
-#     docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace --engine neato --rankdir LR
-#
-# Convert a single file:
-#     docker run --rm -v /path/to/workspace:/workspace yaml2inf /workspace/myfile.yaml --verbose
+# Dockerfile for Inf
 
-FROM python:3.11-slim
+FROM ubuntu:24.04
 
-# Install system dependencies for Graphviz
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib/x86_64-unknown-linux-gnu:$LD_LIBRARY_PATH"
+
 RUN apt-get update && apt-get install -y \
+    build-essential \
+    ninja-build \
+    git \
+    curl \
+    wget \
+    vim \
+    ccache \
+    swig \
+    libssl-dev \
+    libsqlite3-dev \
+    libffi-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libatlas-base-dev \
+    zlib1g-dev \
     graphviz \
     libgraphviz-dev \
     pkg-config \
-    gcc \
-    g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app
-
-# Copy requirements file
-COPY requirements.txt .
+# Install Python from source
+ARG CPYTHON_URL="https://github.com/python/cpython.git"
+ARG CPYTHON_VERSION="v3.12.10"
+ARG CPYTHON_TMP_DIR="/tmp/cpython"
+WORKDIR $CPYTHON_TMP_DIR
+RUN git clone -b $CPYTHON_VERSION $CPYTHON_URL $CPYTHON_TMP_DIR && \
+  ./configure --enable-optimizations --enable-shared --enable-loadable-sqlite-extensions && \
+  CC=clang \
+  CXX=clang++ \
+  make -j $(nproc) && \
+  make install
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+WORKDIR /tmp
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Copy all converter tools
-COPY tools/yaml2inf.py .
-COPY tools/converter.py .
-COPY tools/graphviz.py .
+# Cleanup
+RUN rm -rf /tmp/*
 
-# Create directory for input/output files
+# Create non-root user BEFORE installing NVM/Node
+RUN useradd -m -s /bin/bash claude && \
+    mkdir -p /workspace && \
+    chown -R claude:claude /workspace
+
+# Switch to non-root user
+USER claude
+WORKDIR /home/claude
+
+# Install NVM and Node as non-root user
+ENV NVM_DIR="/home/claude/.nvm"
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && \
+    . "$NVM_DIR/nvm.sh" && \
+    nvm install 24 && \
+    nvm use 24 && \
+    npm install -g @anthropic-ai/claude-code
+
+# Set up PATH for Node/Claude
+ENV PATH="$NVM_DIR/versions/node/v24.0.0/bin:$PATH"
+
+# Set working directory
 WORKDIR /workspace
-
-# Set the entrypoint to run the converter script
-ENTRYPOINT ["python", "/app/yaml2inf.py"]
