@@ -1,6 +1,6 @@
 ---
 name: inf
-description: Analyze the current repository and generate hierarchical Inf diagram notes as YAML files in the inf-notes directory. Creates root.yaml overview and nested subgraphs.
+description: Generate hierarchical Inf diagram notes as YAML files in the inf-notes directory. First run creates root.yaml + Level 1. Subsequent runs deepen existing notes by one level.
 ---
 
 # Inf Repository Notes Generator
@@ -240,28 +240,41 @@ Identify key patterns: frontend/backend separation, modules, data flow, dependen
 
 ---
 
-## Iterative Process (Breadth-First)
+## Workflow
 
-**Level 0: Root**
+### Check if `inf-notes/` exists
 
-1. Create `inf-notes/root.yaml` with system overview
-2. Validate: `python3 tools/yaml_convert.py inf-notes/root.yaml --validate`
-3. Fix errors until validation passes
+**If `inf-notes/` does NOT exist (new repository):**
 
-**For Each Level (1, 2, 3, ...):**
+Generate **Level 0 (root) + Level 1 (direct children) only**:
 
-1. **Scan all nodes** in all current-level YAML files
-2. **Mark nodes for expansion**: For each node, ask "Could we explain more about this?"
-   - If yes: Add `subgraph: "filename.yaml"` to the node
-   - If no: Skip and move to next node
-3. **Create all subgraph files** at this level (BFS approach)
-4. **Validate all files** at this level:
+1. Create `inf-notes/root.yaml` with system overview (5-10 major components)
+2. For each major component in root.yaml, add `subgraph: "filename.yaml"` reference
+3. Create all Level 1 subgraph files (direct children of root)
+4. Validate all YAML files:
    ```bash
-   python3 tools/yaml_convert.py inf-notes/<filename>.yaml --validate
+   python3 tools/yaml_convert.py inf-notes/root.yaml --validate
+   python3 tools/yaml_convert.py inf-notes/api.yaml --validate
+   # ... validate each Level 1 file
    ```
-5. **Fix errors** until all files pass validation
+5. Fix errors until all files pass validation
+6. **Stop here** - do not generate Level 2+ subgraphs yet
 
-**Repeat** until no more nodes need expansion (see "When to Stop" below).
+**If `inf-notes/` already EXISTS (deepening existing notes):**
+
+Generate **next level deeper** based on existing YAML files:
+
+1. **Scan all YAML files** in `inf-notes/` to find the current deepest level
+2. **Identify nodes for expansion**: For each node at the deepest level, ask "Could we explain more about this?"
+   - If yes: Add `subgraph: "parent__child.yaml"` to the node (use double underscore naming)
+   - If no: Skip and move to next node
+3. **Create all subgraph files** for the next level
+4. **Validate all new files**:
+   ```bash
+   python3 tools/yaml_convert.py inf-notes/<new-file>.yaml --validate
+   ```
+5. Fix errors until all files pass validation
+6. **Stop here** - user will run `/inf` again to go deeper if needed
 
 ---
 
@@ -271,6 +284,7 @@ Stop creating subgraphs when:
 - Node represents a single function or file (atomic)
 - Further detail would be implementation code (use code node with snippet instead)
 - Node is self-explanatory with no sub-components
+- Level 2+ subgraphs reached (let user run `/inf` again to continue)
 
 ---
 
@@ -300,4 +314,8 @@ Stop creating subgraphs when:
 
 ---
 
-Now analyze this repository and create beautiful structured notes! 🚀
+**Ready to generate notes!**
+
+- First run: Creates root.yaml + Level 1 subgraphs
+- Subsequent runs: Deepens existing notes by one level
+- Run `/inf` multiple times to incrementally build deep hierarchical documentation

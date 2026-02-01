@@ -661,7 +661,11 @@ class YAMLToInfConverter:
 
         # Add subgraph if present
         if 'subgraph' in node:
-            inf_node['subgraph'] = node['subgraph']
+            subgraph_path = node['subgraph']
+            # Convert .yaml extension to .json for Inf format
+            if subgraph_path.endswith('.yaml'):
+                subgraph_path = subgraph_path[:-5] + '.json'
+            inf_node['subgraph'] = subgraph_path
 
         return inf_node
 
