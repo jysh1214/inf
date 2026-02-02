@@ -385,11 +385,12 @@ class GraphvizLayoutEngine:
         line_height = 20  # pixels per line
 
         if node_type == 'table':
-            # Table size based on markdown content
+            # Table size based on actual cell content
             table_str = node.get('table', '')
-            rows, cols = self.parse_table_dimensions(table_str)
-            width = cols * 100  # 100px per column
-            height = rows * 40  # 40px per row
+            cells = self.parse_table_cells(table_str)
+            col_widths, row_heights = self.calculate_table_dimensions(cells)
+            width = sum(col_widths)
+            height = sum(row_heights)
         elif node_type == 'circle':
             # Circle needs to fit text
             radius = max(60, max_line_len * char_width / 2, num_lines * line_height / 2)
@@ -422,6 +423,91 @@ class GraphvizLayoutEngine:
         rows = sum(1 for line in lines if '---' not in line)
 
         return (max(1, rows), max(1, cols))
+
+    def parse_table_cells(self, table_str: str) -> List[List[Dict[str, Any]]]:
+        """Parse markdown table to get cell data as 2D array"""
+        lines = [line.strip() for line in table_str.strip().split('\n') if line.strip()]
+        cells = []  # 2D array: cells[row][col]
+
+        # Parse alignment from separator
+        alignments = []
+        for line in lines:
+            if '---' in line:
+                sep_cells = [c.strip() for c in line.split('|') if c.strip()]
+                for cell in sep_cells:
+                    if cell.startswith(':') and cell.endswith(':'):
+                        alignments.append('center')
+                    elif cell.endswith(':'):
+                        alignments.append('right')
+                    else:
+                        alignments.append('left')
+                break
+
+        # Parse data rows
+        for line in lines:
+            if '---' in line:
+                continue
+
+            row_cells = [c.strip() for c in line.split('|')]
+            if row_cells and not row_cells[0]:
+                row_cells = row_cells[1:]
+            if row_cells and not row_cells[-1]:
+                row_cells = row_cells[:-1]
+
+            # Create row array
+            row = []
+            for i, cell_text in enumerate(row_cells):
+                align = alignments[i] if i < len(alignments) else 'left'
+                row.append({
+                    "text": cell_text,
+                    "textAlign": align
+                })
+
+            cells.append(row)  # Append row to 2D array
+
+        return cells
+
+    def calculate_table_dimensions(self, cells: List[List[Dict[str, Any]]]) -> Tuple[List[int], List[int]]:
+        """Calculate optimal column widths and row heights based on cell content"""
+        if not cells or not cells[0]:
+            return ([100], [40])
+
+        rows = len(cells)
+        cols = len(cells[0])
+
+        # Text measurement heuristics (approximations for Monaco 14px)
+        AVG_CHAR_WIDTH = 8.4  # Average character width in pixels
+        LINE_HEIGHT = 18      # Line height in pixels
+        PADDING = 20          # Cell padding (CELL_PADDING * 2 + TEXT_PADDING * 2)
+        MIN_WIDTH = 40        # Minimum cell width
+        MIN_HEIGHT = 30       # Minimum cell height
+
+        # Calculate column widths (max width in each column)
+        col_widths = [MIN_WIDTH] * cols
+        for col in range(cols):
+            for row in range(rows):
+                if col < len(cells[row]):
+                    cell_text = cells[row][col].get('text', '')
+                    if cell_text:
+                        # Find widest line in cell
+                        lines = cell_text.split('\n')
+                        max_line_width = max(len(line) for line in lines) * AVG_CHAR_WIDTH
+                        required_width = int(max_line_width + PADDING)
+                        col_widths[col] = max(col_widths[col], required_width)
+
+        # Calculate row heights (max height in each row)
+        row_heights = [MIN_HEIGHT] * rows
+        for row in range(rows):
+            for col in range(cols):
+                if col < len(cells[row]):
+                    cell_text = cells[row][col].get('text', '')
+                    if cell_text:
+                        # Count lines in cell
+                        line_count = len(cell_text.split('\n'))
+                        required_height = int(line_count * LINE_HEIGHT + PADDING)
+                        row_heights[row] = max(row_heights[row], required_height)
+
+        return (col_widths, row_heights)
 
     def compute_layout(self) -> bool:
         """Use Graphviz to compute layout"""
