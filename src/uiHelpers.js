@@ -44,6 +44,34 @@ function updateFilePathDisplay() {
     } else {
         filePathElement.textContent = '(unsaved)';
     }
+
+    // Enable/disable the copy button based on whether we have a filename
+    const copyButton = document.getElementById('copy-inf-focus-btn');
+    if (copyButton) {
+        const hasValidFile = currentFileName && currentFileName !== '(embedded)' && currentFileName !== '(unsaved)';
+        copyButton.disabled = !hasValidFile;
+        copyButton.style.opacity = hasValidFile ? '1' : '0.5';
+        copyButton.style.cursor = hasValidFile ? 'pointer' : 'not-allowed';
+    }
+}
+
+async function copyInfFocusCommand() {
+    if (!currentFileName || currentFileName === '(embedded)') {
+        setStatus('⚠️ No file to focus on');
+        return;
+    }
+
+    // Remove .json extension if present
+    const fileNameWithoutExt = currentFileName.replace(/\.json$/, '');
+    const command = `/inf --focus ${fileNameWithoutExt}`;
+
+    try {
+        await navigator.clipboard.writeText(command);
+        setStatus(`✓ Copied to clipboard: ${command}`);
+    } catch (error) {
+        console.error('Failed to copy to clipboard:', error);
+        setStatus('⚠️ Failed to copy to clipboard');
+    }
 }
 
 function updateSubgraphButton() {
