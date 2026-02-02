@@ -645,14 +645,16 @@ class YAMLToInfConverter:
             })
         elif node_type == 'table':
             rows, cols = self.parse_table_dimensions(node.get('table', ''))
+            cells = self.parse_table_cells(node.get('table', ''))
+            col_widths, row_heights = self.calculate_table_dimensions(cells)
             inf_node.update({
                 "x": int(pos[0] - size[0] / 2),  # Top-left corner
                 "y": int(pos[1] - size[1] / 2),
                 "rows": rows,
                 "cols": cols,
-                "cells": self.parse_table_cells(node.get('table', '')),
-                "colWidths": [100] * cols,
-                "rowHeights": [40] * rows
+                "cells": cells,
+                "colWidths": col_widths,
+                "rowHeights": row_heights
             })
         else:  # rectangle, text, code
             inf_node.update({
@@ -724,6 +726,48 @@ class YAMLToInfConverter:
             cells.append(row)  # Append row to 2D array
 
         return cells
+
+    def calculate_table_dimensions(self, cells: List[List[Dict[str, Any]]]) -> Tuple[List[int], List[int]]:
+        """Calculate optimal column widths and row heights based on cell content"""
+        if not cells or not cells[0]:
+            return ([100], [40])
+
+        rows = len(cells)
+        cols = len(cells[0])
+
+        # Text measurement heuristics (approximations for Monaco 14px)
+        AVG_CHAR_WIDTH = 8.4  # Average character width in pixels
+        LINE_HEIGHT = 18      # Line height in pixels
+        PADDING = 20          # Cell padding (CELL_PADDING * 2 + TEXT_PADDING * 2)
+        MIN_WIDTH = 40        # Minimum cell width
+        MIN_HEIGHT = 30       # Minimum cell height
+
+        # Calculate column widths (max width in each column)
+        col_widths = [MIN_WIDTH] * cols
+        for col in range(cols):
+            for row in range(rows):
+                if col < len(cells[row]):
+                    cell_text = cells[row][col].get('text', '')
+                    if cell_text:
+                        # Find widest line in cell
+                        lines = cell_text.split('\n')
+                        max_line_width = max(len(line) for line in lines) * AVG_CHAR_WIDTH
+                        required_width = int(max_line_width + PADDING)
+                        col_widths[col] = max(col_widths[col], required_width)
+
+        # Calculate row heights (max height in each row)
+        row_heights = [MIN_HEIGHT] * rows
+        for row in range(rows):
+            for col in range(cols):
+                if col < len(cells[row]):
+                    cell_text = cells[row][col].get('text', '')
+                    if cell_text:
+                        # Count lines in cell
+                        line_count = len(cell_text.split('\n'))
+                        required_height = int(line_count * LINE_HEIGHT + PADDING)
+                        row_heights[row] = max(row_heights[row], required_height)
+
+        return (col_widths, row_heights)
 
     def convert_connection(self, conn: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Convert YAML connection to Inf format"""
