@@ -52,6 +52,8 @@ Generate comprehensive visual documentation for the current repository using the
 - Use groups to organize related nodes, with clear visual boundaries and labels.
 - Go as deep as needed — subgraphs support infinite nesting levels.
 - Separate YAML files for each subgraph, with clear and descriptive names (e.g., module-authentication.yaml, concept-event-loop.yaml). Use relative paths only.
+- It’s fine to use a large text node or a code node to include details or pseudocode.
+
 
 ---
 
