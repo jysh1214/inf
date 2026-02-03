@@ -52,7 +52,8 @@ Generate comprehensive visual documentation for the current repository using the
 - Use groups to organize related nodes, with clear visual boundaries and labels.
 - Go as deep as needed — subgraphs support infinite nesting levels.
 - Separate YAML files for each subgraph, with clear and descriptive names (e.g., module-authentication.yaml, concept-event-loop.yaml). Use relative paths only.
-- It’s fine to use a large text node or a code node to include details or pseudocode.
+- It's fine to use a large text node or a code node to include details or pseudocode.
+- **IMPORTANT**: Keep related content together in the same node. Use multiline text (with `\n`) to combine titles and content instead of creating separate nodes. The layout algorithm may place separate nodes far apart, breaking visual relationships. Example: Use `"Title\nContent here..."` instead of two separate nodes.
 
 
 ---
@@ -93,6 +94,20 @@ URLs are automatically detected and highlighted in any node type (clickable with
 - text: "Title\nSubtitle\nDetails"
   type: text
   align: center
+```
+
+**Keep related content together:**
+```yaml
+# ✓ GOOD: Title and content in one node
+- text: "Configuration\n\nAPI key: xxx\nTimeout: 30s\nRetries: 3"
+  type: text
+  align: left
+
+# ✗ BAD: Separate nodes may be placed far apart by layout
+- text: "Configuration"
+  type: text
+- text: "API key: xxx\nTimeout: 30s\nRetries: 3"
+  type: text
 ```
 
 ### Subgraph
