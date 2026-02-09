@@ -562,76 +562,12 @@ class GraphvizLayoutEngine:
                 y = float(pos[1])
                 self.node_positions[text] = (x, y)
 
-            # Rearrange isolated nodes vertically for better layout
-            self.rearrange_isolated_nodes(node_id_map)
-
             return True
 
         except Exception as e:
             print(f"❌ ERROR: Graphviz layout failed: {e}")
             print(f"   Make sure Graphviz is installed and '{self.engine}' is available")
             return False
-
-    def rearrange_isolated_nodes(self, node_id_map):
-        """Rearrange isolated nodes (nodes with no connections) in a vertical grid"""
-        # Build a set of nodes that have connections
-        connected_nodes = set()
-        for conn in self.yaml_data.get('connections', []):
-            from_text = conn.get('from')
-            to_text = conn.get('to')
-            if from_text in node_id_map:
-                connected_nodes.add(from_text)
-            if to_text in node_id_map:
-                connected_nodes.add(to_text)
-
-        # Find isolated nodes (nodes without any connections)
-        all_nodes = set(node_id_map.keys())
-        isolated_nodes = all_nodes - connected_nodes
-
-        if len(isolated_nodes) <= 1:
-            return  # Nothing to rearrange
-
-        # Group isolated nodes by their current Y position (they're likely at the same level)
-        from collections import defaultdict
-        y_groups = defaultdict(list)
-        for node_text in isolated_nodes:
-            if node_text in self.node_positions:
-                x, y = self.node_positions[node_text]
-                # Round Y to group nodes at approximately the same level
-                y_rounded = round(y / 10) * 10
-                y_groups[y_rounded].append(node_text)
-
-        # For each group with multiple nodes at the same level, arrange them vertically
-        for y_level, nodes_at_level in y_groups.items():
-            if len(nodes_at_level) <= 1:
-                continue  # Single node, no need to rearrange
-
-            # Sort nodes by X position to maintain left-to-right order
-            nodes_at_level.sort(key=lambda text: self.node_positions[text][0])
-
-            # Calculate layout parameters
-            num_nodes = len(nodes_at_level)
-            grid_cols = min(3, num_nodes)  # Max 3 columns
-            grid_rows = (num_nodes + grid_cols - 1) // grid_cols
-
-            # Calculate spacing based on node sizes
-            max_width = max(self.node_sizes.get(text, (150, 60))[0] for text in nodes_at_level)
-            max_height = max(self.node_sizes.get(text, (150, 60))[1] for text in nodes_at_level)
-            col_spacing = max_width * 1.5
-            row_spacing = max_height * 1.8
-
-            # Find the leftmost X position of the group
-            start_x = min(self.node_positions[text][0] for text in nodes_at_level)
-
-            # Arrange nodes in a grid
-            for i, node_text in enumerate(nodes_at_level):
-                col = i % grid_cols
-                row = i // grid_cols
-
-                new_x = start_x + col * col_spacing
-                new_y = y_level + row * row_spacing
-
-                self.node_positions[node_text] = (new_x, new_y)
 
     def normalize_positions(self):
         """Normalize positions to ensure all nodes are within canvas bounds"""
