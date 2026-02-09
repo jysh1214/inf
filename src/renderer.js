@@ -479,8 +479,8 @@ function drawTableNode(node, isSelected) {
         };
 
         // Draw trapezoid tab
-        ctx.fillStyle = '#667eea';
-        ctx.strokeStyle = '#667eea';
+        ctx.fillStyle = '#6c757d';
+        ctx.strokeStyle = '#6c757d';
         ctx.lineWidth = 1;
 
         ctx.beginPath();
