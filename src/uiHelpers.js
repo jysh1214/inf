@@ -84,9 +84,19 @@ async function copyInfFocusCommand() {
         return;
     }
 
-    // Remove .json extension if present
+    // Convert filename: remove .json extension and add .yaml
     const fileNameWithoutExt = currentFileName.replace(/\.json$/, '');
-    const command = `/inf --focus ${fileNameWithoutExt}`;
+    const yamlFileName = fileNameWithoutExt + '.yaml';
+
+    // Build command with workspace folder if available
+    let focusPath;
+    if (workspaceFolderName) {
+        focusPath = `${workspaceFolderName}/${yamlFileName}`;
+    } else {
+        focusPath = yamlFileName;
+    }
+
+    const command = `/inf --focus ${focusPath}`;
 
     try {
         await navigator.clipboard.writeText(command);
