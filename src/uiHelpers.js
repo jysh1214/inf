@@ -45,13 +45,36 @@ function updateFilePathDisplay() {
         filePathElement.textContent = '(unsaved)';
     }
 
-    // Enable/disable the copy button based on whether we have a filename
-    const copyButton = document.getElementById('copy-inf-focus-btn');
-    if (copyButton) {
-        const hasValidFile = currentFileName && currentFileName !== '(embedded)' && currentFileName !== '(unsaved)';
-        copyButton.disabled = !hasValidFile;
-        copyButton.style.opacity = hasValidFile ? '1' : '0.5';
-        copyButton.style.cursor = hasValidFile ? 'pointer' : 'not-allowed';
+    // Enable/disable the copy buttons based on whether we have a filename
+    const hasValidFile = currentFileName && currentFileName !== '(embedded)' && currentFileName !== '(unsaved)';
+
+    const copyFilenameBtn = document.getElementById('copy-filename-btn');
+    if (copyFilenameBtn) {
+        copyFilenameBtn.disabled = !hasValidFile;
+        copyFilenameBtn.style.opacity = hasValidFile ? '1' : '0.5';
+        copyFilenameBtn.style.cursor = hasValidFile ? 'pointer' : 'not-allowed';
+    }
+
+    const copyInfFocusBtn = document.getElementById('copy-inf-focus-btn');
+    if (copyInfFocusBtn) {
+        copyInfFocusBtn.disabled = !hasValidFile;
+        copyInfFocusBtn.style.opacity = hasValidFile ? '1' : '0.5';
+        copyInfFocusBtn.style.cursor = hasValidFile ? 'pointer' : 'not-allowed';
+    }
+}
+
+async function copyFilename() {
+    if (!currentFileName || currentFileName === '(embedded)' || currentFileName === '(unsaved)') {
+        setStatus('⚠️ No filename to copy');
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(currentFileName);
+        setStatus(`✓ Copied to clipboard: ${currentFileName}`);
+    } catch (error) {
+        console.error('Failed to copy to clipboard:', error);
+        setStatus('⚠️ Failed to copy to clipboard');
     }
 }
 
