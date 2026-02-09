@@ -9,7 +9,7 @@ docker run --rm --mount src=$PWD,target=/workspace,type=bind -w /workspace -it i
 ```
 
 ```bash
-mkdir -p ~/.claude/skills && cp -r inf ~/.claude/skills
+mkdir -p ~/.claude/skills && rm -rf ~/.claude/skills/inf && cp -r inf ~/.claude/skills
 ```
 
 ```bash
