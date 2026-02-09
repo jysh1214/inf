@@ -454,42 +454,55 @@ function drawTableNode(node, isSelected) {
     ctx.lineWidth = node.subgraph ? SUBGRAPH_BORDER_WIDTH : (isSelected ? SELECTED_BORDER_WIDTH : 1);
     ctx.strokeRect(node.x, node.y, totalWidth, totalHeight);
 
-    // Draw clickable label above table if it has a node-level subgraph
+    // Draw trapezoid tab on top-left if table has a node-level subgraph
     if (node.subgraph) {
         const labelText = '⬇ Table';
-        const labelPadding = 4;
-        const labelHeight = 20;
+        const labelPadding = 8;
+        const labelHeight = 22;
+        const trapezoidSlant = 6; // How much the sides slant inward at the top
 
         // Measure text width
-        ctx.font = `12px ${FONT_FAMILY}`;
+        ctx.font = `bold 11px ${FONT_FAMILY}`;
         const textMetrics = ctx.measureText(labelText);
         const labelWidth = textMetrics.width + labelPadding * 2;
 
-        // Position label centered above the table
-        const labelX = node.x + totalWidth / 2 - labelWidth / 2;
-        const labelY = node.y - labelHeight - 4;
+        // Position tab at top-left of table
+        const tabX = node.x + 8;
+        const tabY = node.y - labelHeight;
 
-        // Store label position for click detection
+        // Store label position for click detection (use bounding box)
         node._tableLabelBounds = {
-            x: labelX,
-            y: labelY,
+            x: tabX,
+            y: tabY,
             width: labelWidth,
             height: labelHeight
         };
 
-        // Draw label background
+        // Draw trapezoid tab
         ctx.fillStyle = '#667eea';
         ctx.strokeStyle = '#667eea';
         ctx.lineWidth = 1;
-        roundRect(ctx, labelX, labelY, labelWidth, labelHeight, 4);
+
+        ctx.beginPath();
+        // Start from bottom-left
+        ctx.moveTo(tabX, tabY + labelHeight);
+        // Top-left (slanted inward)
+        ctx.lineTo(tabX + trapezoidSlant, tabY);
+        // Top-right (slanted inward)
+        ctx.lineTo(tabX + labelWidth - trapezoidSlant, tabY);
+        // Bottom-right
+        ctx.lineTo(tabX + labelWidth, tabY + labelHeight);
+        ctx.closePath();
+
         ctx.fill();
         ctx.stroke();
 
         // Draw label text
         ctx.fillStyle = '#fff';
+        ctx.font = `bold 11px ${FONT_FAMILY}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(labelText, labelX + labelWidth / 2, labelY + labelHeight / 2);
+        ctx.fillText(labelText, tabX + labelWidth / 2, tabY + labelHeight / 2);
 
         // Reset text alignment
         ctx.textAlign = 'left';
