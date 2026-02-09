@@ -126,6 +126,10 @@ render();
                 // root.json doesn't exist or failed to load
                 if (rootError.name === 'NotFoundError') {
                     setStatus(`Workspace: ${dirHandle.name} - Double-click to create nodes`);
+                } else if (rootError.message && rootError.message.includes('not allowed')) {
+                    // Permission expired or file access blocked
+                    console.warn('Workspace folder permission expired:', rootError);
+                    setStatus(`Workspace: ${dirHandle.name} - Click "Set Workspace Folder" to restore access`);
                 } else {
                     console.error('Failed to load root.json:', rootError);
                     setStatus(`⚠️ Failed to load root.json: ${rootError.message}`);
