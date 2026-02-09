@@ -165,6 +165,21 @@ canvas.addEventListener('mousedown', (e) => {
 
         // Special handling for table nodes - detect which cell was clicked
         if (clickedNode.type === 'table') {
+            // Check if clicked on the table label (for node-level subgraph)
+            if (clickedNode._tableLabelBounds) {
+                const label = clickedNode._tableLabelBounds;
+                if (x >= label.x && x <= label.x + label.width &&
+                    y >= label.y && y <= label.y + label.height) {
+                    // Clicked on table label - enter table-level subgraph
+                    if (clickedNode.subgraph) {
+                        enterSubgraph(clickedNode);
+                    } else {
+                        createNewSubgraph(clickedNode);
+                    }
+                    return false;
+                }
+            }
+
             const cellPos = getCellAtPoint(x, y, clickedNode);
 
             if (cellPos) {

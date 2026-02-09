@@ -1,3 +1,18 @@
+// Helper function to draw rounded rectangles
+function roundRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+}
+
 function drawNode(node) {
     const isSelected = selectedNodeIds.has(node.id);
 
@@ -438,6 +453,50 @@ function drawTableNode(node, isSelected) {
     ctx.strokeStyle = isSelected ? '#2196f3' : NODE_BORDER_COLOR;
     ctx.lineWidth = node.subgraph ? SUBGRAPH_BORDER_WIDTH : (isSelected ? SELECTED_BORDER_WIDTH : 1);
     ctx.strokeRect(node.x, node.y, totalWidth, totalHeight);
+
+    // Draw clickable label above table if it has a node-level subgraph
+    if (node.subgraph) {
+        const labelText = '⬇ Table';
+        const labelPadding = 4;
+        const labelHeight = 20;
+
+        // Measure text width
+        ctx.font = `12px ${FONT_FAMILY}`;
+        const textMetrics = ctx.measureText(labelText);
+        const labelWidth = textMetrics.width + labelPadding * 2;
+
+        // Position label centered above the table
+        const labelX = node.x + totalWidth / 2 - labelWidth / 2;
+        const labelY = node.y - labelHeight - 4;
+
+        // Store label position for click detection
+        node._tableLabelBounds = {
+            x: labelX,
+            y: labelY,
+            width: labelWidth,
+            height: labelHeight
+        };
+
+        // Draw label background
+        ctx.fillStyle = '#667eea';
+        ctx.strokeStyle = '#667eea';
+        ctx.lineWidth = 1;
+        roundRect(ctx, labelX, labelY, labelWidth, labelHeight, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw label text
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labelText, labelX + labelWidth / 2, labelY + labelHeight / 2);
+
+        // Reset text alignment
+        ctx.textAlign = 'left';
+    } else {
+        // Clear label bounds if no subgraph
+        delete node._tableLabelBounds;
+    }
 
     // Draw grid lines and cell content
     ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
