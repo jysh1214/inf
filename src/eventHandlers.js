@@ -168,6 +168,7 @@ canvas.addEventListener('mousedown', (e) => {
             const cellPos = getCellAtPoint(x, y, clickedNode);
 
             if (cellPos) {
+                // Clicked on a cell - handle cell-level subgraph
                 const cell = clickedNode.cells[cellPos.row][cellPos.col];
 
                 if (cell.subgraph) {
@@ -176,6 +177,15 @@ canvas.addEventListener('mousedown', (e) => {
                 } else {
                     // Cell has no subgraph - create new one
                     createCellSubgraph(clickedNode, cellPos.row, cellPos.col);
+                }
+            } else {
+                // Clicked on table border/background - handle table-level subgraph
+                if (clickedNode.subgraph) {
+                    // Table has node-level subgraph - enter it
+                    enterSubgraph(clickedNode);
+                } else {
+                    // Table has no subgraph - create new one
+                    createNewSubgraph(clickedNode);
                 }
             }
         } else {
