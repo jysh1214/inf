@@ -318,8 +318,20 @@ function isPointInNode(x, y, node) {
             if (node.type === 'table') {
                 const totalWidth = getTotalWidth(node);
                 const totalHeight = getTotalHeight(node);
-                return x >= node.x && x <= node.x + totalWidth &&
-                       y >= node.y && y <= node.y + totalHeight;
+
+                // Check table body
+                const inTableBody = x >= node.x && x <= node.x + totalWidth &&
+                                    y >= node.y && y <= node.y + totalHeight;
+
+                // Check label area if table has a subgraph
+                if (node._tableLabelBounds) {
+                    const label = node._tableLabelBounds;
+                    const inLabel = x >= label.x && x <= label.x + label.width &&
+                                    y >= label.y && y <= label.y + label.height;
+                    return inTableBody || inLabel;
+                }
+
+                return inTableBody;
             }
             return x >= node.x && x <= node.x + node.width &&
                    y >= node.y && y <= node.y + node.height;
