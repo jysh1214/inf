@@ -34,7 +34,7 @@ Every Inf diagram JSON file has the following top-level fields:
 
 ```json
 {
-  "version": "3.1",
+  "version": "3.2",
   "nodes": [],
   "connections": [],
   "groups": [],
@@ -49,7 +49,7 @@ Every Inf diagram JSON file has the following top-level fields:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `version` | string | Yes | Format version (current: "3.1") |
+| `version` | string | Yes | Format version (current: "3.2") |
 | `nodes` | array | Yes | Array of node objects |
 | `connections` | array | Yes | Array of connection objects |
 | `groups` | array | No | Array of group objects (optional, for backwards compatibility) |
@@ -388,7 +388,7 @@ Use table nodes for:
         "text": "Details",
         "textAlign": "center",
         "subgraph": {
-          "version": "3.1",
+          "version": "3.2",
           "nodes": [
             {
               "id": 1,
@@ -522,7 +522,7 @@ Groups are **graph-specific**:
 
 ```json
 {
-  "version": "3.1",
+  "version": "3.2",
   "nodes": [
     {"id": 1, "type": "rectangle", "text": "Login", "textAlign": "center", "x": 100, "y": 100, "width": 120, "height": 80},
     {"id": 2, "type": "rectangle", "text": "Signup", "textAlign": "center", "x": 250, "y": 100, "width": 120, "height": 80},
@@ -570,7 +570,7 @@ Store complete diagram data inside the node's `subgraph` property:
   "width": 120,
   "height": 80,
   "subgraph": {
-    "version": "3.1",
+    "version": "3.2",
     "nodes": [
       {
         "id": 1,
@@ -668,7 +668,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "3.1",
+  "version": "3.2",
   "nodes": [],
   "connections": [],
   "nextId": 1,
@@ -682,7 +682,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "3.1",
+  "version": "3.2",
   "nodes": [
     {
       "id": 1,
@@ -754,7 +754,7 @@ The application validates and prevents circular references at runtime.
 
 ```json
 {
-  "version": "3.1",
+  "version": "3.2",
   "nodes": [
     {
       "id": 1,
@@ -766,7 +766,7 @@ The application validates and prevents circular references at runtime.
       "width": 120,
       "height": 80,
       "subgraph": {
-        "version": "3.1",
+        "version": "3.2",
         "nodes": [
           {
             "id": 1,

@@ -164,3 +164,9 @@ const CODE_LINE_HEIGHT_OFFSET = 4;           // Additional spacing for code line
 
 // URL rendering
 const URL_UNDERLINE_OFFSET = 8;              // Vertical offset for URL underline below text baseline
+
+// Table label (trapezoid tab for table-level subgraphs)
+const TABLE_LABEL_HEIGHT = 22;               // Height of the trapezoid label tab
+const TABLE_LABEL_FONT_SIZE = 11;            // Font size for label text
+const TABLE_LABEL_TRAPEZOID_SLANT = 6;       // How much sides slant inward at top
+const TABLE_LABEL_OFFSET_X = 8;              // Horizontal offset from table left edge

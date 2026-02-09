@@ -457,25 +457,26 @@ function drawTableNode(node, isSelected) {
     // Draw trapezoid tab on top-left if table has a node-level subgraph
     if (node.subgraph) {
         const labelText = '⬇ Table';
-        const labelPadding = 8;
-        const labelHeight = 22;
-        const trapezoidSlant = 6; // How much the sides slant inward at the top
 
         // Measure text width
-        ctx.font = `bold 11px ${FONT_FAMILY}`;
+        ctx.font = `bold ${TABLE_LABEL_FONT_SIZE}px ${FONT_FAMILY}`;
         const textMetrics = ctx.measureText(labelText);
-        const labelWidth = textMetrics.width + labelPadding * 2;
+        const calculatedWidth = textMetrics.width + TEXT_PADDING * 2;
+
+        // Clamp label width to fit within table bounds with margin
+        const maxLabelWidth = totalWidth - TABLE_LABEL_OFFSET_X * 2;
+        const labelWidth = Math.min(calculatedWidth, maxLabelWidth);
 
         // Position tab at top-left of table
-        const tabX = node.x + 8;
-        const tabY = node.y - labelHeight;
+        const tabX = node.x + TABLE_LABEL_OFFSET_X;
+        const tabY = node.y - TABLE_LABEL_HEIGHT;
 
         // Store label position for click detection (use bounding box)
         node._tableLabelBounds = {
             x: tabX,
             y: tabY,
             width: labelWidth,
-            height: labelHeight
+            height: TABLE_LABEL_HEIGHT
         };
 
         // Draw trapezoid tab
@@ -485,13 +486,13 @@ function drawTableNode(node, isSelected) {
 
         ctx.beginPath();
         // Start from bottom-left
-        ctx.moveTo(tabX, tabY + labelHeight);
+        ctx.moveTo(tabX, tabY + TABLE_LABEL_HEIGHT);
         // Top-left (slanted inward)
-        ctx.lineTo(tabX + trapezoidSlant, tabY);
+        ctx.lineTo(tabX + TABLE_LABEL_TRAPEZOID_SLANT, tabY);
         // Top-right (slanted inward)
-        ctx.lineTo(tabX + labelWidth - trapezoidSlant, tabY);
+        ctx.lineTo(tabX + labelWidth - TABLE_LABEL_TRAPEZOID_SLANT, tabY);
         // Bottom-right
-        ctx.lineTo(tabX + labelWidth, tabY + labelHeight);
+        ctx.lineTo(tabX + labelWidth, tabY + TABLE_LABEL_HEIGHT);
         ctx.closePath();
 
         ctx.fill();
@@ -499,10 +500,10 @@ function drawTableNode(node, isSelected) {
 
         // Draw label text
         ctx.fillStyle = '#fff';
-        ctx.font = `bold 11px ${FONT_FAMILY}`;
+        ctx.font = `bold ${TABLE_LABEL_FONT_SIZE}px ${FONT_FAMILY}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(labelText, tabX + labelWidth / 2, tabY + labelHeight / 2);
+        ctx.fillText(labelText, tabX + labelWidth / 2, tabY + TABLE_LABEL_HEIGHT / 2);
 
         // Reset text alignment
         ctx.textAlign = 'left';
