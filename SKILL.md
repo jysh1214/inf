@@ -54,6 +54,7 @@ Generate comprehensive visual documentation for the current repository using the
 - Separate YAML files for each subgraph, with clear and descriptive names (e.g., module-authentication.yaml, concept-event-loop.yaml). Use relative paths only.
 - It's fine to use a large text node or a code node to include details or pseudocode.
 - **IMPORTANT**: Keep related content together in the same node. Use multiline text (with `\n`) to combine titles and content instead of creating separate nodes. The layout algorithm may place separate nodes far apart, breaking visual relationships. Example: Use `"Title\nContent here..."` instead of two separate nodes.
+- **AVOID isolated nodes**: Don't create standalone title nodes or short text nodes without connections. Instead, use groups with descriptive names to organize related nodes. Groups provide better visual structure than isolated title nodes.
 
 
 ---
@@ -208,6 +209,26 @@ groups:
 ```
 
 **Note:** Node text must match exactly (case-sensitive)
+
+**Best Practice - Use groups instead of isolated title nodes:**
+
+```yaml
+# ✓ GOOD: Group with descriptive name organizes related nodes
+nodes:
+  - text: "Authentication Service"
+  - text: "Token Validation"
+  - text: "User Session"
+
+groups:
+  - name: "Auth System"
+    nodes: ["Authentication Service", "Token Validation", "User Session"]
+
+# ✗ BAD: Isolated title node with no connections
+nodes:
+  - text: "Auth System"  # Isolated title node - avoid this!
+  - text: "Authentication Service"
+  - text: "Token Validation"
+```
 
 ## Layout
 
