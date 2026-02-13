@@ -85,6 +85,7 @@ nodes:
   - text: "Node Name"
     type: [rectangle|circle|diamond|text|code|table]  # default: rectangle
     align: [left|center|right]                        # default: center
+    attr: [title|intro]                               # optional: layout attribute
 ```
 
 **Node Types:**
@@ -106,6 +107,31 @@ URLs are automatically detected and highlighted in any node type (clickable with
 - `left` - For lists, code blocks
 - `center` - For titles, labels (default)
 - `right` - For dates, metadata
+
+**Layout Attributes (`attr`):**
+Special layout-only attributes that affect node positioning and sizing:
+```yaml
+- text: "Module Overview"
+  attr: title    # Full-width, placed at top
+
+- text: "This module handles authentication..."
+  attr: intro    # Full-width, placed below title
+```
+
+- `title` - Page title/heading, rendered as full-width rectangle at the top
+- `intro` - Introduction/description, rendered as full-width rectangle below title
+
+Layout order (top to bottom):
+```
+┌─────────────────────────────┐
+│         title               │  ← Full width
+├─────────────────────────────┤
+│         intro               │  ← Full width
+├─────────────────────────────┤
+│  other nodes...             │
+│  (normal layout)            │
+└─────────────────────────────┘
+```
 
 **Multiline text:** Use `\n` for line breaks:
 ```yaml

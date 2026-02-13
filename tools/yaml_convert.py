@@ -62,11 +62,12 @@ class YAMLValidator:
     VALID_ENGINES = {'dot', 'neato', 'fdp', 'circo', 'twopi'}
     VALID_RANKDIRS = {'TB', 'LR', 'BT', 'RL'}
 
-    VALID_NODE_KEYS = {'text', 'type', 'align', 'subgraph', 'table'}
+    VALID_NODE_KEYS = {'text', 'type', 'align', 'subgraph', 'table', 'attr'}
     VALID_CONNECTION_KEYS = {'from', 'to', 'directed'}
     VALID_GROUP_KEYS = {'name', 'nodes'}
     VALID_LAYOUT_KEYS = {'engine', 'rankdir', 'ranksep', 'nodesep'}
     VALID_ROOT_KEYS = {'nodes', 'connections', 'groups', 'layout'}
+    VALID_ATTRS = {'title', 'intro'}  # Layout-only attributes
 
     # Characters that cause Graphviz DOT syntax errors
     PROBLEMATIC_CHARS = ['\\', '"', "'", '<', '>', '{', '}', '..']
@@ -194,6 +195,14 @@ class YAMLValidator:
                 self.error(f"Node {index} ('{text}'): 'align' must be a string, got {type(align).__name__}")
             elif align not in self.VALID_ALIGNMENTS:
                 self.error(f"Node {index} ('{text}'): invalid align '{align}'. Valid alignments: {', '.join(sorted(self.VALID_ALIGNMENTS))}")
+
+        # Optional: attr (layout-only attribute)
+        if 'attr' in node:
+            attr = node['attr']
+            if not isinstance(attr, str):
+                self.error(f"Node {index} ('{text}'): 'attr' must be a string, got {type(attr).__name__}")
+            elif attr not in self.VALID_ATTRS:
+                self.error(f"Node {index} ('{text}'): invalid attr '{attr}'. Valid attrs: {', '.join(sorted(self.VALID_ATTRS))}")
 
         # Optional: subgraph
         if 'subgraph' in node:
@@ -548,24 +557,74 @@ class GraphvizLayoutEngine:
             G.graph_attr['nodesep'] = str(self.nodesep)
             G.node_attr['shape'] = 'box'
 
-            # Add nodes with sizes
+            # First pass: calculate sizes and find max width for full-width nodes
+            nodes = self.yaml_data.get('nodes', [])
             node_id_map = {}
-            for i, node in enumerate(self.yaml_data.get('nodes', [])):
+            title_node = None
+            intro_node = None
+            regular_nodes = []
+            max_width_inches = 0
+
+            for i, node in enumerate(nodes):
                 text = node.get('text', '')
                 node_id = f'n{i}'
                 node_id_map[text] = node_id
+                attr = node.get('attr')
 
                 width, height = self.calculate_node_size(node)
-                self.node_sizes[text] = (width * 72, height * 72)  # Store in pixels
 
-                # Add node to graph
-                G.add_node(node_id,
-                          label=text,
-                          width=width,
-                          height=height,
-                          fixedsize=True)
+                if attr == 'title':
+                    title_node = (node_id, text, width, height)
+                elif attr == 'intro':
+                    intro_node = (node_id, text, width, height)
+                else:
+                    regular_nodes.append((node_id, text, width, height))
+                    max_width_inches = max(max_width_inches, width)
 
-            # Add edges
+            # Ensure minimum full width (at least 400 pixels = ~5.5 inches)
+            full_width_inches = max(max_width_inches, 400 / 72.0)
+
+            # Add title node with full width
+            if title_node:
+                node_id, text, _, height = title_node
+                self.node_sizes[text] = (full_width_inches * 72, height * 72)
+                G.add_node(node_id, label=text, width=full_width_inches, height=height, fixedsize=True)
+
+            # Add intro node with full width
+            if intro_node:
+                node_id, text, _, height = intro_node
+                self.node_sizes[text] = (full_width_inches * 72, height * 72)
+                G.add_node(node_id, label=text, width=full_width_inches, height=height, fixedsize=True)
+
+            # Add regular nodes
+            for node_id, text, width, height in regular_nodes:
+                self.node_sizes[text] = (width * 72, height * 72)
+                G.add_node(node_id, label=text, width=width, height=height, fixedsize=True)
+
+            # Add invisible edges to enforce ordering: title → intro → regular nodes
+            first_regular = regular_nodes[0][0] if regular_nodes else None
+            if title_node and intro_node:
+                G.add_edge(title_node[0], intro_node[0], style='invis', weight=100)
+                if first_regular:
+                    G.add_edge(intro_node[0], first_regular, style='invis', weight=100)
+            elif title_node and first_regular:
+                G.add_edge(title_node[0], first_regular, style='invis', weight=100)
+            elif intro_node and first_regular:
+                G.add_edge(intro_node[0], first_regular, style='invis', weight=100)
+
+            # Use rank constraints to place title/intro at the top
+            if title_node or intro_node:
+                top_nodes = []
+                if title_node:
+                    top_nodes.append(title_node[0])
+                if intro_node:
+                    top_nodes.append(intro_node[0])
+                # Create a subgraph with rank=source to force these to the top
+                subgraph = G.add_subgraph(top_nodes, name='cluster_top')
+                subgraph.graph_attr['rank'] = 'source'
+                subgraph.graph_attr['style'] = 'invis'  # Hide the cluster border
+
+            # Add edges from connections
             for conn in self.yaml_data.get('connections', []):
                 from_text = conn.get('from')
                 to_text = conn.get('to')
@@ -619,6 +678,15 @@ class GraphvizLayoutEngine:
             max_x = max(max_x, right)
             min_y = min(min_y, top)
             max_y = max(max_y, bottom)
+
+        # Flip y-axis (Graphviz uses bottom-left origin, canvas uses top-left)
+        for text in self.node_positions:
+            x, y = self.node_positions[text]
+            self.node_positions[text] = (x, max_y + min_y - y)
+
+        # Recalculate min_y after flipping
+        min_y = min(y - self.node_sizes.get(text, (150, 60))[1] / 2
+                    for text, (x, y) in self.node_positions.items())
 
         # Calculate offset to move all nodes into positive coordinates
         padding = 100
