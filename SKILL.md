@@ -30,6 +30,23 @@ Generate comprehensive visual documentation for the current repository using the
 - **One-level-at-a-time**: Allows controlled iteration and review before going deeper
 - **Contrast**: Without `--focus`, scans ALL files at ALL levels for expandable nodes
 
+**--yaml-convert** - Convert all YAML files to Inf JSON format
+
+```bash
+/inf --yaml-convert               # Convert inf-notes/*.yaml to JSON
+```
+
+**What it does:**
+- Runs `python3 ~/.claude/skills/inf/tools/yaml_convert.py --dir inf-notes/`
+- Converts all YAML files in `inf-notes/` directory to Inf JSON format
+- Computes layout positions using Graphviz
+- Outputs JSON files alongside the YAML files
+
+**When to use `--yaml-convert`:**
+- After completing YAML creation and validation
+- When you want to view diagrams in the Inf canvas application
+- As a final step to generate viewable output
+
 ---
 
 # YAML Format Specification
@@ -464,6 +481,14 @@ If `--focus <file>` is provided (e.g., `/inf --focus api.yaml`):
 /inf --focus database.yaml        # Now work on database
 ```
 
+## Final Conversion
+
+```bash
+/inf --yaml-convert               # Convert all YAML to JSON for viewing
+```
+
+**When ready to view:** After completing YAML generation and validation, run `--yaml-convert` to produce JSON files that can be opened in the Inf canvas application.
+
 ---
 
 **Ready to generate notes!**
@@ -473,3 +498,4 @@ If `--focus <file>` is provided (e.g., `/inf --focus api.yaml`):
 - **With `--focus <file>`**: Extends only nodes in the specified file by one level
 - **Breadth-first by default**: `/inf` progressively deepens all areas simultaneously
 - **Focused iteration**: Use `--focus` to target specific areas while leaving others unchanged
+- **With `--yaml-convert`**: Converts all YAML files to JSON format for viewing in Inf canvas
