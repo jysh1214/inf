@@ -68,10 +68,14 @@ class YAMLValidator:
     VALID_LAYOUT_KEYS = {'engine', 'rankdir', 'ranksep', 'nodesep'}
     VALID_ROOT_KEYS = {'nodes', 'connections', 'groups', 'layout'}
 
+    # Characters that cause Graphviz DOT syntax errors
+    PROBLEMATIC_CHARS = ['\\', '"', "'", '<', '>', '{', '}', '..']
+
     def __init__(self):
         self.errors: List[str] = []
         self.warnings: List[str] = []
         self.node_texts: set = set()
+        self.connection_pairs: set = set()  # Track (from, to) pairs for duplicate detection
 
     def error(self, msg: str):
         """Add error message"""
@@ -160,6 +164,17 @@ class YAMLValidator:
         else:
             self.node_texts.add(text)
 
+        # Check for special characters that cause Graphviz errors
+        for char in self.PROBLEMATIC_CHARS:
+            # Allow \n for newlines
+            if char == '\\':
+                # Check for backslashes that are NOT part of \n
+                if re.search(r'\\(?!n)', text):
+                    self.warning(f"Node {index} ('{text[:30]}...'): contains backslash (not \\n) which may cause Graphviz errors")
+                    break
+            elif char in text:
+                self.warning(f"Node {index} ('{text[:30]}...'): contains '{char}' which may cause Graphviz errors")
+
         # Optional: type
         if 'type' in node:
             node_type = node['type']
@@ -247,6 +262,18 @@ class YAMLValidator:
         elif to_text not in self.node_texts:
             self.error(f"Connection {index}: 'to' node '{to_text}' not found in nodes. Check for exact match (case-sensitive, including \\n)")
 
+        # Check for self-connection
+        if isinstance(from_text, str) and isinstance(to_text, str) and from_text == to_text:
+            self.error(f"Connection {index}: self-connection not allowed (from and to are both '{from_text}')")
+
+        # Check for duplicate connections
+        if isinstance(from_text, str) and isinstance(to_text, str):
+            conn_pair = (from_text, to_text)
+            if conn_pair in self.connection_pairs:
+                self.error(f"Connection {index}: duplicate connection from '{from_text}' to '{to_text}'")
+            else:
+                self.connection_pairs.add(conn_pair)
+
         # Optional: directed
         if 'directed' in conn:
             directed = conn['directed']
@@ -280,8 +307,8 @@ class YAMLValidator:
             self.error(f"Group {index}: 'nodes' must be a list, got {type(nodes).__name__}")
             return
 
-        if len(nodes) == 0:
-            self.warning(f"Group {index}: group is empty")
+        if len(nodes) < 2:
+            self.error(f"Group {index}: group must contain at least 2 nodes, got {len(nodes)}")
 
         for i, node_text in enumerate(nodes):
             if not isinstance(node_text, str):
