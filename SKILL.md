@@ -130,8 +130,8 @@ nodes:
   - text: "Login Service"
 ```
 
-- `title` - The name/heading of this graph, rendered as full-width rectangle at the top
-- `intro` - Brief explanation of the graph's purpose, rendered as full-width rectangle below title
+- `title` - The name/heading of this graph, rendered as full-width text at the top
+- `intro` - Brief explanation of the graph's purpose, rendered as full-width text below title
 
 Layout order (top to bottom):
 ```
