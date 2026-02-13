@@ -53,6 +53,9 @@ Generate comprehensive visual documentation for the current repository using the
 
 ## Core Principle
 
+- **Every YAML file MUST have a title and introduction:**
+  - `title` node — The name or title of this graph (e.g., "Authentication Module")
+  - `intro` node — A brief explanation of what this graph covers
 - Provide a comprehensive overview (the full picture) at the root level (root.yaml).
 - Place detailed explanations in separate YAML files, using file-based subgraphs.
 - Use appropriate node types:
@@ -108,25 +111,34 @@ URLs are automatically detected and highlighted in any node type (clickable with
 - `center` - For titles, labels (default)
 - `right` - For dates, metadata
 
-**Layout Attributes (`attr`):**
-Special layout-only attributes that affect node positioning and sizing:
-```yaml
-- text: "Module Overview"
-  attr: title    # Full-width, placed at top
+**Layout Attributes (`attr`) - REQUIRED:**
 
-- text: "This module handles authentication..."
-  attr: intro    # Full-width, placed below title
+Every YAML file must start with a `title` and `intro` node:
+
+```yaml
+nodes:
+  # REQUIRED: Title - the name of this graph
+  - text: "Authentication Module"
+    attr: title
+
+  # REQUIRED: Introduction - explain what this graph covers
+  - text: "This module handles user login, session management, and access control."
+    attr: intro
+    align: left
+
+  # Other nodes follow...
+  - text: "Login Service"
 ```
 
-- `title` - Page title/heading, rendered as full-width rectangle at the top
-- `intro` - Introduction/description, rendered as full-width rectangle below title
+- `title` - The name/heading of this graph, rendered as full-width rectangle at the top
+- `intro` - Brief explanation of the graph's purpose, rendered as full-width rectangle below title
 
 Layout order (top to bottom):
 ```
 ┌─────────────────────────────┐
-│         title               │  ← Full width
+│         title               │  ← Full width, graph name
 ├─────────────────────────────┤
-│         intro               │  ← Full width
+│         intro               │  ← Full width, explanation
 ├─────────────────────────────┤
 │  other nodes...             │
 │  (normal layout)            │
