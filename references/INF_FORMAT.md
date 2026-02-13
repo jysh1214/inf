@@ -1,11 +1,12 @@
-# Inf JSON Format Specification
+# Inf Format Specification
 
-This document defines the JSON format for Inf diagrams, providing a complete technical specification for creating, parsing, and validating diagram files.
+This document defines the formats for Inf diagrams: **YAML** (human-friendly, for authoring) and **JSON** (machine format, for the canvas application).
 
 ## Table of Contents
 
 - [Overview](#overview)
-- [Top-Level Structure](#top-level-structure)
+- [YAML Format](#yaml-format)
+- [JSON Format](#json-format)
 - [Node Types](#node-types)
 - [Connections](#connections)
 - [Groups](#groups)
@@ -28,7 +29,183 @@ Inf diagrams are stored as JSON files with a well-defined structure. The format 
 
 ---
 
-## Top-Level Structure
+## YAML Format
+
+The YAML format is designed for human authoring. It's simpler than JSON because **positions and sizes are computed automatically** by Graphviz during conversion.
+
+### YAML vs JSON
+
+| Aspect | YAML | JSON |
+|--------|------|------|
+| Purpose | Human authoring | Canvas application |
+| Positions | Computed automatically | Explicit x, y coordinates |
+| Sizes | Computed automatically | Explicit width, height |
+| IDs | Not needed (text is identifier) | Required numeric IDs |
+| Extension | `.yaml` | `.json` |
+| Conversion | `scripts/yaml_convert.py` | N/A |
+
+### Basic YAML Structure
+
+```yaml
+nodes:
+  - text: "Node Name"
+    type: rectangle       # rectangle, circle, diamond, text, code, table
+    align: center         # left, center, right
+    attr: title           # optional: title, intro (layout attributes)
+    subgraph: "file.yaml" # optional: link to another YAML file
+
+connections:
+  - from: "Source Node"
+    to: "Target Node"
+    directed: true        # true (arrow) or false (line)
+
+groups:
+  - name: "Group Name"
+    nodes: ["Node 1", "Node 2"]
+
+layout:
+  engine: dot             # dot, neato, fdp, circo, twopi
+  rankdir: TB             # TB, LR, BT, RL
+```
+
+### Node Types
+
+```yaml
+# Rectangle (default) - concepts, components, modules
+- text: "API Server"
+  type: rectangle
+
+# Circle - entry/exit points, external systems
+- text: "Start"
+  type: circle
+
+# Diamond - decision points, conditionals
+- text: "Is Valid?"
+  type: diamond
+
+# Text - annotations, labels (no border)
+- text: "Note: This is important"
+  type: text
+
+# Code - code snippets with syntax highlighting
+- text: "function hello() {\n  return true;\n}"
+  type: code
+
+# Table - structured data (Markdown syntax)
+- text: "Config Table"
+  type: table
+  table: |
+    | Key     | Value   |
+    |---------|---------|
+    | timeout | 30s     |
+    | retries | 3       |
+```
+
+### Layout Attributes (`attr`)
+
+Special attributes that affect node positioning:
+
+```yaml
+- text: "Module Overview"
+  attr: title    # Full-width, placed at top
+
+- text: "This module handles authentication..."
+  attr: intro    # Full-width, placed below title
+```
+
+Layout order:
+```
+┌─────────────────────────────┐
+│         title               │  ← Full width
+├─────────────────────────────┤
+│         intro               │  ← Full width
+├─────────────────────────────┤
+│  other nodes...             │
+└─────────────────────────────┘
+```
+
+### Subgraphs (YAML)
+
+Link to another YAML file for hierarchical depth:
+
+```yaml
+- text: "Authentication"
+  subgraph: "module-auth.yaml"
+```
+
+**Naming conventions:**
+- Top-level: `api.yaml`, `database.yaml`
+- Nested: `parent__child.yaml` (double underscore)
+- Prefixes: `api-`, `module-`, `concept-`, `flow-`
+
+### Table Alignment (Markdown)
+
+```yaml
+- text: "System Config"
+  type: table
+  table: |
+    | Component  | Status | Version |
+    |:-----------|:------:|--------:|
+    | API        | Active | 2.1.0   |
+```
+
+- `:---` = left-aligned
+- `:---:` = center-aligned
+- `---:` = right-aligned
+
+### Layout Engines
+
+```yaml
+layout:
+  engine: dot      # Hierarchical (flowcharts, org charts)
+  rankdir: TB      # Top to bottom
+  ranksep: 1.5     # Rank separation
+  nodesep: 1.0     # Node separation
+```
+
+**Engines:**
+- `dot` - Hierarchical (default)
+- `neato` - Force-directed (networks)
+- `fdp` - Force-directed with clustering
+- `circo` - Circular layout
+- `twopi` - Radial layout
+
+**Directions:**
+- `TB` - Top to bottom (default)
+- `LR` - Left to right
+- `BT` - Bottom to top
+- `RL` - Right to left
+
+### Special Characters Warning
+
+**Avoid these characters in node text (Graphviz parsing issues):**
+- Backslashes: `\` (except `\n` for newlines)
+- Quotes: `"` `'`
+- Angle brackets: `<` `>`
+- Curly braces: `{` `}`
+- Double periods: `..`
+
+### Conversion
+
+Convert YAML to JSON:
+```bash
+# Single file
+python3 scripts/yaml_convert.py input.yaml --output output.json
+
+# Validate only
+python3 scripts/yaml_convert.py input.yaml --validate
+
+# Batch convert directory
+python3 scripts/yaml_convert.py --dir inf-notes/
+```
+
+---
+
+## JSON Format
+
+The following sections document the JSON format used by the Inf canvas application.
+
+### Top-Level Structure
 
 Every Inf diagram JSON file has the following top-level fields:
 
