@@ -18,7 +18,7 @@ inf/
 │   ├── template.html       # HTML structure
 │   ├── styles.css          # Styling
 │   └── *.js                # 12 JavaScript modules (see order below)
-├── tools/                  # Python conversion tools
+├── scripts/                # Python conversion tools (skill scripts)
 │   ├── converter.py        # YAML → Inf structure conversion
 │   ├── graphviz.py         # Layout computation with Graphviz
 │   ├── yaml2inf.py         # Main conversion script
@@ -26,7 +26,8 @@ inf/
 ├── build.py                # Builds src/ → index.html
 ├── check.py                # Validates build output
 ├── SKILL.md                # /inf skill documentation (includes YAML format spec)
-└── INF_FORMAT.md           # JSON format specification
+└── references/             # Documentation loaded as needed
+    └── INF_FORMAT.md       # JSON format specification
 ```
 
 ## Build System
@@ -56,16 +57,16 @@ python3 check.py
 
 ```bash
 # Validate a single YAML file
-python3 tools/yaml_checker.py <file.yaml>
+python3 scripts/yaml_checker.py <file.yaml>
 
 # Validate all YAML files in a folder
-python3 tools/yaml2inf.py <folder>/ --validate --verbose
+python3 scripts/yaml2inf.py <folder>/ --validate --verbose
 
 # Convert YAML files to Inf JSON
-python3 tools/yaml2inf.py <folder>/ --verbose
+python3 scripts/yaml2inf.py <folder>/ --verbose
 
 # Convert with custom layout
-python3 tools/yaml2inf.py <folder>/ --engine neato --rankdir LR
+python3 scripts/yaml2inf.py <folder>/ --engine neato --rankdir LR
 ```
 
 **Common Options:**
@@ -288,12 +289,12 @@ The `/inf` skill generates hierarchical documentation for any repository using m
 **Phase 2: Parallel Subgraph Creation**
 1. Spawn 8-16 agents in parallel using Task tool
 2. Each agent creates a focused YAML file (5-15 nodes)
-3. **Each agent MUST validate their YAML** using `tools/yaml_checker.py`
+3. **Each agent MUST validate their YAML** using `scripts/yaml_checker.py`
 4. Agents fix validation errors before marking complete
 
 **Phase 2.5: Validation**
-1. Each agent validates their own file with `tools/yaml_checker.py`
-2. Batch validation with `tools/yaml2inf.py --validate --verbose`
+1. Each agent validates their own file with `scripts/yaml_checker.py`
+2. Batch validation with `scripts/yaml2inf.py --validate --verbose`
 3. Fix errors before proceeding to next level
 
 **Phase 3: Deep Nesting (Recursive)**
@@ -304,7 +305,7 @@ The `/inf` skill generates hierarchical documentation for any repository using m
 
 **Phase 4: Final Report & Conversion**
 1. Run final batch validation
-2. Convert all YAML to JSON: `python3 tools/yaml2inf.py inf-notes/ --verbose`
+2. Convert all YAML to JSON: `python3 scripts/yaml2inf.py inf-notes/ --verbose`
 3. Report completion summary
 
 **Important**: Agents create YAML files only. JSON conversion happens once at the end in Phase 4. Agents MUST validate their YAML before completing.
@@ -390,7 +391,7 @@ To add a new node type (example: Code node was added in v1.4):
    - Add to `validTypes` array in `validateNode()`
    - Add to type-specific validation conditions (width/height checks)
 10. Update `autoSave.js` validation if type needs special handling
-11. Update documentation (INF_FORMAT.md, SKILL.md)
+11. Update documentation (references/INF_FORMAT.md, SKILL.md)
 
 ### Adding New Global State
 
@@ -432,7 +433,7 @@ When implementing features, avoid adding arbitrary limits unless there's a techn
 ### YAML Validation Philosophy
 
 **Critical**: Agents MUST validate YAML before considering their work complete:
-- Each agent validates their own file using `tools/yaml_checker.py`
+- Each agent validates their own file using `scripts/yaml_checker.py`
 - Agents fix validation errors immediately
 - NO JSON conversion by agents (only YAML creation)
 - Batch validation happens after each level completes
@@ -442,7 +443,7 @@ When implementing features, avoid adding arbitrary limits unless there's a techn
 **Why this matters:**
 - Catches errors early before they cascade to deeper levels
 - Each agent is responsible for their output quality
-- Ensures `tools/yaml2inf.py` can successfully convert all files
+- Ensures `scripts/yaml2inf.py` can successfully convert all files
 - Validates connections and groups reference real nodes
 - Confirms all subgraph references are resolvable
 
@@ -451,7 +452,7 @@ When implementing features, avoid adding arbitrary limits unless there's a techn
 **For agents creating YAML files:**
 ```bash
 # Agent validates their own file (REQUIRED)
-python3 tools/yaml_checker.py inf-notes/module-auth.yaml
+python3 scripts/yaml_checker.py inf-notes/module-auth.yaml
 
 # Expected: "✓ Valid" output
 # If errors: Fix immediately, re-validate, repeat until clean
@@ -460,7 +461,7 @@ python3 tools/yaml_checker.py inf-notes/module-auth.yaml
 **After all agents complete a level:**
 ```bash
 # Batch validate entire folder
-python3 tools/yaml2inf.py inf-notes/ --validate --verbose
+python3 scripts/yaml2inf.py inf-notes/ --validate --verbose
 
 # Expected: "✓ All files validated successfully!"
 # Only proceed to next level if this passes
@@ -469,7 +470,7 @@ python3 tools/yaml2inf.py inf-notes/ --validate --verbose
 **Final conversion (Phase 4 only):**
 ```bash
 # Convert all YAML to JSON (after all YAML complete)
-python3 tools/yaml2inf.py inf-notes/ --verbose
+python3 scripts/yaml2inf.py inf-notes/ --verbose
 ```
 
 ## Common Issues and Solutions
@@ -494,7 +495,7 @@ If connections don't touch node borders or have gaps:
   - **Fix**: Check indentation, quotes, special characters
 
 **How to debug:**
-1. Run `tools/yaml_checker.py` on the problematic file
+1. Run `scripts/yaml_checker.py` on the problematic file
 2. Read error messages carefully (they include context)
 3. Check that connection text matches node text exactly (case-sensitive, including `\n`)
 4. Verify all subgraph files exist before referencing them
@@ -578,7 +579,7 @@ If "Failed to access file" errors occur:
 
 ## Documentation
 
-- **INF_FORMAT.md**: JSON format specification for Inf diagrams
+- **references/INF_FORMAT.md**: JSON format specification for Inf diagrams
 - **SKILL.md**: `/inf` skill documentation with YAML format specification
-- **tools/README.md**: Python tools architecture and usage
+- **scripts/README.md**: Python scripts architecture and usage
 - **CLAUDE.md**: This file - architectural guidance for Claude Code instances

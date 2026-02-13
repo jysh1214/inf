@@ -21,5 +21,5 @@ claude --dangerously-skip-permissions
 ```
 
 ```bash
-python3 ~/.claude/skills/inf/tools/yaml_convert.py --dir inf-notes/
+python3 ~/.claude/skills/inf/scripts/yaml_convert.py --dir inf-notes/
 ```
