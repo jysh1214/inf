@@ -20,7 +20,6 @@ Generate comprehensive visual documentation for the current repository using the
 **When to use `--focus`:**
 - You want to deeply explore one specific area without touching others
 - You're iterating on a particular module's documentation
-- You want to parallelize work (multiple agents each focusing on different files)
 - You need to regenerate/fix one subgraph without affecting the rest
 
 **Behavior:**
@@ -358,6 +357,10 @@ Identify key patterns: frontend/backend separation, modules, data flow, dependen
 
 ## Workflow
 
+**IMPORTANT: Sequential Processing Only**
+
+DO NOT use agents in parallel. Process all files sequentially to avoid context limits. Create and validate files one at a time.
+
 ### Check if `inf-notes/` exists
 
 **If `inf-notes/` does NOT exist (new repository):**
@@ -492,17 +495,20 @@ If `--focus <file>` is provided (e.g., `/inf --focus api.yaml`):
 
 **Behavior:** With `--focus`, expansion is limited to **one level** for controlled, iterative deepening. This allows you to carefully review and refine each level before proceeding deeper.
 
-## Parallel Work Strategy
+## Important: Sequential Processing Only
+
+**DO NOT use agents in parallel to avoid context limits.** Process files sequentially, one at a time. This ensures:
+- Stable context management
+- Predictable memory usage
+- Reliable validation and error handling
 
 ```bash
-# You can run multiple focused expansions to work on different areas:
-/inf --focus api.yaml              # Expand API area
-/inf --focus frontend.yaml         # Expand frontend area
-/inf --focus database.yaml         # Expand database area
+# CORRECT: Sequential expansion
+/inf --focus api.yaml              # Wait for completion
+/inf --focus frontend.yaml         # Then expand next area
+/inf --focus database.yaml         # Continue sequentially
 
-# Then go deeper in parallel:
-/inf --focus api__auth.yaml        # Deepen auth
-/inf --focus frontend__ui.yaml     # Deepen UI
+# WRONG: Do NOT spawn multiple agents in parallel
 ```
 
 ## Iterative Refinement
