@@ -590,11 +590,30 @@ class GraphvizLayoutEngine:
                 self.node_sizes[text] = (full_width_inches * 72, height * 72)
                 G.add_node(node_id, label=text, width=full_width_inches, height=height, fixedsize=True)
 
-            # Add intro node with full width
+            # Add intro node with full width and recalculated height for text wrapping
             if intro_node:
-                node_id, text, _, height = intro_node
-                self.node_sizes[text] = (full_width_inches * 72, height * 72)
-                G.add_node(node_id, label=text, width=full_width_inches, height=height, fixedsize=True)
+                node_id, text, _, _ = intro_node
+                # Recalculate height based on full width to account for text wrapping
+                full_width_px = full_width_inches * 72
+                char_width = 8  # pixels per character
+                line_height = 20  # pixels per line
+                chars_per_line = max(1, int((full_width_px - 40) / char_width))  # 40px horizontal padding
+
+                # Calculate wrapped line count
+                lines = text.split('\n')
+                total_lines = 0
+                for line in lines:
+                    if len(line) == 0:
+                        total_lines += 1
+                    else:
+                        total_lines += max(1, (len(line) + chars_per_line - 1) // chars_per_line)
+
+                # More generous padding for intro nodes (40px vs 20px)
+                intro_height_px = max(80, total_lines * line_height + 40)
+                intro_height = intro_height_px / 72.0
+
+                self.node_sizes[text] = (full_width_px, intro_height_px)
+                G.add_node(node_id, label=text, width=full_width_inches, height=intro_height, fixedsize=True)
 
             # Add regular nodes
             for node_id, text, width, height in regular_nodes:
