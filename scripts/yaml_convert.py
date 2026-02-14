@@ -595,8 +595,8 @@ class GraphvizLayoutEngine:
                 node_id, text, _, _ = intro_node
                 # Recalculate height based on full width to account for text wrapping
                 full_width_px = full_width_inches * 72
-                char_width = 8  # pixels per character
-                line_height = 20  # pixels per line
+                char_width = 7  # pixels per character (conservative estimate)
+                line_height = 24  # pixels per line (generous spacing)
                 chars_per_line = max(1, int((full_width_px - 40) / char_width))  # 40px horizontal padding
 
                 # Calculate wrapped line count
@@ -608,8 +608,8 @@ class GraphvizLayoutEngine:
                     else:
                         total_lines += max(1, (len(line) + chars_per_line - 1) // chars_per_line)
 
-                # More generous padding for intro nodes (40px vs 20px)
-                intro_height_px = max(80, total_lines * line_height + 40)
+                # Generous padding for intro nodes
+                intro_height_px = max(100, total_lines * line_height + 60)
                 intro_height = intro_height_px / 72.0
 
                 self.node_sizes[text] = (full_width_px, intro_height_px)
