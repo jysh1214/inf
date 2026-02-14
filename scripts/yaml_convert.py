@@ -609,7 +609,7 @@ class GraphvizLayoutEngine:
                         total_lines += max(1, (len(line) + chars_per_line - 1) // chars_per_line)
 
                 # Generous padding for intro nodes
-                intro_height_px = max(100, total_lines * line_height + 60)
+                intro_height_px = max(100, total_lines * line_height + 80)
                 intro_height = intro_height_px / 72.0
 
                 self.node_sizes[text] = (full_width_px, intro_height_px)
