@@ -26,9 +26,9 @@ function triggerAutoSave() {
     // No-op: Auto-save functionality removed
 }
 
-// Initialize canvas size
+// Initialize canvas size (scales with zoom to maintain full visible area)
 function resizeCanvas() {
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    canvas.width = canvasWidth * zoom;
+    canvas.height = canvasHeight * zoom;
     render();
 }

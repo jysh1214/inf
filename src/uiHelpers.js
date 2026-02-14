@@ -250,7 +250,7 @@ function zoomIn() {
     const newZoom = Math.min(MAX_ZOOM, zoom + ZOOM_STEP);
     if (newZoom !== zoom) {
         zoom = newZoom;
-        render();
+        resizeCanvas();
         setStatus(`Zoom: ${Math.round(zoom * 100)}%`);
         triggerAutoSave();
     }
@@ -260,7 +260,7 @@ function zoomOut() {
     const newZoom = Math.max(MIN_ZOOM, zoom - ZOOM_STEP);
     if (newZoom !== zoom) {
         zoom = newZoom;
-        render();
+        resizeCanvas();
         setStatus(`Zoom: ${Math.round(zoom * 100)}%`);
         triggerAutoSave();
     }
