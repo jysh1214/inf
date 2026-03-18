@@ -667,6 +667,10 @@ class GraphvizLayoutEngine:
                 y = float(pos[1])
                 self.node_positions[text] = (x, y)
 
+            # Explicit cleanup to prevent pygraphviz C library state leaks
+            G.clear()
+            G.close()
+
             return True
 
         except Exception as e:
@@ -1074,6 +1078,49 @@ def convert_single_file(input_file: str, output_file: str, validate_only: bool =
         return False
 
 
+def _verify_output_title(yaml_path: Path, json_path: Path) -> bool:
+    """Verify that the JSON output's title node matches the YAML source's title node.
+
+    This guards against pygraphviz C library state leaks that can cause
+    one file's layout data to bleed into another file's output during
+    batch conversion.
+    """
+    try:
+        with open(yaml_path, 'r') as f:
+            yaml_data = yaml.safe_load(f)
+        with open(json_path, 'r') as f:
+            json_data = json.load(f)
+
+        # Extract title from YAML (node with attr: title, or first node)
+        yaml_title = None
+        for node in yaml_data.get('nodes', []):
+            if node.get('attr') == 'title':
+                yaml_title = node.get('text')
+                break
+        if yaml_title is None:
+            yaml_nodes = yaml_data.get('nodes', [])
+            if yaml_nodes:
+                yaml_title = yaml_nodes[0].get('text')
+
+        # Extract title from JSON (first node text — title is always first)
+        json_title = None
+        json_nodes = json_data.get('nodes', [])
+        if json_nodes:
+            json_title = json_nodes[0].get('text')
+
+        if yaml_title is None or json_title is None:
+            return True  # Can't verify, assume OK
+
+        if yaml_title != json_title:
+            print(f"❌ VALIDATION FAILED: YAML title '{yaml_title}' != JSON title '{json_title}'")
+            return False
+
+        return True
+    except Exception as e:
+        print(f"⚠️  Validation check error: {e}")
+        return True  # Don't block on validation errors
+
+
 def convert_directory(directory: str) -> bool:
     """Convert all YAML files in a directory to Inf JSON"""
     dir_path = Path(directory)
@@ -1101,6 +1148,8 @@ def convert_directory(directory: str) -> bool:
     success_count = 0
     failed_files = []
 
+    max_retries = 2
+
     for yaml_file in yaml_files:
         output_file = yaml_file.with_suffix('.json')
 
@@ -1108,7 +1157,19 @@ def convert_directory(directory: str) -> bool:
         print(f"Processing: {yaml_file.name}")
         print(f"{'─'*60}\n")
 
-        if convert_single_file(str(yaml_file), str(output_file), validate_only=False):
+        converted = False
+        for attempt in range(1, max_retries + 1):
+            if convert_single_file(str(yaml_file), str(output_file), validate_only=False):
+                # Post-conversion validation: verify JSON title matches YAML title
+                if _verify_output_title(yaml_file, output_file):
+                    converted = True
+                    break
+                else:
+                    print(f"⚠️  Title mismatch detected (attempt {attempt}/{max_retries}), retrying...")
+            else:
+                break  # Conversion itself failed, no point retrying
+
+        if converted:
             success_count += 1
         else:
             failed_files.append(yaml_file.name)
